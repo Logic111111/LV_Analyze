@@ -298,9 +298,15 @@ function solveTxSubtree(design, tx, opts) {
   order.forEach(id => {
     const p = poleById(design, id);
     const km = p.spanM / 1000;
+    // Neutral impedance gets a tiny length floor (1 cm). Once any pole is grounded, the neutral
+    // is solved as a nodal network that divides by each span's neutral impedance (1/Zn for its
+    // admittance, ΔVn/Zn for its neutral current) — a 0 m span (a transformer bolted straight onto
+    // a pole, e.g. from a feeder split) has Zn = 0 exactly, which turned that span's neutral
+    // current and loss into NaN. 1 cm is physically negligible (~6 µΩ) but keeps it finite.
+    const kmN = Math.max(km, 1e-5);
     spanZ[id] = {
       Zph: { re: CONDUCTORS[p.cond].R * km, im: condX(p.cond) * km },
-      Zn: { re: condRn(p.cond) * km, im: condXn(p.cond) * km }
+      Zn: { re: condRn(p.cond) * kmN, im: condXn(p.cond) * kmN }
     };
   });
 
@@ -332,7 +338,13 @@ function solveTxSubtree(design, tx, opts) {
     const n = order.length + 1;
     Ymat = Array.from({ length: n }, () => Array.from({ length: n }, () => C.zero()));
     order.forEach(id => {
-      const ySpan = C.div({ re: 1, im: 0 }, spanZ[id].Zn);
+      // A 0m span (e.g. a new transformer bolted directly onto its cut/site pole) has zero neutral
+      // impedance, so the true admittance is infinite — dividing by the exact-zero Zn would produce
+      // NaN and poison the whole matrix solve. Treat it as a near-perfect tie (a very large but
+      // finite admittance) instead: electrically equivalent (no voltage drop across 0m of neutral
+      // either way), but keeps every downstream Vn/VnTx value finite.
+      const zn = spanZ[id].Zn;
+      const ySpan = (zn.re * zn.re + zn.im * zn.im) > 0 ? C.div({ re: 1, im: 0 }, zn) : { re: 1e9, im: 0 };
       const i = nodeIdx[id];
       const parent = parentOf[id];
       const j = parent === tx.id ? txNodeIdx : nodeIdx[parent];
@@ -886,7 +898,7 @@ export function polePathDistanceM(design, poleIdX, poleIdY) {
 // referencing whatever parent it already had, so whole subtrees (and any side-branches off a
 // reversed segment) follow their own parent automatically, without needing to be listed.
 export function buildSplitCandidate(design, newTx, reparents) {
-  return {
+  const next = {
     ...design,
     transformers: [...design.transformers, newTx],
     poles: design.poles.map(p => {
@@ -894,6 +906,16 @@ export function buildSplitCandidate(design, newTx, reparents) {
       return r ? { ...p, parent: r.parent ?? newTx.id, spanM: Number(r.spanM) || 0, cond: r.cond, feeder: r.feeder } : p;
     })
   };
+  // Everything downstream of an attach point (a plan entry hanging straight off the new
+  // transformer) is now part of that new feeder too — give the whole moved subtree its feeder
+  // name, not just the one reparented pole, so the Network page and diagram show the real
+  // "new transformer's F1 runs P9 … P7" picture instead of leaving the tail labelled with its old
+  // feeder.
+  reparents.filter(r => r.parent == null).forEach(r => {
+    const moved = new Set(bfsOrderFrom(next, [r.poleId]));
+    next.poles = next.poles.map(p => (moved.has(p.id) ? { ...p, feeder: r.feeder } : p));
+  });
+  return next;
 }
 
 // All poles belonging to the same feeder tree as `anchorPoleId` — its own root pole(s) under its
@@ -973,6 +995,40 @@ function resolveSiteReparentPlan(design, splitPoleId, anchorPoleId, cond, feeder
     plan.push({ poleId: chain[j], parent: chain[j - 1], spanM: original.spanM, cond: original.cond, feeder: feederName });
   }
   return plan;
+}
+
+// Connected load and installed solar PV (kVA per phase) for every feeder in the design, grouped by
+// the actual feeder tree — the (transformer, feeder name) of a root pole plus everything downstream
+// of it — rather than by each pole's own `feeder` string, so two different transformers' identically
+// named feeders (e.g. a new transformer's "F1" and the original one's) are never merged. Loads are
+// ADMD-substituted where kVA is unspecified (same convention as everywhere else); PV is nameplate
+// kVA (not curve-scaled) — "how much is connected", not "how much is generating right now". A
+// three-phase (ABC) connection splits evenly across A/B/C. Used by both the network diagram's
+// per-feeder labels and the Feeder Split preview table.
+export function feederConnectedTotals(design) {
+  const groups = new Map();
+  design.poles.filter(p => isTransformerId(design, p.parent)).forEach(root => {
+    const key = root.parent + '|' + root.feeder;
+    let g = groups.get(key);
+    if (!g) {
+      g = { key, txId: root.parent, feederName: root.feeder, roots: [], poleIds: [], load: { A: 0, B: 0, C: 0 }, pv: { A: 0, B: 0, C: 0 } };
+      groups.set(key, g);
+    }
+    g.roots.push(root.id);
+  });
+  const add = (bucket, phase, kva) => {
+    if (phase === 'ABC') PHASES.forEach(ph => { bucket[ph] += kva / 3; });
+    else bucket[phase] += kva;
+  };
+  groups.forEach(g => {
+    g.poleIds = bfsOrderFrom(design, g.roots);
+    const inGroup = new Set(g.poleIds);
+    design.loads.forEach(l => {
+      if (inGroup.has(l.pole)) add(g.load, l.phase, (l.kva == null || l.kva === '') ? design.admd : Number(l.kva));
+    });
+    design.pv.forEach(p => { if (inGroup.has(p.pole)) add(g.pv, p.phase, Number(p.kva)); });
+  });
+  return [...groups.values()];
 }
 
 // Resolves the full reparent plan for candidate split point `poleId` given a site spec:

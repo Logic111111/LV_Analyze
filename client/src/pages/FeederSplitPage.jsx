@@ -4,7 +4,7 @@ import { useTheme } from '../context/ThemeContext.jsx';
 import {
   feederTrees, poleById, transformerOfPole, nextTransformerId, TRANSFORMERS, CONDUCTORS,
   computeFeederSplitCandidates, dualFeederSetup, scoreFeederSplitCandidate, scoreDualFeederCandidate,
-  buildSplitCandidate, runSnapshot, scanAndSummarize, DAILY_HOURS
+  buildSplitCandidate, runSnapshot, scanAndSummarize, feederConnectedTotals, DAILY_HOURS
 } from '../lib/loadflow.js';
 import { buildDiagramSVG } from '../lib/diagram.js';
 
@@ -245,6 +245,10 @@ export default function FeederSplitPage() {
 
   const previewSnapshot = preview ? runSnapshot(preview.design, { year: 0, hour: 20, loadMult: 1, solarMult: 1 }) : null;
   const previewSvg = previewSnapshot ? buildDiagramSVG(preview.design, previewSnapshot, theme) : null;
+  const previewNewTxId = preview ? preview.design.transformers[preview.design.transformers.length - 1].id : null;
+  const previewFeeders = preview
+    ? feederConnectedTotals(preview.design).map(g => ({ ...g, txName: preview.design.transformers.find(t => t.id === g.txId)?.name || g.txId }))
+    : [];
 
   return (
     <div>
@@ -490,6 +494,24 @@ export default function FeederSplitPage() {
             <p><span className={'pill ' + (previewSnapshot.violations.length ? 'bad' : 'ok')}>{previewSnapshot.violations.length} violation{previewSnapshot.violations.length === 1 ? '' : 's'} at 20:00</span></p>
           )}
           {previewSvg && <div className="diagram" dangerouslySetInnerHTML={{ __html: previewSvg }} />}
+          <div className="section-title" style={{ marginTop: 14 }}>Feeders after the split — connected load &amp; solar PV (kVA per phase)</div>
+          <p className="hint" style={{ marginTop: 0 }}>Every feeder in the resulting design, so you can see what moved to the new transformer and what stayed. Load is ADMD-substituted where unspecified; PV is installed (nameplate) kVA.</p>
+          <div className="tbl-wrap"><table>
+            <thead><tr><th>Transformer</th><th>Feeder</th><th>Poles</th><th>Load A</th><th>Load B</th><th>Load C</th><th>PV A</th><th>PV B</th><th>PV C</th></tr></thead>
+            <tbody>
+              {previewFeeders.map(g => {
+                const isNew = g.txId === previewNewTxId;
+                return (
+                  <tr key={g.key}>
+                    <td>{g.txName}{isNew && <> <span className="pill ok" style={{ fontSize: 10 }}>new</span></>}</td>
+                    <td>{g.feederName}</td><td>{g.poleIds.length}</td>
+                    <td>{g.load.A.toFixed(1)}</td><td>{g.load.B.toFixed(1)}</td><td>{g.load.C.toFixed(1)}</td>
+                    <td>{g.pv.A.toFixed(1)}</td><td>{g.pv.B.toFixed(1)}</td><td>{g.pv.C.toFixed(1)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table></div>
         </div>
       )}
     </div>

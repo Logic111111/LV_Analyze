@@ -1,4 +1,4 @@
-import { bfsOrder, children, poleById, isTransformerId, PHASES } from './loadflow.js';
+import { bfsOrder, children, poleById, isTransformerId, PHASES, feederConnectedTotals } from './loadflow.js';
 
 function esc(v) { return String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
@@ -30,23 +30,6 @@ export function layoutNetwork(design) {
   return { order, x, y, txPos, yOffset: 40, width, height, depth };
 }
 
-// Total connected load (general+EV+shop; ADMD substituted for a null per-connection kVA, same
-// as everywhere else in the app), per phase, aggregated across every pole on each feeder — a
-// three-phase (ABC) connection splits its kVA evenly across A/B/C, matching netS's own treatment.
-function feederLoadTotals(design) {
-  const totals = {};
-  design.poles.forEach(p => { if (!totals[p.feeder]) totals[p.feeder] = { A: 0, B: 0, C: 0 }; });
-  design.loads.forEach(l => {
-    const pole = poleById(design, l.pole);
-    const t = pole && totals[pole.feeder];
-    if (!t) return;
-    const kva = l.kva == null ? design.admd : Number(l.kva);
-    if (l.phase === 'ABC') PHASES.forEach(ph => { t[ph] += kva / 3; });
-    else t[l.phase] += kva;
-  });
-  return totals;
-}
-
 function statusColor(pr, res) {
   let worst = 0;
   PHASES.forEach(ph => {
@@ -74,7 +57,8 @@ export function buildDiagramSVG(design, res, theme = 'light') {
   const L = layoutNetwork(design);
   const poleMap = {}; res.poleResults.forEach(p => poleMap[p.id] = p);
   const txMap = {}; res.transformers.forEach(t => txMap[t.id] = t);
-  const feederLoads = feederLoadTotals(design);
+  const feederGroups = feederConnectedTotals(design);
+  const groupOfRoot = {}; feederGroups.forEach(g => g.roots.forEach(r => { groupOfRoot[r] = g; }));
   const feederLabelShown = new Set(); // one label per feeder, even if it has multiple root poles
 
   let defs = `<defs>
@@ -117,14 +101,18 @@ LV bus: A=${tr.busVoltPct.A.toFixed(1)}V B=${tr.busVoltPct.B.toFixed(1)}V C=${tr
     // Feeder-wide connected load, per phase — shown once per feeder, on its first root span
     // (right where it leaves the transformer), so the phase imbalance driving everything
     // downstream is visible at a glance without having to add up every pole's own connections.
-    if (parentIsTx && !feederLabelShown.has(p.feeder)) {
-      feederLabelShown.add(p.feeder);
-      const ft = feederLoads[p.feeder] || { A: 0, B: 0, C: 0 };
-      edges += `<text x="${(parentX + cx) / 2}" y="${(parentY + cy) / 2 - 16}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="8.5" font-weight="600">` +
-        `<tspan fill="${pal.text}">${esc(p.feeder)} load: </tspan>` +
-        `<tspan fill="${pal.phase.A}">A ${ft.A.toFixed(1)}</tspan><tspan fill="${pal.muted}"> / </tspan>` +
-        `<tspan fill="${pal.phase.B}">B ${ft.B.toFixed(1)}</tspan><tspan fill="${pal.muted}"> / </tspan>` +
-        `<tspan fill="${pal.phase.C}">C ${ft.C.toFixed(1)}</tspan><tspan fill="${pal.muted}"> kVA</tspan></text>`;
+    // Grouped by the real feeder tree (transformer + feeder name + everything downstream), not the
+    // bare name, so a split's new "F1" and the original transformer's "F1" each get their own label
+    // with their own totals. Connected solar PV (nameplate kVA per phase) sits on the line above.
+    const grp = parentIsTx ? groupOfRoot[id] : null;
+    if (grp && !feederLabelShown.has(grp.key)) {
+      feederLabelShown.add(grp.key);
+      const line = (label, t, dy) => `<text x="${(parentX + cx) / 2}" y="${(parentY + cy) / 2 - dy}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="8.5" font-weight="600">` +
+        `<tspan fill="${pal.text}">${esc(grp.feederName)} ${label}: </tspan>` +
+        `<tspan fill="${pal.phase.A}">A ${t.A.toFixed(1)}</tspan><tspan fill="${pal.muted}"> / </tspan>` +
+        `<tspan fill="${pal.phase.B}">B ${t.B.toFixed(1)}</tspan><tspan fill="${pal.muted}"> / </tspan>` +
+        `<tspan fill="${pal.phase.C}">C ${t.C.toFixed(1)}</tspan><tspan fill="${pal.muted}"> kVA</tspan></text>`;
+      edges += line('load', grp.load, 16) + line('PV', grp.pv, 26);
     }
 
     const sc = statusColor(pr, res);

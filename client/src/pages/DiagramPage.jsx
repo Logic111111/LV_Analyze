@@ -71,7 +71,7 @@ export default function DiagramPage() {
               <span>Arrow direction = real power flow (reverses automatically under export)</span>
               <span><span className="phaseA" style={{ fontWeight: 700 }}>A</span> / <span className="phaseB" style={{ fontWeight: 700 }}>B</span> / <span className="phaseC" style={{ fontWeight: 700 }}>C</span> beside each pole = that phase's voltage (bold if outside the statutory band)</span>
               <span>⏚ mark right of a pole = neutral grounded there (see Rg on the Network page)</span>
-              <span>Label on each feeder's first span = that feeder's total connected load per phase (kVA, ADMD-substituted where unspecified)</span>
+              <span>Two labels on each feeder's first span = that feeder's total connected load, and its installed solar PV (nameplate), per phase (kVA, ADMD-substituted where unspecified)</span>
               <span><span style={{ display: 'inline-block', width: 18, height: 0, borderTop: '1.5px dashed var(--muted)', marginRight: 6, verticalAlign: 'middle' }}></span>Dashed line = a common open point (see the Network page) — no current flows, shown for reference only</span>
             </div>
             <div className="diagram" dangerouslySetInnerHTML={{ __html: svg }} />
