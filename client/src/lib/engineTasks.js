@@ -12,7 +12,7 @@ import {
   computeBessHostingCapacity, computeSystemBessHostingCapacity, bessHostingBaseline,
   computeFeederSplitCandidates, searchDualFeederSplit, scoreDualFeederCandidate, makeTx, nextTransformerId,
   proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runDailyScan, protectionCheck, tapAdvisor,
-  reconductorAdvisor, fixItLadder, optimisePhaseBalance, voltageSensitivity, linearHostingEstimateKw
+  reconductorAdvisor, fixItLadder, optimisePhaseBalance, voltageSensitivity, linearHostingEstimateKw, monteCarloStudy
 } from './loadflow.js';
 import { buildReportHtml } from './report.js';
 
@@ -64,6 +64,10 @@ export const ENGINE_TASKS = {
       .sort((a, b) => b.kw - a.kw);
     return { hour, rows, converged: sens.blocks.every(b => b.converged) };
   },
+
+  // Probabilistic planning (P4.4).
+  monteCarlo: ({ design, year, evPct, pvPct, evSizes, pvSizes, runs, seed, hours }, hooks) =>
+    monteCarloStudy(design, { year, evPct, pvPct, evSizes, pvSizes, runs, seed, hours, onProgress: hooks.onProgress }),
 
   dailyScan: ({ design, year, loadMult, solarMult }, hooks) =>
     runDailyScan(design, year, { loadMult, solarMult, onProgress: hooks.onProgress, stage: 'Solving 24 hours' }),

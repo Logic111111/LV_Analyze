@@ -54,7 +54,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P4.1** Phase balancing v2 (impedance-weighted / load-flow objectives, local search, Pareto table, seeded SA)
 - [x] **P4.2** Voltage sensitivity matrix
 - [x] **P4.3** Solver robustness (diagnostics, α=0.3 retry, collapse detection)
-- [ ] **P4.4** Probabilistic (Monte Carlo) planning
+- [x] **P4.4** Probabilistic (Monte Carlo) planning
 - [ ] **P4.5** Multi-criteria view for feeder split and fix-it ladder
 
 ## Phase 5 — UI/UX
@@ -560,6 +560,28 @@ within 1e-9.
   - That island's PV search now stops at `'collapse'` rather than `'nonConvergence'`.
 - **UI.** `SolveStatusWarning` on Diagram and Run & Reports; collapse hours on Daily; the HTML
   report states voltage collapse in words.
+
+**P4.4 Monte Carlo (2026-10-20).**
+- **Code and page.** `engine/monteCarlo.js` (`monteCarloStudy`, `adoptionSizesFromDesign`,
+  `runMetrics`, `quantile`, `histogram`, `MC_CRITICAL_HOURS`); page **Probabilistic**
+  (`/app/monte-carlo`, worker task `monteCarlo`).
+- **Eligible customers and placement.** Eligible customers are `general` loads. Each run adopts
+  exactly round(% × customers), uniformly without replacement, independently for EVs and PV. The
+  new unit takes the customer's own pole and phase. Existing EVs and PV are kept.
+- **Sizes are never invented.** They are a discrete {kVA, weight} list, defaulting to the
+  design's own EV loads and PV units. Adoption with an empty list is refused ("data missing").
+- **EV / solar switched off.** If EVs or solar are off in Setup but adoption is asked for, they
+  are switched on for the study and the page says so.
+- **Hours.** The default is the critical hours, 12:00 and 20:00; the full day is selectable.
+- **Losses.** Reported over the scanned hours. They equal daily losses only in full-day mode,
+  and are labelled that way.
+- **Determinism.** One seeded mulberry32 stream for the whole study, so the same seed gives
+  identical results. At 0 % adoption every run equals the base scan exactly (tested).
+- **Speed.** About 34 ms per run on the 50-pole feeder at the critical hours: 500 runs ≈ 17 s in
+  the worker.
+- **Charts.** The heatmap prints the probability in every cell, so it does not rely on colour.
+  `lib/chartTheme.js` and `components/ChartCanvas.jsx` now hold the chart palette and canvas,
+  shared with Daily and reused by P5.3.
 
 ## Phase verification log
 
