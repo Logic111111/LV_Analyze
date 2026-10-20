@@ -2,6 +2,7 @@
 // Data model: equipment constants and libraries, the default design and its migration
 // (withDefaults), network-topology helpers, and the transformer's electrical model.
 import { PHASES } from './complex.js';
+import { basePeakKva } from './velander.js';
 /** @import { Design, Pole, Transformer, ConductorType, TransformerType, Phase, ConnectionPhase } from './types.js' */
 
 /* ============================================================
@@ -132,6 +133,8 @@ export function defaultDesign() {
     // only the initial view when nothing has coordinates yet.
     // Economics (P6.1): all user-entered, blank means "not set" (nothing is assumed).
     economics: { lossCostLkrPerKwh: null, discountRatePct: null, studyYears: null, rewirePerMoveLkr: null, tapChangeLkr: null, transformerCostLkr: {} },
+    // Demand from billing data (P6.2): off, and no constants assumed — enter or fit k1 and k2.
+    velander: { enabled: false, k1: null, k2: null },
     map: { tileUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '© OpenStreetMap contributors', maxZoom: 19, centerLat: 7.8731, centerLng: 80.7718, zoom: 8 },
     // Smart-inverter PV (P3.1): 'unity' = today's behaviour. Curves seeded with the IEEE 1547-2018
     // Category B defaults, labelled as such in the UI — replace with the local grid code's.
@@ -197,7 +200,7 @@ export function normalizeDesign(design) {
 const DESIGN_COLLECTIONS = ['poles', 'loads', 'pv', 'bess', 'openPoints', 'fuseLibrary', 'scenarios'];
 // Settings groups whose individual fields are filled one by one, so a design saved after a group
 // existed but before one of its fields did still gets that field's default.
-const DESIGN_SETTING_GROUPS = ['standards', 'fault', 'protection', 'inverter', 'thermal', 'signOff', 'map', 'economics'];
+const DESIGN_SETTING_GROUPS = ['standards', 'fault', 'protection', 'inverter', 'thermal', 'signOff', 'map', 'economics', 'velander'];
 /** @param {any} design A saved, imported or partial design. @returns {Design} */
 /** @param {any} value @param {Record<string, any>} defaults */
 function fillMissing(value, defaults) {
@@ -353,7 +356,7 @@ export function feederConnectedTotals(design) {
     g.poleIds = bfsOrderFrom(design, g.roots);
     const inGroup = new Set(g.poleIds);
     design.loads.forEach(l => {
-      if (inGroup.has(l.pole)) add(g.load, l.phase, (l.kva == null || l.kva === '') ? design.admd : Number(l.kva));
+      if (inGroup.has(l.pole)) add(g.load, l.phase, basePeakKva(design, l));
     });
     design.pv.forEach(p => { if (inGroup.has(p.pole)) add(g.pv, p.phase, Number(p.kva)); });
   });

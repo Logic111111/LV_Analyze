@@ -2,6 +2,7 @@
 // Load balance advisor: move single-phase connections between phases to even out a transformer.
 import { PHASES } from '../complex.js';
 import { transformerOfPole } from '../model.js';
+import { basePeakKva } from '../velander.js';
 /** @import { Design, Phase } from '../types.js' */
 /** @typedef {{ kind: 'load' | 'pv' | 'bess', label: string, id: string, pole: string, phase: Phase, kva: number, newPhase?: Phase }} BalanceItem */
 
@@ -20,7 +21,7 @@ export function balanceableConnections(design, txId) {
   const items = [];
   design.loads.forEach(l => {
     if (l.phase === 'ABC' || transformerOfPole(design, l.pole) !== txId) return;
-    const kva = (l.kva == null || l.kva === '') ? design.admd : Number(l.kva);
+    const kva = basePeakKva(design, l);
     items.push({ kind: 'load', label: l.type, id: l.id, pole: l.pole, phase: l.phase, kva });
   });
   design.pv.forEach(p => {

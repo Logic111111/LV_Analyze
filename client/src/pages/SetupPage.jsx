@@ -10,6 +10,7 @@ import InverterCard from '../components/InverterCard.jsx';
 import ThermalCard from '../components/ThermalCard.jsx';
 import LineModelCard from '../components/LineModelCard.jsx';
 import EconomicsCard from '../components/EconomicsCard.jsx';
+import VelanderCard from '../components/VelanderCard.jsx';
 
 export default function SetupPage() {
   const { design, setDesign } = useDesign();
@@ -250,6 +251,7 @@ export default function SetupPage() {
       <ConductorLibraryEditor />
       <div style={{ marginTop: 18 }}><LineModelCard /></div>
       <div style={{ marginTop: 18 }} id="section-economics" tabIndex={-1}><EconomicsCard /></div>
+      <div style={{ marginTop: 18 }} id="section-velander" tabIndex={-1}><VelanderCard /></div>
 
       <div className="grid g4" style={{ marginTop: 18 }}>
         <div className="card">

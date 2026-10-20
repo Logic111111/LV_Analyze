@@ -73,7 +73,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 ## Phase 6 — Data and economics
 
 - [x] **P6.1** Economics (loss cost, discount rate, cost table → LKR/yr, capex, payback, NPV)
-- [ ] **P6.2** Demand from billing data (Velander, fitted from CSV)
+- [x] **P6.2** Demand from billing data (Velander, fitted from CSV)
 - [ ] **P6.3** Smart-meter (AMI) import
 - [ ] **P6.4** Measured vs simulated (incl. phase-label check)
 - [ ] **P6.5** Fleet dashboard (`designs.summary` JSON column)
@@ -844,6 +844,28 @@ within 1e-9.
     multipliers.
   - The report's Economics section.
   - `patchCapex` (P5.4) now uses `capexOf`.
+
+**P6.2 Velander (2026-10-21).**
+- **Engine.** `engine/velander.js`: `velanderSettings`, `velanderPeakKva`, `basePeakKva`,
+  `fitVelander`, `parseVelanderCsv`.
+- **One source for ADMD.** `basePeakKva` is now the single place that substitutes ADMD: in
+  `loadKvaAt`, the BESS "PV exceeds local load" rule, `feederConnectedTotals` and phase balancing.
+  Its order is: entered kVA, then the Velander peak for a general connection with annual kWh when
+  the option is on, then ADMD. With the option off, everything is bit-identical (tested;
+  goldens pass).
+- **Fit.** Least squares on [W, √W] with no intercept, as in the formula, via the 2×2 normal
+  equations. Tested:
+  - exact recovery on noise-free data;
+  - residuals orthogonal to both basis columns;
+  - R² against the mean;
+  - refusal of fewer than 2 points or all-equal W.
+
+  The test constants are labelled test-only. **No default constants.**
+- **UI.**
+  - Setup → "Demand from billing data (Velander)": enable, k1/k2, CSV paste or upload, fit,
+    R², residuals with outliers > 2×RMS in bold, "Use these constants". It warns when the option
+    is on but constants are missing.
+  - Network: per-load "Annual kWh" and "Meter id" (for P6.3).
 
 ## Phase verification log
 

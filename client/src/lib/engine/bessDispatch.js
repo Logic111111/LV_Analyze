@@ -19,6 +19,7 @@ import { rangeHours } from './loads.js';
 import { runSnapshot, warmStartFrom, topologyOf } from './solver.js';
 import { connectionIndex } from './loads.js';
 import { transformerOfPole } from './model.js';
+import { basePeakKva } from './velander.js';
 /** @import { Design, SnapshotResult, BessConnection } from './types.js' */
 
 export const BESS_MODES = ['schedule', 'socSchedule', 'solarFollowing'];
@@ -123,7 +124,7 @@ function localPvExceedsLoad(design, pole, hour, solarMult, loadMult, year) {
   const included = { general: design.includeGeneral, ev: design.includeEV, shop: design.includeShop, evcs: design.includeEVCS };
   const pv = design.includeSolar ? design.pv.filter(p => p.pole === pole).reduce((s, p) => s + Number(p.kva) * design.solarCurve[hour] * solarMult, 0) : 0;
   const load = design.loads.filter(l => l.pole === pole && included[l.type]).reduce((s, l) => {
-    const base = (l.kva == null || l.kva === '') ? design.admd : Number(l.kva);
+    const base = basePeakKva(design, l);
     return s + base * curveOf(l)[hour] * growth * loadMult * design.pf;
   }, 0);
   return pv > load;

@@ -3,6 +3,7 @@
 // voltage dependence), rooftop PV, and the BESS charge/discharge schedule.
 import { C, PHASES } from './complex.js';
 import { inverterSettings, unitMode } from './inverter.js';
+import { basePeakKva } from './velander.js';
 /** @import { Design, Connection, PvConnection, Complex, ConnectionPhase } from './types.js' */
 
 /* ============================================================
@@ -11,7 +12,7 @@ import { inverterSettings, unitMode } from './inverter.js';
 /** @param {Design} design @param {Connection} load @param {number} year @param {number} hour @returns {number} kVA */
 export function loadKvaAt(design, load, year, hour) {
   const curve = load.type === 'ev' ? design.evCurve : load.type === 'shop' ? design.shopCurve : load.type === 'evcs' ? design.evcsCurve : design.loadCurve;
-  const base = (load.kva == null || load.kva === '') ? design.admd : Number(load.kva);
+  const base = basePeakKva(design, load); // own kVA, else Velander (P6.2, off by default), else ADMD
   const growthFactor = Math.pow(1 + design.growth / 100, year);
   return base * curve[hour] * growthFactor;
 }

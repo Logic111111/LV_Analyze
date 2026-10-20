@@ -53,6 +53,8 @@
  * @property {'general' | 'ev' | 'shop' | 'evcs'} type
  * @property {ConnectionPhase} phase
  * @property {number | string | null} [kva]
+ * @property {number | null} [annualKWh] Billed annual energy (P6.2): sets the peak by Velander when kva is blank and the option is on.
+ * @property {string} [meterId] Smart-meter id (P6.3).
  */
 
 /**
@@ -154,6 +156,7 @@
  * @property {any[]} [scenarios] Named what-if scenarios (P5.4, see scenarios.js).
  * @property {{ tileUrl: string, attribution: string, maxZoom: number, centerLat: number, centerLng: number, zoom: number }} [map] Map view settings (P5.7).
  * @property {any} [economics] User-entered costs (P6.1, see economics.js).
+ * @property {{ enabled: boolean, k1: number | null, k2: number | null }} [velander] Demand from billing data (P6.2).
  * @property {import('./faults.js').FaultSettings} [fault]
  * @property {import('./faults.js').FuseType[]} [fuseLibrary]
  * @property {{ feederFuses: Record<string, string>, poleFuses: Record<string, string> }} [protection]

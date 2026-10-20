@@ -190,13 +190,16 @@ export default function NetworkPage() {
       <div className="section-title">General, EV, EVCS &amp; Commercial Shop connections</div>
       <div className="card">
         <div className="tbl-wrap"><table>
-          <thead><tr><th>Pole</th><th>Type</th><th>Phase</th><th>kVA</th><th></th></tr></thead>
+          <thead><tr><th>Pole</th><th>Type</th><th>Phase</th><th>kVA</th><th>Annual kWh</th><th>Meter id</th><th></th></tr></thead>
           <tbody>
             {design.loads.map(l => (
               <tr key={l.id}>
                 <td>{l.pole}</td><td>{l.type === 'ev' ? 'EV' : l.type === 'evcs' ? 'EVCS' : l.type === 'shop' ? 'Commercial Shop' : 'General'}</td>
                 <td className={l.phase !== 'ABC' ? 'phase' + l.phase : ''}>{l.phase}</td>
-                <td>{l.kva == null ? 'ADMD' : l.kva}</td>
+                <td>{l.kva == null ? (l.type === 'general' && design.velander?.enabled && l.annualKWh ? 'Velander' : 'ADMD') : l.kva}</td>
+                {/* Billing data (P6.2) and smart-meter id (P6.3): optional per connection. */}
+                <td>{l.type === 'general' ? <input type="number" min={0} step={10} style={{ width: 90 }} aria-label={`Annual kWh of ${l.id}`} value={l.annualKWh ?? ''} onChange={e => setDesign(d => ({ ...d, loads: d.loads.map(x => (x.id === l.id ? { ...x, annualKWh: e.target.value === '' ? null : Number(e.target.value) } : x)) }))} /> : '—'}</td>
+                <td><input type="text" style={{ width: 100 }} aria-label={`Meter id of ${l.id}`} value={l.meterId ?? ''} onChange={e => setDesign(d => ({ ...d, loads: d.loads.map(x => (x.id === l.id ? { ...x, meterId: e.target.value || undefined } : x)) }))} /></td>
                 <td><button className="mini" onClick={() => removeLoad(l.id)}>remove</button></td>
               </tr>
             ))}
