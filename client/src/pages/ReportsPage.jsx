@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
 import { runSnapshot, getTransformerType, transformerOfPole, isTransformerId, systemLossW } from '../lib/loadflow.js';
-import { downloadReport } from '../lib/report.js';
+import { downloadHtml, reportFileName } from '../lib/report.js';
+import TaskProgress from '../components/TaskProgress.jsx';
+import { useEngineTask } from '../hooks/useEngineTask.js';
 import YearPicker from '../components/YearPicker.jsx';
 
 function pillClassFor(level) { return level === 2 ? 'bad' : level === 1 ? 'warn' : 'ok'; }
@@ -23,6 +25,13 @@ export default function ReportsPage() {
   const [loadMult, setLoadMult] = useState(1);
   const [solarMult, setSolarMult] = useState(1);
   const [busy, setBusy] = useState(false);
+  // The comprehensive report re-runs several 24 h scans (energy loss, 5-year outlook), so it's
+  // built in the engine worker; only the download itself happens here.
+  const reportTask = useEngineTask();
+  async function downloadComprehensiveReport() {
+    const r = await reportTask.run('report', { design, res: lastResults, hosting: lastHosting, daily: lastDaily, bessHosting: lastBessHosting }, 'Building the report');
+    if (r.ok) downloadHtml(r.result, reportFileName(design));
+  }
 
   function applyPreset(preset) {
     if (preset === 'night') { setHour(20); setSolarMult(0); }
@@ -49,12 +58,14 @@ export default function ReportsPage() {
             {design.transformers.map(t => (
               <span key={t.id} className="pill ok" style={{ fontSize: 11 }}>{t.name}: {t.txRating} kVA · tap {t.tap} · X/R {t.txXR}</span>
             ))}
-            <button className="ghost" onClick={() => downloadReport(design, lastResults, lastHosting, lastDaily, lastBessHosting)}>Download comprehensive report</button>
+            <button className="ghost" onClick={downloadComprehensiveReport} disabled={reportTask.running}>Download comprehensive report</button>
           </div>
         </div>
       </div>
 
-      <div className="card">
+      <TaskProgress task={reportTask} />
+
+      <div className="card" style={{ marginTop: 14 }}>
         <h2>Simulation snapshot</h2>
         <div className="grid g3">
           <label className="field"><span>Year</span><YearPicker value={year} onChange={setYear} /></label>

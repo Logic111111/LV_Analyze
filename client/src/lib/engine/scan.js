@@ -18,7 +18,7 @@ import { connectionIndex } from './loads.js';
 /**
  * @param {Design} design @param {number[]} hours
  * @param {import('./types.js').SnapshotOptions | Omit<import('./types.js').SnapshotOptions, 'hour'>} base Snapshot options other than `hour`.
- * @param {{ warmStart?: boolean }} [opts]
+ * @param {{ warmStart?: boolean, stage?: string } & import('./types.js').ProgressHooks} [opts]
  * @returns {SnapshotResult[]}
  */
 export function runHours(design, hours, base, opts = {}) {
@@ -26,21 +26,22 @@ export function runHours(design, hours, base, opts = {}) {
   const ctx = { index: connectionIndex(design), topo: topologyOf(design) };
   /** @type {SnapshotResult | null} */
   let prev = null;
-  return hours.map(hour => {
+  return hours.map((hour, i) => {
     const res = runSnapshot(design, { ...base, hour }, { ...ctx, initialV: warmStart ? warmStartFrom(prev) : null });
     prev = res;
+    if (opts.onProgress) opts.onProgress({ stage: opts.stage || 'Solving hours', done: i + 1, total: hours.length });
     return res;
   });
 }
 
 /**
  * @param {Design} design @param {number} year
- * @param {{ loadMult?: number, solarMult?: number, extraBess?: BessConnection[], warmStart?: boolean }} [opts]
+ * @param {{ loadMult?: number, solarMult?: number, extraBess?: BessConnection[], warmStart?: boolean, stage?: string } & import('./types.js').ProgressHooks} [opts]
  * @returns {SnapshotResult[]}
  */
 export function runDailyScan(design, year, opts = {}) {
-  const { loadMult = 1, solarMult = 1, extraBess = [], warmStart = true } = opts;
-  return runHours(design, DAILY_HOURS, { year, loadMult, solarMult, extraBess }, { warmStart });
+  const { loadMult = 1, solarMult = 1, extraBess = [], warmStart = true, onProgress, stage } = opts;
+  return runHours(design, DAILY_HOURS, { year, loadMult, solarMult, extraBess }, { warmStart, onProgress, stage });
 }
 
 // Splits a runSnapshot result's losses into line vs. transformer (copper + no-load), and their
@@ -127,7 +128,7 @@ export const DAILY_HOURS = [...Array(24).keys()];
 // summarizes it — the one shared code path every split-search scorer below uses, so "test over
 // the full day" vs "test at solar peak only" vs "test at night peak only" is just a different
 // `hours`/`solarMult` pair, not different logic.
-/** @param {Design} design @param {number[]} [hours] @param {number} [solarMult] @param {{ warmStart?: boolean }} [opts] */
+/** @param {Design} design @param {number[]} [hours] @param {number} [solarMult] @param {{ warmStart?: boolean, stage?: string } & import('./types.js').ProgressHooks} [opts] */
 export function scanAndSummarize(design, hours = DAILY_HOURS, solarMult = 1, opts = {}) {
   return summarizeScan(runHours(design, hours, { year: 0, loadMult: 1, solarMult }, opts));
 }

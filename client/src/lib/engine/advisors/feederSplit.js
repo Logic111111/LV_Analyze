@@ -167,7 +167,7 @@ function siteConnectorDisplayM(design, poleId, siteSpec) {
 }
 
 /** @param {string} id @param {TxSpec} txSpec @returns {Transformer} */
-function makeTx(id, txSpec) {
+export function makeTx(id, txSpec) {
   return {
     id, name: txSpec.name || id, txRating: txSpec.txRating, tap: txSpec.tap,
     hvActual: txSpec.hvActual, txXR: txSpec.txXR, txGroundOhms: txSpec.txGroundOhms
@@ -210,14 +210,18 @@ export function scoreFeederSplitCandidate(design, poleId, newTx, siteSpec, hours
 // only voltage does. A synchronous convenience wrapper around scoreFeederSplitCandidate for the
 // common case (a single feeder, short enough not to need chunking — see its page for the measured
 // cost).
-/** @param {Design} design @param {string} rootPoleId @param {TxSpec} txSpec @param {SiteSpec} siteSpec @param {number[]} [hours] @param {number} [solarMult] */
-export function computeFeederSplitCandidates(design, rootPoleId, txSpec, siteSpec, hours = DAILY_HOURS, solarMult = 1) {
+/** @param {Design} design @param {string} rootPoleId @param {TxSpec} txSpec @param {SiteSpec} siteSpec @param {number[]} [hours] @param {number} [solarMult] @param {import('../types.js').ProgressHooks} [hooks] */
+export function computeFeederSplitCandidates(design, rootPoleId, txSpec, siteSpec, hours = DAILY_HOURS, solarMult = 1, hooks = {}) {
   const feederName = poleById(design, rootPoleId).feeder;
   const feederPoleIds = feederPolesAnchoredAt(design, rootPoleId);
   const newTxId = nextTransformerId(design);
   const newTx = makeTx(newTxId, txSpec);
   const baseline = scanAndSummarize(design, hours, solarMult);
-  const candidates = feederPoleIds.map(poleId => scoreFeederSplitCandidate(design, poleId, newTx, siteSpec, hours, solarMult));
+  const candidates = feederPoleIds.map((poleId, i) => {
+    const c = scoreFeederSplitCandidate(design, poleId, newTx, siteSpec, hours, solarMult);
+    if (hooks.onProgress) hooks.onProgress({ stage: `Testing cut points on ${feederName}`, done: i + 1, total: feederPoleIds.length });
+    return c;
+  });
   candidates.sort((a, b) => a.voltageViolationCount - b.voltageViolationCount || a.lossKwh - b.lossKwh);
   return { feederName, newTxId, newTx, baseline, candidates };
 }
@@ -247,8 +251,8 @@ export function dualFeederSetup(design, openPointId, txSpec, cond) {
     poleIdsA: feederPolesAnchoredAt(design, op.poleA),
     poleIdsB: feederPolesAnchoredAt(design, op.poleB),
     shortlistTx: makeTx(nextTransformerId(design), txSpec),
-    siteSpecA: { mode: 'anchor', anchor: op.poleA, cond },
-    siteSpecB: { mode: 'anchor', anchor: op.poleB, cond }
+    siteSpecA: /** @type {SiteSpec} */ ({ mode: 'anchor', anchor: op.poleA, cond }),
+    siteSpecB: /** @type {SiteSpec} */ ({ mode: 'anchor', anchor: op.poleB, cond })
   };
 }
 
@@ -278,4 +282,48 @@ export function scoreDualFeederCandidate(design, poleA, poleB, openPointId, newT
     reparentPlan,
     ...metrics
   };
+}
+
+// The whole staged dual-feeder search (see dualFeederSetup above), as one call: shortlist each
+// side's cut points independently (top `shortlistK` by voltage violations, then loss), then score
+// every shortlisted pair jointly and exactly. Moved here from the Feeder Split page so it can run
+// in the engine worker with progress and cancel (P1.5); the steps, sort keys and tie-breaks are
+// exactly the page's original loop, so results are unchanged.
+/**
+ * @param {Design} design @param {string} openPointId @param {TxSpec} txSpec @param {string} cond
+ * @param {number[]} [hours] @param {number} [solarMult]
+ * @param {{ shortlistK?: number } & import('../types.js').ProgressHooks} [opts]
+ */
+export function searchDualFeederSplit(design, openPointId, txSpec, cond, hours = DAILY_HOURS, solarMult = 1, opts = {}) {
+  const shortlistK = opts.shortlistK ?? 8;
+  const progress = opts.onProgress || (() => {});
+  const { feederA, feederB, poleIdsA, poleIdsB, shortlistTx, siteSpecA, siteSpecB } = dualFeederSetup(design, openPointId, txSpec, cond);
+  const baseline = scanAndSummarize(design, hours, solarMult);
+  /** @param {any} a @param {any} b */
+  const rank = (a, b) => a.voltageViolationCount - b.voltageViolationCount || a.lossKwh - b.lossKwh;
+
+  const scoredA = poleIdsA.map((poleId, i) => {
+    const c = scoreFeederSplitCandidate(design, poleId, shortlistTx, siteSpecA, hours, solarMult);
+    progress({ stage: `1/3 Shortlisting ${feederA}`, done: i + 1, total: poleIdsA.length });
+    return c;
+  }).sort(rank);
+  const scoredB = poleIdsB.map((poleId, i) => {
+    const c = scoreFeederSplitCandidate(design, poleId, shortlistTx, siteSpecB, hours, solarMult);
+    progress({ stage: `2/3 Shortlisting ${feederB}`, done: i + 1, total: poleIdsB.length });
+    return c;
+  }).sort(rank);
+
+  const shortlistA = scoredA.slice(0, shortlistK).map(c => c.poleId);
+  const shortlistB = scoredB.slice(0, shortlistK).map(c => c.poleId);
+  const newTx = makeTx(nextTransformerId(design), txSpec);
+  const total = shortlistA.length * shortlistB.length;
+  const candidates = [];
+  for (const poleA of shortlistA) {
+    for (const poleB of shortlistB) {
+      candidates.push(scoreDualFeederCandidate(design, poleA, poleB, openPointId, newTx, cond, hours, solarMult));
+      progress({ stage: '3/3 Testing joint candidates', done: candidates.length, total });
+    }
+  }
+  candidates.sort(rank);
+  return { feederA, feederB, newTx, baseline, candidates };
 }

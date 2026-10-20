@@ -154,13 +154,23 @@ npm run bench   # engine timings on a synthetic 50-pole / 200-connection island
 
 `PROGRESS.md` at the repo root tracks the upgrade programme item by item.
 
+## Long-running calculations
+
+Hosting-capacity searches, feeder-split searches, the load-balance proposal, 24-hour scans and the
+comprehensive report run in a Web Worker (`client/src/workers/engine.worker.js`), so the page stays
+responsive. Each shows a progress bar with a Cancel button. The work is defined as named tasks in
+`client/src/lib/engineTasks.js`, and pages start them with `useEngineTask()`. Cancelling terminates
+the worker immediately.
+
 ## Extending
 
 - The engine lives in `client/src/lib/engine/` — one pure, dependency-free ES module per concern
   (complex maths, data model, loads, solver, scans, hosting, BESS, and the feeder-split and
   load-balance advisors; see `engine/index.js` for the map), with JSDoc types checked by
   `npm run typecheck`. `client/src/lib/loadflow.js` re-exports all of it and stays the import path
-  for pages. `diagram.js` and `report.js` are dependency-free too. All of it runs outside React
+  for pages. `diagram.js` and `report.js` are dependency-free too. A new long-running calculation
+  gets a task in `engineTasks.js` (plus an optional `onProgress` hook in the engine function) and
+  is started from the page with `useEngineTask()`. All of it runs outside React
   with no mocking (the test suite above does exactly that).
 - Every way a design enters the app (server load, JSON import, new design) passes through
   `withDefaults(design)` in `loadflow.js`. A new design field gets its default there, so older

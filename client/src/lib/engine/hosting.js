@@ -181,23 +181,26 @@ function findMaxPV(design, pole, phase, hi, committed, baseline) {
   }, hi);
 }
 
-/** @param {Design} design @param {number} cap @param {HostingBaseline} baseline @returns {HostingRow[]} */
-function independentPV(design, cap, baseline) {
+/** @param {Design} design @param {number} cap @param {HostingBaseline} baseline @param {import('./types.js').ProgressHooks} hooks @param {string} stage @returns {HostingRow[]} */
+function independentPV(design, cap, baseline, hooks, stage) {
   const results = [];
+  const total = design.poles.length * PHASES.length;
+  let done = 0;
   design.poles.forEach(p => {
     PHASES.forEach(phase => {
       const best = findMaxPV(design, p.id, phase, cap, [], baseline);
       if (best.kva > 0.05) results.push({ pole: p.id, phase, kva: best.kva, limit: best.limit, limitDetail: best.limitDetail });
+      if (hooks.onProgress) hooks.onProgress({ stage, done: ++done, total });
     });
   });
   results.sort((a, b) => b.kva - a.kva);
   return results;
 }
 
-/** @param {Design} design @param {number} [capOverride] @returns {HostingRow[]} */
-export function computeHostingCapacity(design, capOverride) {
+/** @param {Design} design @param {number} [capOverride] @param {import('./types.js').ProgressHooks} [hooks] @returns {HostingRow[]} */
+export function computeHostingCapacity(design, capOverride, hooks = {}) {
   const cap = capOverride != null ? capOverride : design.maxpv;
-  return independentPV(design, cap, pvHostingBaseline(design));
+  return independentPV(design, cap, pvHostingBaseline(design), hooks, 'Testing each pole and phase');
 }
 
 // Generous ceiling used only to discover each location's true, policy-unconstrained
@@ -215,14 +218,15 @@ export const UNCAPPED_CEILING_KVA = 2000;
 // and per-location amounts often come out lower than the independent estimate. The Setup
 // page's per-connection PV cap is deliberately ignored here — this reports the physical
 // (voltage/thermal) ceiling, not a policy-limited one.
-/** @param {Design} design */
-export function computeSystemHostingCapacity(design) {
+/** @param {Design} design @param {import('./types.js').ProgressHooks} [hooks] */
+export function computeSystemHostingCapacity(design, hooks = {}) {
   const baseline = pvHostingBaseline(design);
-  const independent = independentPV(design, UNCAPPED_CEILING_KVA, baseline);
+  const independent = independentPV(design, UNCAPPED_CEILING_KVA, baseline, hooks, '1/2 Uncapped limit at each location');
   const committed = [];
-  const results = independent.map(cand => {
+  const results = independent.map((cand, i) => {
     const best = findMaxPV(design, cand.pole, cand.phase, cand.kva, committed, baseline);
     if (best.kva > 0.05) committed.push({ pole: cand.pole, phase: cand.phase, kva: best.kva });
+    if (hooks.onProgress) hooks.onProgress({ stage: '2/2 Simultaneous queue', done: i + 1, total: independent.length });
     return { pole: cand.pole, phase: cand.phase, independentKva: cand.kva, achievableKva: best.kva, limit: best.limit, limitDetail: best.limitDetail };
   });
   const totalKva = results.reduce((s, r) => s + r.achievableKva, 0);

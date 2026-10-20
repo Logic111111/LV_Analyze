@@ -29,7 +29,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
   - [x] 4. Feeder-split transformer current assumes balance — add `txMaxPhaseCurrentA` (true max phase current), show balanced-equivalent as secondary
   - [x] 5. AI model hard-coded — `ANTHROPIC_MODEL` env var (default `claude-sonnet-4-6`), documented in both `.env.example`
 - [x] **P1.4** Performance — precompute per-pole `loadS`/`otherS` once per snapshot, `connectionsByPole` index, optional warm start (`initialV`), `npm run bench` (50 poles / 200 connections), before/after timings recorded here
-- [ ] **P1.5** Web Worker infrastructure — `engine.worker.js`, `runInWorker(task, args, {onProgress, signal})`, progress bar + Cancel on every long action
+- [x] **P1.5** Web Worker infrastructure — `engine.worker.js`, `runInWorker(task, args, {onProgress, signal})`, progress bar + Cancel on every long action
 
 ## Phase 2 — Engineering analyses
 
@@ -197,6 +197,22 @@ the corrected, smaller upstream commitments leave more headroom.) The new values
 
 ## Phase verification log
 
+**Phase 1 (2026-10-20).**
+- **Checks.** `npm run lint` (0 problems), `npm run typecheck` (0 errors), `npm test` (173 tests in
+  15 files), `npm run build` (the worker is bundled as its own 41 kB chunk), and in `server/`,
+  `npm test` (4 node:test tests) plus `node --check` on every file. All pass on Node 22.
+- **Browser click-through** (headless Edge, `/api` mocked, run against both the Vite dev server
+  and `vite preview` of the production build, 12/12 checks each):
+  - PV hosting via the worker shows the new goldens (42.35 kVA; P2B 4.65 "limited by overvoltage
+    at P3 B, 11:00"; simultaneous 111.65 kVA).
+  - The 50-pole feeder shows determinate progress ("Testing each pole and phase — 22 of 150").
+  - The worst animation-frame gap during a search was 17 ms (the UI never blocked).
+  - Cancel stops the run and re-enables the button.
+  - The dual-feeder search (64 joint candidates), 24 h scan, report download and load-balance
+    proposal all complete through the worker.
+  - The progress UI fits 390 px in the dark theme with no horizontal scroll, and there were no
+    console errors.
+
 **Phase 0 (2026-10-20).** `npm ci`, `npm run lint` (0 errors, 0 warnings), `npm test` (8 files,
 92 tests), `npm run build`, and `node --check` on all 6 server files, all passing locally on
 Node 22. UI click-through: Vite dev server driven by headless Edge (Playwright), with `/api`
@@ -315,7 +331,32 @@ Decisions and caveats:
 - **Not done: inlining complex arithmetic.** It would avoid object allocation but risks changing
   floating-point operation order. Not needed: the budget is met with a wide margin.
 
-## Open questions for the user
+**P1.5 Web Worker (2026-10-20).** How it fits together:
+- **Task registry.** `lib/engineTasks.js` holds `ENGINE_TASKS` (named tasks returning plain data)
+  and `handleEngineMessage` (the protocol: throttled `progress`, then one `result` or `error`).
+- **Worker.** `workers/engine.worker.js` is three lines that connect the registry to the port.
+- **Client.** `lib/runInWorker.js` starts one worker per task. Cancel is `terminate()`, so the
+  engine needs no cancellation checks. Aborting rejects with `AbortError`.
+- **UI.** `hooks/useEngineTask.js` and `components/TaskProgress.jsx` (a determinate bar plus
+  stage text, Cancel, and the cancelled/error outcome) are used in both themes.
+- **Engine.** The long functions take an optional `{ onProgress }`.
+- **Dual-feeder search.** The staged search moved from the page into
+  `searchDualFeederSplit`, and a test shows it equals the page's original loop.
+
+On the worker now:
+- PV and BESS hosting, both independent and simultaneous;
+- Feeder Split (single, dual, at the open point);
+- the Load Balance proposal;
+- the three 24 h scans;
+- building the comprehensive report (`downloadHtml` / `reportFileName` split out of
+  `downloadReport`; the download itself stays on the main thread).
+
+Single snapshots (~4 ms: Reports, Diagram, previews) stay on the main thread. Leaving a page cancels
+its running task. Load balancing v2 and Monte Carlo will use the same mechanism when they arrive
+(P4.1, P4.4).
+
+## Phase verification log
+
 
 1. Docker images run Node 20, which is end-of-life. OK to move both Dockerfiles to `node:22-alpine`
    (would happen alongside P7.1, when both images are rebuilt anyway)?

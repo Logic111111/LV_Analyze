@@ -44,7 +44,8 @@ describe('public import surface', () => {
 
   it('finds the page imports (sanity check on the scanner itself)', () => {
     expect(imports.length).toBeGreaterThan(40);
-    expect(imports.some(i => i.file === 'pages/FeederSplitPage.jsx' && i.name === 'scoreDualFeederCandidate')).toBe(true);
+    expect(imports.some(i => i.file === 'pages/FeederSplitPage.jsx' && i.name === 'buildSplitCandidate')).toBe(true);
+    expect(imports.some(i => i.file === 'lib/engineTasks.js' && i.name === 'scoreDualFeederCandidate')).toBe(true);
   });
 
   it('every named import from loadflow.js / diagram.js / report.js is still exported', () => {

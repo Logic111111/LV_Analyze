@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
-import { computeBessHostingCapacity, computeSystemBessHostingCapacity, bessHostingBaseline } from '../lib/loadflow.js';
 import BaselineBanner from '../components/BaselineBanner.jsx';
+import TaskProgress from '../components/TaskProgress.jsx';
+import { useEngineTask } from '../hooks/useEngineTask.js';
 import { HostingLimitCell, HostingNonConvergenceWarning } from '../components/Convergence.jsx';
 
 function windowLabel(design) {
@@ -12,28 +13,24 @@ function windowLabel(design) {
 export default function BessHostingPage() {
   const { design, lastBessHosting, setLastBessHosting } = useDesign();
   const [results, setResults] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [systemBusy, setSystemBusy] = useState(false);
   const [baseline, setBaseline] = useState(null);
   const system = lastBessHosting;
+  // Both searches run in the engine worker, with progress and Cancel.
+  const indep = useEngineTask();
+  const sys = useEngineTask();
 
-  function run() {
-    setBusy(true);
-    setTimeout(() => {
-      const r = computeBessHostingCapacity(design);
-      setBaseline(bessHostingBaseline(design));
-      setResults(r);
-      setLastBessHosting(null);
-      setBusy(false);
-    }, 10);
+  async function run() {
+    sys.cancel();
+    const r = await indep.run('bessHostingCapacity', { design }, 'Computing BESS hosting capacity');
+    if (!r.ok) return;
+    setBaseline(r.result.baseline);
+    setResults(r.result.rows);
+    setLastBessHosting(null);
   }
 
-  function runSystem() {
-    setSystemBusy(true);
-    setTimeout(() => {
-      setLastBessHosting(computeSystemBessHostingCapacity(design));
-      setSystemBusy(false);
-    }, 10);
+  async function runSystem() {
+    const r = await sys.run('systemBessHostingCapacity', { design }, 'Computing maximum simultaneous BESS capacity');
+    if (r.ok) setLastBessHosting(r.result);
   }
 
   return (
@@ -41,8 +38,8 @@ export default function BessHostingPage() {
       <div className="card">
         <h2>Additional BESS hosting capacity</h2>
         <p className="hint">Tests adding single-phase BESS (up to the cap set in Setup) at every pole and phase, across both the charge and discharge windows ({windowLabel(design)}). Charging can only pull voltage down and discharging can only push it up, so overvoltage seen while charging (e.g. from high midday solar) and undervoltage seen while discharging (e.g. at evening peak) are treated as exactly what the BESS is there to relieve, not as a reason to reject it — a candidate is only rejected for undervoltage/thermal/import-overload it causes while charging, or overvoltage/thermal it causes while discharging. Ranks poles by the extra capacity that can be absorbed under that test.</p>
-        <button className="primary" onClick={run} disabled={busy}>Compute hosting capacity</button>
-        {busy && <span className="loading" style={{ marginLeft: 12 }}><span className="spinner"></span> scanning poles…</span>}
+        <button className="primary" onClick={run} disabled={indep.running}>Compute hosting capacity</button>
+        <TaskProgress task={indep} />
       </div>
 
       <BaselineBanner baseline={baseline} kind={'BESS charge/discharge (' + windowLabel(design) + ')'} />
@@ -74,8 +71,8 @@ export default function BessHostingPage() {
             <div className="card" style={{ marginTop: 14 }}>
               <h2>Maximum simultaneous BESS hosting capacity</h2>
               <p className="hint">Unlike the ranking above, this scan re-orders locations by <b>loss-reduction impact</b> rather than raw headroom — the pole/phase where adding BESS cuts total network loss (line + transformer) the most is prioritised first — then processes them in that order like an interconnection queue, each candidate tested with every higher-priority addition already committed, against the <b>uncapped</b> voltage/thermal limit (ignoring the Setup cap, to show what the network can physically absorb). This gives both the true maximum that can be added <b>all at once</b> without a voltage deviation or thermal violation, and the resulting effect on daily distribution energy loss.</p>
-              <button className="primary" onClick={runSystem} disabled={systemBusy}>Compute maximum simultaneous capacity</button>
-              {systemBusy && <span className="loading" style={{ marginLeft: 12 }}><span className="spinner"></span> processing queue…</span>}
+              <button className="primary" onClick={runSystem} disabled={sys.running}>Compute maximum simultaneous capacity</button>
+              <TaskProgress task={sys} />
 
               {system && (
                 <div style={{ marginTop: 14 }}>

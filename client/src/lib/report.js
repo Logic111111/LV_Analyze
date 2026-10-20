@@ -375,13 +375,24 @@ export function buildReportHtml(design, res, hosting, daily, bessHosting) {
 </body></html>`;
 }
 
-export function downloadReport(design, res, hosting, daily, bessHosting) {
-  const html = buildReportHtml(design, res, hosting, daily, bessHosting);
+// File name for a design's report, e.g. "walkthrough-island-report.html".
+export function reportFileName(design) {
+  return (design.name || 'design').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-report.html';
+}
+
+// Browser-only: hands an already-built HTML string to the user as a file download. Split from
+// buildReportHtml so the (slow) build can run in the engine worker, which has no DOM.
+export function downloadHtml(html, fileName) {
   const blob = new Blob([html], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = (design.name || 'design').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-report.html';
+  a.download = fileName;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// Builds and downloads in one go, on the calling thread (kept for existing callers).
+export function downloadReport(design, res, hosting, daily, bessHosting) {
+  downloadHtml(buildReportHtml(design, res, hosting, daily, bessHosting), reportFileName(design));
 }

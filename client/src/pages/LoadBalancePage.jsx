@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
-import { proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runSnapshot, DAILY_HOURS } from '../lib/loadflow.js';
+import { applyPhaseBalance, runSnapshot, DAILY_HOURS } from '../lib/loadflow.js';
 import { buildDiagramSVG } from '../lib/diagram.js';
 import { ConvergenceWarning } from '../components/Convergence.jsx';
 import { txCurrentSummary } from '../lib/format.js';
+import TaskProgress from '../components/TaskProgress.jsx';
+import { useEngineTask } from '../hooks/useEngineTask.js';
 
 function testOptsFor(testMode) {
   if (testMode === 'solarPeak') return { hours: [12], solarMult: 1, periodLabel: 'at 12:00 (solar peak)' };
@@ -30,23 +32,18 @@ export default function LoadBalancePage() {
   const [txId, setTxId] = useState(design.transformers[0]?.id || '');
   const [testMode, setTestMode] = useState('daily');
   const [proposal, setProposal] = useState(null); // { items, before, after, changed, beforeMetrics, afterMetrics, periodLabel, balancedDesign }
-  const [busy, setBusy] = useState(false);
+  const task = useEngineTask();
   const [preview, setPreview] = useState(null); // { design }
   const [applied, setApplied] = useState(null);
 
-  function runPropose() {
+  // The proposal plus its before/after scans run in the engine worker, with progress and Cancel.
+  async function runPropose() {
     if (!txId) { alert('Add a transformer first, on the Setup page.'); return; }
-    setBusy(true);
-    setTimeout(() => {
-      const { hours, solarMult, periodLabel } = testOptsFor(testMode);
-      const p = proposePhaseBalance(design, txId);
-      const beforeMetrics = scanAndSummarize(design, hours, solarMult);
-      const balancedDesign = applyPhaseBalance(design, p.changed);
-      const afterMetrics = scanAndSummarize(balancedDesign, hours, solarMult);
-      setProposal({ ...p, beforeMetrics, afterMetrics, periodLabel, balancedDesign });
-      setPreview(null); setApplied(null);
-      setBusy(false);
-    }, 10);
+    const { hours, solarMult, periodLabel } = testOptsFor(testMode);
+    const r = await task.run('phaseBalance', { design, txId, hours, solarMult }, 'Proposing a phase balance');
+    if (!r.ok) return;
+    setProposal({ ...r.result, periodLabel });
+    setPreview(null); setApplied(null);
   }
 
   function openPreview() { setPreview({ design: proposal.balancedDesign }); }
@@ -81,8 +78,8 @@ export default function LoadBalancePage() {
           <label className="chk"><input type="radio" name="lbTestMode" checked={testMode === 'nightPeak'} onChange={() => setTestMode('nightPeak')} /> Night peak only (20:00)</label>
         </div>
 
-        <button className="primary" onClick={runPropose} disabled={busy} style={{ marginTop: 8 }}>Propose balance</button>
-        {busy && <span className="loading" style={{ marginLeft: 12 }}><span className="spinner"></span> balancing…</span>}
+        <button className="primary" onClick={runPropose} disabled={task.running} style={{ marginTop: 8 }}>Propose balance</button>
+        <TaskProgress task={task} />
       </div>
 
       {applied && (

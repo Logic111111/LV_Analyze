@@ -3,15 +3,15 @@ import { useDesign } from '../context/DesignContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import {
   feederTrees, poleById, transformerOfPole, nextTransformerId, conductorCodes, transformerRatings,
-  computeFeederSplitCandidates, dualFeederSetup, scoreFeederSplitCandidate, scoreDualFeederCandidate,
-  buildSplitCandidate, runSnapshot, scanAndSummarize, feederConnectedTotals, DAILY_HOURS
+  buildSplitCandidate, runSnapshot, feederConnectedTotals, DAILY_HOURS
 } from '../lib/loadflow.js';
 import { buildDiagramSVG } from '../lib/diagram.js';
 import { ConvergenceWarning } from '../components/Convergence.jsx';
 import { txCurrentSummary } from '../lib/format.js';
+import TaskProgress from '../components/TaskProgress.jsx';
+import { useEngineTask } from '../hooks/useEngineTask.js';
 
 const DUAL_SHORTLIST_K = 8;
-const tick = () => new Promise(r => setTimeout(r, 0));
 
 function openPointLabel(design, o) {
   const a = poleById(design, o.poleA), b = poleById(design, o.poleB);
@@ -85,8 +85,7 @@ export default function FeederSplitPage() {
 
   const [results, setResults] = useState(null); // { ...computed, mode: 'single'|'dual', cond, testMode }
   const [quickResult, setQuickResult] = useState(null); // dual mode's instant "place at this open point" result
-  const [busy, setBusy] = useState(false);
-  const [dualProgress, setDualProgress] = useState(null); // { stage, done, total } while a dual search runs
+  const task = useEngineTask();
   const [preview, setPreview] = useState(null); // { design, label, reparents }
   const [applied, setApplied] = useState(null);
 
@@ -114,6 +113,8 @@ export default function FeederSplitPage() {
     setPreview({ design: finalDesign, label, reparents, usedOpenPointId });
   }
 
+  // Every search runs in the engine worker (a dual-feeder search can take tens of seconds on long
+  // feeders), with progress and Cancel; the page stays responsive throughout.
   async function runSingle() {
     if (!selectedTree) { alert('This design has no feeders yet — add poles on the Network page first.'); return; }
     if (siteMethod === 'openPoint' && !singleOpenPointId) { alert('Pick a common open point, or choose a different site method.'); return; }
@@ -123,92 +124,34 @@ export default function FeederSplitPage() {
       : siteMethod === 'openPoint' ? { mode: 'anchor', anchor: openPointAnchorFor(design, selectedTree, singleOpenPointId), cond: singleDerivedCond }
       : { mode: 'manual', spanM: manualConnector.spanM, cond: manualConnector.cond };
     const { hours, solarMult, periodLabel, lossLabel } = testOptsFor(testMode);
-    setBusy(true);
-    try {
-      await tick();
-      const r = computeFeederSplitCandidates(design, feederRootId, txSpec, siteSpec, hours, solarMult);
-      setResults({ ...r, mode: 'single', cond: siteSpec.cond, testMode, periodLabel, lossLabel, usedOpenPointId: siteMethod === 'openPoint' ? singleOpenPointId : null });
-      setPreview(null); setApplied(null); setQuickResult(null);
-    } catch (e) {
-      console.error(e);
-      alert('Something went wrong running that search: ' + e.message);
-    } finally {
-      setBusy(false);
-    }
+    setPreview(null); setApplied(null); setQuickResult(null);
+    const r = await task.run('feederSplitSingle', { design, rootPoleId: feederRootId, txSpec, siteSpec, hours, solarMult }, 'Finding the best cut point');
+    if (!r.ok) return;
+    setResults({ ...r.result, mode: 'single', cond: siteSpec.cond, testMode, periodLabel, lossLabel, usedOpenPointId: siteMethod === 'openPoint' ? singleOpenPointId : null });
   }
 
-  // Staged search (see dualFeederSetup's comment in loadflow.js): each side's candidates are
-  // shortlisted independently first, then only the shortlisted pairs are jointly and exactly
-  // scored — every single candidate score, at every stage, happens in its own loop iteration with
-  // a yield after it, so the tab stays responsive throughout instead of blocking on what would
-  // otherwise be several long, uninterrupted synchronous scans.
+  // Staged search (see searchDualFeederSplit in engine/advisors/feederSplit.js): each side's
+  // candidates are shortlisted independently first, then only the shortlisted pairs are jointly
+  // and exactly scored.
   async function runDual() {
     if (!dualOpenPointId) { alert('Add a common open point on the Network page first.'); return; }
-    setBusy(true); setPreview(null); setApplied(null); setDualProgress(null); setQuickResult(null);
+    setPreview(null); setApplied(null); setQuickResult(null);
     const { hours, solarMult, periodLabel, lossLabel } = testOptsFor(testMode);
-    try {
-      await tick();
-      const { feederA, feederB, poleIdsA, poleIdsB, shortlistTx, siteSpecA, siteSpecB } = dualFeederSetup(design, dualOpenPointId, txSpec, dualCond);
-      const baseline = scanAndSummarize(design, hours, solarMult);
-
-      const scoredA = [];
-      for (const poleId of poleIdsA) {
-        scoredA.push(scoreFeederSplitCandidate(design, poleId, shortlistTx, siteSpecA, hours, solarMult));
-        setDualProgress({ stage: `shortlisting ${feederA}`, done: scoredA.length, total: poleIdsA.length });
-        await tick();
-      }
-      scoredA.sort((a, b) => a.voltageViolationCount - b.voltageViolationCount || a.lossKwh - b.lossKwh);
-
-      const scoredB = [];
-      for (const poleId of poleIdsB) {
-        scoredB.push(scoreFeederSplitCandidate(design, poleId, shortlistTx, siteSpecB, hours, solarMult));
-        setDualProgress({ stage: `shortlisting ${feederB}`, done: scoredB.length, total: poleIdsB.length });
-        await tick();
-      }
-      scoredB.sort((a, b) => a.voltageViolationCount - b.voltageViolationCount || a.lossKwh - b.lossKwh);
-
-      const shortlistA = scoredA.slice(0, DUAL_SHORTLIST_K).map(c => c.poleId);
-      const shortlistB = scoredB.slice(0, DUAL_SHORTLIST_K).map(c => c.poleId);
-      const newTx = buildNewTx(nextTransformerId(design));
-      const total = shortlistA.length * shortlistB.length;
-      const candidates = [];
-      for (const poleA of shortlistA) {
-        for (const poleB of shortlistB) {
-          candidates.push(scoreDualFeederCandidate(design, poleA, poleB, dualOpenPointId, newTx, dualCond, hours, solarMult));
-          setDualProgress({ stage: 'testing joint candidates', done: candidates.length, total });
-          await tick();
-        }
-      }
-      candidates.sort((a, b) => a.voltageViolationCount - b.voltageViolationCount || a.lossKwh - b.lossKwh);
-      setResults({ feederA, feederB, newTx, baseline, candidates, mode: 'dual', cond: dualCond, testMode, periodLabel, lossLabel, usedOpenPointId: dualOpenPointId });
-    } catch (e) {
-      console.error(e);
-      alert('Something went wrong running that search: ' + e.message);
-    } finally {
-      setDualProgress(null);
-      setBusy(false);
-    }
+    const r = await task.run('feederSplitDual', { design, openPointId: dualOpenPointId, txSpec, cond: dualCond, hours, solarMult, shortlistK: DUAL_SHORTLIST_K }, 'Searching cut points near the open point');
+    if (!r.ok) return;
+    setResults({ ...r.result, mode: 'dual', cond: dualCond, testMode, periodLabel, lossLabel, usedOpenPointId: dualOpenPointId });
   }
 
   // No search needed — the two cuts are fixed at the open point's own poles, so this is one
-  // instant, exact evaluation (scoreDualFeederCandidate naturally derives 0-length connectors
-  // when the candidate pole *is* the anchor pole), independent of the broader ranked search.
+  // exact evaluation (scoreDualFeederCandidate naturally derives 0-length connectors when the
+  // candidate pole *is* the anchor pole), independent of the broader ranked search.
   async function placeAtOpenPoint() {
     if (!dualOpenPointId) { alert('Add a common open point on the Network page first.'); return; }
-    setBusy(true); setPreview(null); setApplied(null); setResults(null);
-    try {
-      await tick();
-      const op = design.openPoints.find(o => o.id === dualOpenPointId);
-      const newTx = buildNewTx(nextTransformerId(design));
-      const { hours, solarMult, periodLabel, lossLabel } = testOptsFor(testMode);
-      const candidate = scoreDualFeederCandidate(design, op.poleA, op.poleB, dualOpenPointId, newTx, dualCond, hours, solarMult);
-      setQuickResult({ candidate, newTx, cond: dualCond, periodLabel, lossLabel });
-    } catch (e) {
-      console.error(e);
-      alert('Something went wrong evaluating that: ' + e.message);
-    } finally {
-      setBusy(false);
-    }
+    setPreview(null); setApplied(null); setResults(null);
+    const { hours, solarMult, periodLabel, lossLabel } = testOptsFor(testMode);
+    const r = await task.run('feederSplitAtOpenPoint', { design, openPointId: dualOpenPointId, txSpec, cond: dualCond, hours, solarMult }, 'Evaluating a transformer at the open point');
+    if (!r.ok) return;
+    setQuickResult({ candidate: r.result.candidate, newTx: r.result.newTx, cond: dualCond, periodLabel, lossLabel });
   }
 
   // Reuses the exact reparent plan the search/quick-action already resolved (rather than
@@ -383,23 +326,16 @@ export default function FeederSplitPage() {
         </div>
 
         {mode === 'single' ? (
-          <button className="primary" onClick={runSingle} disabled={busy} style={{ marginTop: 8 }}>Find best cut point</button>
+          <button className="primary" onClick={runSingle} disabled={task.running} style={{ marginTop: 8 }}>Find best cut point</button>
         ) : (
           <>
-            <button className="primary" onClick={placeAtOpenPoint} disabled={busy} style={{ marginTop: 8 }}>
+            <button className="primary" onClick={placeAtOpenPoint} disabled={task.running} style={{ marginTop: 8 }}>
               Place new transformer at {dualOpenPointObj ? `${dualOpenPointObj.poleA} & ${dualOpenPointObj.poleB}` : 'this open point'} (0m connectors, no search)
             </button>{' '}
-            <button className="ghost" onClick={runDual} disabled={busy} style={{ marginTop: 8 }}>Or search nearby cut points instead</button>
+            <button className="ghost" onClick={runDual} disabled={task.running} style={{ marginTop: 8 }}>Or search nearby cut points instead</button>
           </>
         )}
-        {busy && (
-          <span className="loading" style={{ marginLeft: 12 }}>
-            <span className="spinner"></span>
-            {mode === 'dual' && dualProgress
-              ? ` ${dualProgress.stage}… ${dualProgress.done}/${dualProgress.total}`
-              : ' working…'}
-          </span>
-        )}
+        <TaskProgress task={task} />
         {mode === 'dual' && <p className="hint" style={{ marginTop: 8 }}>"Place new transformer at..." always cuts exactly at the open point's own two poles — no searching. "Search nearby cut points instead" may find a better-scoring pair near the open point (shortlisting each feeder's candidates independently first — top {DUAL_SHORTLIST_K} each — then jointly testing those {DUAL_SHORTLIST_K}×{DUAL_SHORTLIST_K} combinations exactly), but won't necessarily land exactly on the open point's poles.</p>}
       </div>
 

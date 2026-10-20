@@ -205,4 +205,11 @@
  * @property {number} solarMult
  */
 
+/**
+ * Progress report from a long-running engine function, for a progress bar: `done` of `total`
+ * steps of the current `stage` (a short human-readable label, e.g. "2/2 Simultaneous queue").
+ * @typedef {{ stage?: string, done: number, total: number }} Progress
+ */
+/** @typedef {{ onProgress?: (p: Progress) => void }} ProgressHooks */
+
 export {};

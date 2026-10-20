@@ -68,23 +68,26 @@ function findMaxBess(design, pole, phase, hi, committed, baseline) {
   }, hi);
 }
 
-/** @param {Design} design @param {number} cap @param {HostingBaseline} baseline @returns {HostingRow[]} */
-function independentBess(design, cap, baseline) {
+/** @param {Design} design @param {number} cap @param {HostingBaseline} baseline @param {import('./types.js').ProgressHooks} hooks @param {string} stage @returns {HostingRow[]} */
+function independentBess(design, cap, baseline, hooks, stage) {
   const results = [];
+  const total = design.poles.length * PHASES.length;
+  let done = 0;
   design.poles.forEach(p => {
     PHASES.forEach(phase => {
       const best = findMaxBess(design, p.id, phase, cap, [], baseline);
       if (best.kva > 0.05) results.push({ pole: p.id, phase, kva: best.kva, limit: best.limit, limitDetail: best.limitDetail });
+      if (hooks.onProgress) hooks.onProgress({ stage, done: ++done, total });
     });
   });
   results.sort((a, b) => b.kva - a.kva);
   return results;
 }
 
-/** @param {Design} design @param {number} [capOverride] @returns {HostingRow[]} */
-export function computeBessHostingCapacity(design, capOverride) {
+/** @param {Design} design @param {number} [capOverride] @param {import('./types.js').ProgressHooks} [hooks] @returns {HostingRow[]} */
+export function computeBessHostingCapacity(design, capOverride, hooks = {}) {
   const cap = capOverride != null ? capOverride : design.maxbess;
-  return independentBess(design, cap, bessHostingBaseline(design));
+  return independentBess(design, cap, bessHostingBaseline(design), hooks, 'Testing each pole and phase');
 }
 
 // Average reduction in total system loss (line + transformer) a small 1 kVA BESS addition at
@@ -108,23 +111,32 @@ function lossImpactScore(design, pole, phase, committed) {
 // committed first — then walked exactly like the PV queue (each candidate tested with every
 // higher-priority addition already locked in) to get the true simultaneous maximum. The Setup
 // page's per-connection BESS cap is ignored here — this reports the physical ceiling.
-/** @param {Design} design */
-export function computeSystemBessHostingCapacity(design) {
+/** @param {Design} design @param {import('./types.js').ProgressHooks} [hooks] */
+export function computeSystemBessHostingCapacity(design, hooks = {}) {
+  const progress = hooks.onProgress || (() => {});
   const baseline = bessHostingBaseline(design);
-  const independent = independentBess(design, UNCAPPED_CEILING_KVA, baseline);
-  const scored = independent.map(cand => ({ ...cand, lossScore: lossImpactScore(design, cand.pole, cand.phase, []) }));
+  const independent = independentBess(design, UNCAPPED_CEILING_KVA, baseline, hooks, '1/4 Uncapped limit at each location');
+  const scored = independent.map((cand, i) => {
+    const row = { ...cand, lossScore: lossImpactScore(design, cand.pole, cand.phase, []) };
+    progress({ stage: '2/4 Loss-reduction score per location', done: i + 1, total: independent.length });
+    return row;
+  });
   scored.sort((a, b) => b.lossScore - a.lossScore || b.kva - a.kva);
 
   const committed = [];
-  const results = scored.map(cand => {
+  const results = scored.map((cand, i) => {
     const best = findMaxBess(design, cand.pole, cand.phase, cand.kva, committed, baseline);
     if (best.kva > 0.05) committed.push({ pole: cand.pole, phase: cand.phase, kva: best.kva });
+    progress({ stage: '3/4 Simultaneous queue', done: i + 1, total: scored.length });
     return { pole: cand.pole, phase: cand.phase, independentKva: cand.kva, lossScore: cand.lossScore, achievableKva: best.kva, limit: best.limit, limitDetail: best.limitDetail };
   });
   const totalKva = results.reduce((s, r) => s + r.achievableKva, 0);
 
+  progress({ stage: '4/4 Daily energy loss with and without the allocation', done: 0, total: 2 });
   const baselineLossKwh = dailyEnergyLossKwh(design, []);
+  progress({ stage: '4/4 Daily energy loss with and without the allocation', done: 1, total: 2 });
   const withBessLossKwh = dailyEnergyLossKwh(design, committed);
+  progress({ stage: '4/4 Daily energy loss with and without the allocation', done: 2, total: 2 });
   return {
     results, totalKva, baselineLossKwh, withBessLossKwh,
     lossReductionKwh: baselineLossKwh.totalKwh - withBessLossKwh.totalKwh

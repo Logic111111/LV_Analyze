@@ -1,35 +1,32 @@
 import { useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
-import { computeHostingCapacity, computeSystemHostingCapacity, pvHostingBaseline } from '../lib/loadflow.js';
 import BaselineBanner from '../components/BaselineBanner.jsx';
+import TaskProgress from '../components/TaskProgress.jsx';
+import { useEngineTask } from '../hooks/useEngineTask.js';
 import { HostingLimitCell, HostingNonConvergenceWarning } from '../components/Convergence.jsx';
 
 export default function HostingPage() {
   const { design, setLastHosting } = useDesign();
   const [results, setResults] = useState(null);
-  const [busy, setBusy] = useState(false);
   const [system, setSystem] = useState(null);
-  const [systemBusy, setSystemBusy] = useState(false);
   const [baseline, setBaseline] = useState(null);
+  // Both searches run in the engine worker (seconds on a large feeder), with progress and Cancel.
+  const indep = useEngineTask();
+  const sys = useEngineTask();
 
-  function run() {
-    setBusy(true);
-    setTimeout(() => {
-      const r = computeHostingCapacity(design);
-      setBaseline(pvHostingBaseline(design));
-      setResults(r);
-      setLastHosting(r);
-      setSystem(null);
-      setBusy(false);
-    }, 10);
+  async function run() {
+    sys.cancel();
+    const r = await indep.run('hostingCapacity', { design }, 'Computing hosting capacity');
+    if (!r.ok) return;
+    setBaseline(r.result.baseline);
+    setResults(r.result.rows);
+    setLastHosting(r.result.rows);
+    setSystem(null);
   }
 
-  function runSystem() {
-    setSystemBusy(true);
-    setTimeout(() => {
-      setSystem(computeSystemHostingCapacity(design));
-      setSystemBusy(false);
-    }, 10);
+  async function runSystem() {
+    const r = await sys.run('systemHostingCapacity', { design }, 'Computing maximum simultaneous capacity');
+    if (r.ok) setSystem(r.result);
   }
 
   return (
@@ -37,8 +34,8 @@ export default function HostingPage() {
       <div className="card">
         <h2>Additional solar hosting capacity</h2>
         <p className="hint">Tests adding single-phase PV (up to the cap set in Setup) at every pole and phase across the solar shoulder hours (09:00–15:00), then ranks poles by the extra capacity that can be absorbed before it creates a statutory voltage or conductor-thermal violation (or makes one the design already has worse). The transformer is not a limiting factor here when the result is a net export — reverse flow back to the grid is unrestricted.</p>
-        <button className="primary" onClick={run} disabled={busy}>Compute hosting capacity</button>
-        {busy && <span className="loading" style={{ marginLeft: 12 }}><span className="spinner"></span> scanning poles…</span>}
+        <button className="primary" onClick={run} disabled={indep.running}>Compute hosting capacity</button>
+        <TaskProgress task={indep} />
       </div>
 
       <BaselineBanner baseline={baseline} kind="solar shoulder (09:00–15:00)" />
@@ -70,8 +67,8 @@ export default function HostingPage() {
             <div className="card" style={{ marginTop: 14 }}>
               <h2>Maximum simultaneous hosting capacity</h2>
               <p className="hint">The ranking above tests each location on its own, capped at the {design.maxpv} kW per-connection limit set in Setup — but real headroom shrinks once other locations also start exporting, because the voltage rise and thermal loading compound. This scan re-ranks locations by their true, <b>uncapped</b> voltage/thermal limit (ignoring the Setup cap, to show what the network itself can physically absorb), then processes them in that priority order like an interconnection queue — each candidate tested with every higher-ranked addition already committed — giving the true maximum that can be added to this design <b>all at once</b>, and the realistic amount to allocate at each location.</p>
-              <button className="primary" onClick={runSystem} disabled={systemBusy}>Compute maximum simultaneous capacity</button>
-              {systemBusy && <span className="loading" style={{ marginLeft: 12 }}><span className="spinner"></span> processing queue…</span>}
+              <button className="primary" onClick={runSystem} disabled={sys.running}>Compute maximum simultaneous capacity</button>
+              <TaskProgress task={sys} />
 
               {system && (
                 <div style={{ marginTop: 14 }}>

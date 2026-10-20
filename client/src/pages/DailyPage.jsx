@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
-import { runDailyScan } from '../lib/loadflow.js';
 import YearPicker from '../components/YearPicker.jsx';
 import LineChart from '../components/LineChart.jsx';
+import TaskProgress from '../components/TaskProgress.jsx';
+import { useEngineTask } from '../hooks/useEngineTask.js';
 
 // Chart.js needs literal colour strings (not CSS var()), so the two themes' chart palettes are
 // kept here in step with the --* custom properties in styles.css.
@@ -40,44 +41,35 @@ export default function DailyPage() {
   const { design, setLastDaily } = useDesign();
   const [year, setYear] = useState(0);
   const [rows, setRows] = useState(null);
-  const [busy, setBusy] = useState(false);
-
   const [lowLoadPct, setLowLoadPct] = useState(50);
   const [rowsLowLoad, setRowsLowLoad] = useState(null);
-  const [busyLowLoad, setBusyLowLoad] = useState(false);
-
   const [lowSolarPct, setLowSolarPct] = useState(50);
   const [rowsLowSolar, setRowsLowSolar] = useState(null);
-  const [busyLowSolar, setBusyLowSolar] = useState(false);
+  // Each scenario's 24 h scan runs in the engine worker (it can take a few hundred ms on a large
+  // feeder), with progress and Cancel.
+  const combinedTask = useEngineTask();
+  const lowLoadTask = useEngineTask();
+  const lowSolarTask = useEngineTask();
 
-  function run() {
-    setBusy(true);
-    setTimeout(() => {
-      const r = runDailyScan(design, year, { loadMult: 1, solarMult: 1 });
-      setRows(r);
-      setLastDaily(d => ({ ...(d || {}), combined: { rows: r, loadMult: 1, solarMult: 1 } }));
-      setBusy(false);
-    }, 10);
+  async function run() {
+    const r = await combinedTask.run('dailyScan', { design, year, loadMult: 1, solarMult: 1 }, 'Running the 24-hour scan');
+    if (!r.ok) return;
+    setRows(r.result);
+    setLastDaily(d => ({ ...(d || {}), combined: { rows: r.result, loadMult: 1, solarMult: 1 } }));
   }
-  function runLowLoad() {
-    setBusyLowLoad(true);
-    setTimeout(() => {
-      const loadMult = (Number(lowLoadPct) || 0) / 100;
-      const r = runDailyScan(design, year, { loadMult, solarMult: 1 });
-      setRowsLowLoad(r);
-      setLastDaily(d => ({ ...(d || {}), lowLoad: { rows: r, loadMult, solarMult: 1 } }));
-      setBusyLowLoad(false);
-    }, 10);
+  async function runLowLoad() {
+    const loadMult = (Number(lowLoadPct) || 0) / 100;
+    const r = await lowLoadTask.run('dailyScan', { design, year, loadMult, solarMult: 1 }, 'Running the low-load scan');
+    if (!r.ok) return;
+    setRowsLowLoad(r.result);
+    setLastDaily(d => ({ ...(d || {}), lowLoad: { rows: r.result, loadMult, solarMult: 1 } }));
   }
-  function runLowSolar() {
-    setBusyLowSolar(true);
-    setTimeout(() => {
-      const solarMult = (Number(lowSolarPct) || 0) / 100;
-      const r = runDailyScan(design, year, { loadMult: 1, solarMult });
-      setRowsLowSolar(r);
-      setLastDaily(d => ({ ...(d || {}), lowSolar: { rows: r, loadMult: 1, solarMult } }));
-      setBusyLowSolar(false);
-    }, 10);
+  async function runLowSolar() {
+    const solarMult = (Number(lowSolarPct) || 0) / 100;
+    const r = await lowSolarTask.run('dailyScan', { design, year, loadMult: 1, solarMult }, 'Running the low-solar scan');
+    if (!r.ok) return;
+    setRowsLowSolar(r.result);
+    setLastDaily(d => ({ ...(d || {}), lowSolar: { rows: r.result, loadMult: 1, solarMult } }));
   }
 
   return (
@@ -93,8 +85,8 @@ export default function DailyPage() {
           <label className="field"><span>Year</span><YearPicker value={year} onChange={setYear} /></label>
           <div>
             <label className="field"><span>&nbsp;</span></label>
-            <button className="primary" onClick={run} disabled={busy}>Run 24-hour scan</button>
-            {busy && <span className="loading" style={{ marginLeft: 12 }}><span className="spinner"></span> solving 24 snapshots…</span>}
+            <button className="primary" onClick={run} disabled={combinedTask.running}>Run 24-hour scan</button>
+            <TaskProgress task={combinedTask} />
           </div>
         </div>
       </div>
@@ -108,8 +100,8 @@ export default function DailyPage() {
             <input type="number" min={0} max={200} step={5} value={lowLoadPct} onChange={e => setLowLoadPct(e.target.value)} /></label>
           <div>
             <label className="field"><span>&nbsp;</span></label>
-            <button className="primary" onClick={runLowLoad} disabled={busyLowLoad}>Run scenario</button>
-            {busyLowLoad && <span className="loading" style={{ marginLeft: 12 }}><span className="spinner"></span> solving…</span>}
+            <button className="primary" onClick={runLowLoad} disabled={lowLoadTask.running}>Run scenario</button>
+            <TaskProgress task={lowLoadTask} />
           </div>
         </div>
       </div>
@@ -123,8 +115,8 @@ export default function DailyPage() {
             <input type="number" min={0} max={150} step={5} value={lowSolarPct} onChange={e => setLowSolarPct(e.target.value)} /></label>
           <div>
             <label className="field"><span>&nbsp;</span></label>
-            <button className="primary" onClick={runLowSolar} disabled={busyLowSolar}>Run scenario</button>
-            {busyLowSolar && <span className="loading" style={{ marginLeft: 12 }}><span className="spinner"></span> solving…</span>}
+            <button className="primary" onClick={runLowSolar} disabled={lowSolarTask.running}>Run scenario</button>
+            <TaskProgress task={lowSolarTask} />
           </div>
         </div>
       </div>
