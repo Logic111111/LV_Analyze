@@ -5,6 +5,7 @@ import { withDefaults } from '../lib/loadflow.js';
 import VersionHistoryCard from '../components/VersionHistoryCard.jsx';
 import WorkflowCard from '../components/WorkflowCard.jsx';
 import TeamsCard from '../components/TeamsCard.jsx';
+import SessionsCard from '../components/SessionsCard.jsx';
 
 export default function DesignsPage() {
   const { design, savedList, saveDesign, loadDesign, newDesign, removeDesign } = useDesign();
@@ -77,6 +78,7 @@ export default function DesignsPage() {
       <WorkflowCard orgs={orgs} />
       <VersionHistoryCard />
       <TeamsCard onOrgsChange={onOrgsChange} />
+      <SessionsCard />
 
       <div className="section-title">Saved designs</div>
       <div className="card">

@@ -85,7 +85,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P7.2** Database migrations (numbered SQL, `schema_migrations`)
 - [x] **P7.3** Version history and undo/redo
 - [x] **P7.4** Teams, roles and approval workflow
-- [ ] **P7.5** Session revocation
+- [x] **P7.5** Session revocation
 - [ ] **P7.6** OpenDSS export and cross-validation
 - [ ] **P7.7** AI insights with tools
 - [ ] **P7.8** Field mode (PWA)
@@ -1007,6 +1007,20 @@ within 1e-9.
   and organisation.
 - **End to end (3 users).** Org and roles; share and submit; the reviewer has no Approve and
   rejects; resubmit; the approver approves (v1 locked); the admin sees the audit log — all pass.
+
+**P7.5 session revocation (2026-10-21).**
+- **Sessions table.** A `sessions` row per sign-in (migration 004), keyed by a random UUID `jti`
+  in the JWT.
+- **`requireAuth`.** Accepts a token only while its session exists, is unexpired, unrevoked and
+  belongs to the token's user.
+- **Revocation.** `POST /api/auth/logout` revokes this session; `POST /api/auth/logout-all`
+  revokes them all; `GET /api/auth/sessions` lists them. Cookie settings are unchanged.
+- **Deployment note:** tokens issued before this release carry no `jti` and are refused once.
+  Users sign in again after the upgrade.
+- **Client.** A Sessions card (this session marked, Refresh) and "Log out everywhere" (with a
+  confirm).
+- **Checks.** End to end with two browsers, plus supertest (logout, replayed cookie, logout-all,
+  legacy token).
 
 ## Phase verification log
 

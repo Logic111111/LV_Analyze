@@ -23,9 +23,14 @@ export function AuthProvider({ children }) {
     await api.logout().catch(() => {});
     setUser(null);
   }, []);
+  // "Log out everywhere" (P7.5): revokes every session of this account, this one included.
+  const logoutAll = useCallback(async () => {
+    await api.logoutAll().catch(() => {});
+    setUser(null);
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, logoutAll }}>
       {children}
     </AuthContext.Provider>
   );
