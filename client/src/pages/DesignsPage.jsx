@@ -1,14 +1,18 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDesign } from '../context/DesignContext.jsx';
 import { withDefaults } from '../lib/loadflow.js';
 import VersionHistoryCard from '../components/VersionHistoryCard.jsx';
+import WorkflowCard from '../components/WorkflowCard.jsx';
+import TeamsCard from '../components/TeamsCard.jsx';
 
 export default function DesignsPage() {
   const { design, savedList, saveDesign, loadDesign, newDesign, removeDesign } = useDesign();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [note, setNote] = useState('');
+  const [orgs, setOrgs] = useState([]);
+  const onOrgsChange = useCallback((o) => setOrgs(o), []);
   const fileRef = useRef(null);
   const { setDesign } = useDesign();
 
@@ -70,7 +74,9 @@ export default function DesignsPage() {
         {msg && <div className="note" style={{ marginTop: 12 }}>{msg}</div>}
       </div>
 
+      <WorkflowCard orgs={orgs} />
       <VersionHistoryCard />
+      <TeamsCard onOrgsChange={onOrgsChange} />
 
       <div className="section-title">Saved designs</div>
       <div className="card">
@@ -78,15 +84,16 @@ export default function DesignsPage() {
           <div className="empty">No saved designs yet — save the current one above to get started.</div>
         ) : (
           <div className="tbl-wrap"><table>
-            <thead><tr><th>Name</th><th>Total kVA</th><th>Last updated</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Total kVA</th><th>Status</th><th>Owner / organisation</th><th>Last updated</th><th></th></tr></thead>
             <tbody>
               {savedList.map(d => (
                 <tr key={d.id}>
                   <td>{d.name}</td><td>{d.txRating} kVA</td>
+                  <td>{d.status || 'draft'}</td><td>{d.own === false ? d.ownerEmail : 'me'}{d.orgName ? ` · ${d.orgName}` : ''}</td>
                   <td>{new Date(d.updatedAt).toLocaleString()}</td>
                   <td style={{ display: 'flex', gap: 6 }}>
                     <button className="mini" onClick={() => onLoad(d.id)}>load</button>
-                    <button className="mini" onClick={() => onDelete(d.id, d.name)}>delete</button>
+                    {d.own !== false && <button className="mini" onClick={() => onDelete(d.id, d.name)}>delete</button>}
                   </td>
                 </tr>
               ))}

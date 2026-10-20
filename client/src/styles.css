@@ -123,6 +123,7 @@ tr:hover td{background:var(--panel-2)}
 .map-custs{display:flex;gap:2px;flex-wrap:nowrap}
 .map-cust{font:700 10px var(--mono);background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:0 3px}
 .wizard-steps{display:flex;flex-wrap:wrap;gap:6px;list-style:none;padding:0;margin:8px 0 0}
+.mini.on{background:var(--accent-2);color:var(--accent-ink);border-color:var(--accent-2)}
 .wizard-steps button.on{background:var(--accent-2);color:var(--accent-ink);border-color:var(--accent-2)}
 a.btn-link{display:inline-block;text-decoration:none;color:var(--text);border:1px solid var(--line);border-radius:9px;padding:9px 14px;font-size:13px;font-weight:600}
 /* Accessibility & languages (P5.10). */

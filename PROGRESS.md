@@ -84,7 +84,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P7.1** Shared engine package (`packages/engine/`)
 - [x] **P7.2** Database migrations (numbered SQL, `schema_migrations`)
 - [x] **P7.3** Version history and undo/redo
-- [ ] **P7.4** Teams, roles and approval workflow
+- [x] **P7.4** Teams, roles and approval workflow
 - [ ] **P7.5** Session revocation
 - [ ] **P7.6** OpenDSS export and cross-validation
 - [ ] **P7.7** AI insights with tools
@@ -986,6 +986,27 @@ within 1e-9.
     the browser's own text undo applies).
 - **End to end.** Real API (in-memory repo) plus browser: undo/redo, versions with notes, diff
   shows "Pole P3 changed: spanM 60→75", restore, duplicate — all pass.
+
+**P7.4 teams, roles and approval (2026-10-21).**
+- **Server** (from P7.2): organisations, memberships with roles, `designs.org_id`, status and
+  locked version, `design_reviews`, `audit_log`; routes `/api/orgs*` and `/api/designs/:id/{share,
+  submit,approve,reject,reviews}`.
+- **Access rules** (`src/access.js`):
+  - read: the owner or org members;
+  - edit: the owner or org designer/admin, never while submitted;
+  - submit: needs an organisation, from draft or rejected;
+  - reject: reviewer, approver or admin;
+  - approve: approver or admin, **not the submitter** (four-eyes — my addition, the conservative
+    reading);
+  - an edit to an approved design keeps the approved version locked and reopens as a draft.
+
+  Every route answers 404 for designs and organisations the user can't see. supertest covers all
+  of it.
+- **Client.** `TeamsCard` (organisations, members, roles, audit log) and `WorkflowCard` (share,
+  submit, approve, reject with a required comment, history); the saved designs list shows status
+  and organisation.
+- **End to end (3 users).** Org and roles; share and submit; the reviewer has no Approve and
+  rejects; resubmit; the approver approves (v1 locked); the admin sees the audit log — all pass.
 
 ## Phase verification log
 
