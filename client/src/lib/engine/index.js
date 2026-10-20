@@ -21,6 +21,7 @@
 //   random.js               seeded PRNG (mulberry32) for reproducible searches
 //   sensitivity.js          voltage sensitivity matrix (∂|V|/∂P, ∂|V|/∂Q), linear previews
 //   monteCarlo.js           probabilistic planning (random EV/PV adoption, seeded)
+//   scenarios.js            named scenarios: overrides + design patches, side-by-side comparison
 //   hosting.js              PV hosting capacity
 //   bess.js                 BESS hosting capacity
 //   advisors/feederSplit.js feeder split advisor
@@ -45,6 +46,7 @@ export * from './lineModel.js';
 export * from './random.js';
 export * from './sensitivity.js';
 export * from './monteCarlo.js';
+export * from './scenarios.js';
 export * from './hosting.js';
 export * from './bess.js';
 export * from './advisors/feederSplit.js';

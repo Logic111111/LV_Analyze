@@ -120,6 +120,8 @@ export function defaultDesign() {
     // Fuses are user data from manufacturers' time-current curves — the library starts empty and
     // nothing is pre-filled. Feeder head fuses are keyed "<txId>|<feeder>", section fuses by pole.
     fuseLibrary: [],
+    // Named what-if scenarios (P5.4): overrides plus a patch of changed items; none by default.
+    scenarios: [],
     // Transformer thermal model (P3.3, engine/thermal.js). The ambient is the flat 20 °C IEC 60076-7
     // reference, not climate data — the UI asks for the site's hourly profile.
     thermal: { ambientC: Array(24).fill(20), oilExponentX: 0.8, windingExponentY: 1.6, lossRatioR: 5, k11: 1.0, k21: 1.0, k22: 2.0, tauOilMin: 180, tauWindingMin: 4, topOilRiseK: 55, hotSpotGradientK: 23 },
@@ -186,7 +188,7 @@ export function normalizeDesign(design) {
 // Only `undefined` counts as missing — a value that is present (even null) is never overwritten,
 // and the input is never mutated. Idempotent: withDefaults(withDefaults(d)) deep-equals
 // withDefaults(d). New fields added by later features get their (off-by-default) value here.
-const DESIGN_COLLECTIONS = ['poles', 'loads', 'pv', 'bess', 'openPoints', 'fuseLibrary'];
+const DESIGN_COLLECTIONS = ['poles', 'loads', 'pv', 'bess', 'openPoints', 'fuseLibrary', 'scenarios'];
 // Settings groups whose individual fields are filled one by one, so a design saved after a group
 // existed but before one of its fields did still gets that field's default.
 const DESIGN_SETTING_GROUPS = ['standards', 'fault', 'protection', 'inverter', 'thermal', 'signOff'];

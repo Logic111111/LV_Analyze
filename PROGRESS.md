@@ -62,7 +62,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P5.1** New single-line diagram (`SingleLineDiagram.jsx`, IEC 60617-style, overlays, before/after, SVG/PNG/PDF/DXF export)
 - [x] **P5.2** Interactive what-if (drag a drop to another phase; sensitivity preview, confirmed by full load flow)
 - [x] **P5.3** Engineering charts (V vs distance, phasor diagram, heatmap, loading-duration, VUF, fault level)
-- [ ] **P5.4** Scenario manager and comparison
+- [x] **P5.4** Scenario manager and comparison
 - [ ] **P5.5** Issues panel
 - [ ] **P5.6** "Explain this number" drawer
 - [ ] **P5.7** Map-based network editor (react-leaflet, configurable tiles, haversine "measured vs entered")
@@ -672,6 +672,30 @@ within 1e-9.
   - Fixture at 20:00: 9.24 V ∠2.6° at P3.
 - **Phasor diagram.** O = star point, N′ = local neutral. N′→tip are the customers' voltages, and
   O→tip the phase-to-star voltages. An enlarged inset shows O→N′, which is tiny next to 230 V.
+
+**P5.4 scenarios (2026-10-20).**
+- **Code.** `engine/scenarios.js`: `designPatch`, `applyPatch`, `describePatch`, `applyScenario`,
+  `patchCapex`, `scenarioMetrics`, `compareScenarios`, `SCENARIO_ROWS`, `CURRENT_DESIGN_SCENARIO`.
+- **Data.** `design.scenarios` is a new collection, `[]` by default in `withDefaults`. A scenario
+  holds:
+  - overrides: year, multipliers, taps per transformer, built-in standards profile;
+  - a `patch`: changed or added items by id, and removed ids, per collection.
+
+  Applying a patch to the base gives the variant back exactly; tested for balance, reconductor
+  and split.
+- **Decision.** A patch keeps its own copy of each changed item. Later edits to the same items in
+  the base are overridden while the scenario is applied. The page says so.
+- **UI.**
+  - Every before/after preview has **Keep as scenario**.
+  - The **Scenarios** page edits, duplicates, deletes and "Apply to design…" (with a confirm
+    dialog). It compares up to 4 scenarios, optionally including the current design, in the
+    worker.
+  - The best value in each row gets ★ plus bold, not just colour.
+- **Capex.** Derivable only for re-strung spans priced with user conductor costs. Moves, new
+  transformers and tap changes are listed as needing costs; P6.1 fills these from the cost table.
+- **LKR/yr** needs `economics.lossCostLkrPerKwh` (P6.1).
+- **Browser check:** keeping the balance preview as a scenario and comparing it shows violations
+  3 → ★ 0.
 
 ## Phase verification log
 

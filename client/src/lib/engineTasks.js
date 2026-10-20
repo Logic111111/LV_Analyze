@@ -13,7 +13,7 @@ import {
   computeFeederSplitCandidates, searchDualFeederSplit, scoreDualFeederCandidate, makeTx, nextTransformerId,
   proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runDailyScan, protectionCheck, tapAdvisor,
   reconductorAdvisor, fixItLadder, optimisePhaseBalance, voltageSensitivity, linearHostingEstimateKw, monteCarloStudy,
-  runSnapshotAt
+  runSnapshotAt, compareScenarios
 } from './loadflow.js';
 import { buildReportHtml } from './report.js';
 
@@ -74,6 +74,9 @@ export const ENGINE_TASKS = {
   // SOC-BESS it simulates the day up to that hour, and on a big design that's worth keeping off
   // the UI thread.
   snapshotAt: ({ design, year, hour, loadMult, solarMult }) => runSnapshotAt(design, { year, hour, loadMult, solarMult }),
+
+  // Scenario comparison (P5.4): a 24 h scan and protection check per scenario.
+  compareScenarios: ({ design, scenarios }, hooks) => compareScenarios(design, scenarios, hooks),
 
   dailyScan: ({ design, year, loadMult, solarMult }, hooks) =>
     runDailyScan(design, year, { loadMult, solarMult, onProgress: hooks.onProgress, stage: 'Solving 24 hours' }),

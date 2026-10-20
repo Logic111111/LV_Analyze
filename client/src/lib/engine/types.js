@@ -147,6 +147,8 @@
  * @property {import('./inverter.js').InverterSettings} [inverter]
  * @property {Partial<typeof import('./thermal.js').THERMAL_DEFAULTS> & { ambientC?: number[] }} [thermal]
  * @property {{ prepared?: string, preparedDate?: string, checked?: string, checkedDate?: string, approved?: string, approvedDate?: string }} [signOff] Drawing / report sign-off (P5.1, P5.9).
+ * @property {any[]} [scenarios] Named what-if scenarios (P5.4, see scenarios.js).
+ * @property {any} [economics] User-entered costs (P6.1, see economics.js).
  * @property {import('./faults.js').FaultSettings} [fault]
  * @property {import('./faults.js').FuseType[]} [fuseLibrary]
  * @property {{ feederFuses: Record<string, string>, poleFuses: Record<string, string> }} [protection]
