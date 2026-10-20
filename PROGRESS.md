@@ -162,6 +162,24 @@ No golden value has changed.
   `eslint-plugin-react` support for ESLint 10 is the deciding factor; kept on 9 for now. Revisit
   when convenient — it doesn't affect the app.
 
+## Phase verification log
+
+**Phase 0 (2026-10-20).** `npm ci`, `npm run lint` (0 errors, 0 warnings), `npm test` (8 files,
+92 tests), `npm run build`, and `node --check` on all 6 server files, all passing locally on
+Node 22. UI click-through: Vite dev server driven by headless Edge (Playwright), with `/api`
+mocked so an **old-format** Walkthrough Island (flat `txRating`, no `transformers[]`, BESS, open
+points or grounding) arrives through the real `DesignContext.loadDesign` path. The running Docker
+stack and the database were not touched. Results:
+- Load and JSON import of the old format both work, with no sample BESS/open-point rows injected.
+- Setup shows the migrated TX (100 kVA, tap 2, 10 800 V, X/R 3, Rg 7.5 Ω).
+- Run & Reports at 20:00 shows P3 212.9 / 239.2 / 235.6 V and 1 voltage violation (golden).
+- Load Balance shows 9 moves and 3 → 0 violations over 24 h (golden).
+- Feeder Split ranks P3, P2, P1 (golden).
+- Diagram, 24h Profile, both hosting pages, AI Insights and About all open; the dark theme works.
+- At 390 px width, Run & Reports has no horizontal overflow.
+- The only console error is a 404 for `/favicon.ico`: the app has no favicon, which predates this
+  work. Icons come with the P7.8 PWA manifest.
+
 ## Open questions for the user
 
 1. Docker images run Node 20, which is end-of-life. OK to move both Dockerfiles to `node:22-alpine`
