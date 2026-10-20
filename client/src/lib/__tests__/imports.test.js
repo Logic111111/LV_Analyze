@@ -25,7 +25,8 @@ function sourceFiles(dir) {
 
 function namedImports() {
   const out = [];
-  const re = /import\s*\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]/g;
+  // Anchored at line start so an import quoted inside a comment isn't mistaken for a real one.
+  const re = /^import\s*\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]/gm;
   sourceFiles(SRC).forEach(file => {
     const text = readFileSync(file, 'utf8');
     for (const m of text.matchAll(re)) {

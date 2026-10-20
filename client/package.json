@@ -8,10 +8,11 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.engine.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "gen:reference": "node scripts/gen-reference.mjs",
-    "bench": "node scripts/bench.mjs"
+    "bench": "node scripts/bench.mjs",
+    "gen:reference": "node scripts/gen-reference.mjs"
   },
   "dependencies": {
     "chart.js": "^4.4.4",
@@ -26,6 +27,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "globals": "^15.15.0",
+    "typescript": "~5.7.3",
     "vite": "^5.4.2",
     "vitest": "^2.1.9"
   }

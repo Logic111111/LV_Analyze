@@ -137,6 +137,8 @@ The load-flow engine has a golden-value test suite (Vitest, running in plain Nod
 cd client
 npm test        # golden tests + full-precision reference lock
 npm run lint    # ESLint (also enforces that the engine stays dependency-free)
+npm run typecheck  # JSDoc types on the engine (tsc, no emit)
+npm run bench   # engine timings on a synthetic 50-pole / 200-connection island
 ```
 
 - **Golden tests** (`client/src/lib/__tests__/golden.*.test.js`) pin the engine to the
@@ -152,8 +154,12 @@ npm run lint    # ESLint (also enforces that the engine stays dependency-free)
 
 ## Extending
 
-- `client/src/lib/loadflow.js` and `diagram.js` are dependency-free — you can reuse or unit-test
-  them outside React with no mocking (the test suite above does exactly that).
+- The engine lives in `client/src/lib/engine/` — one pure, dependency-free ES module per concern
+  (complex maths, data model, loads, solver, scans, hosting, BESS, and the feeder-split and
+  load-balance advisors; see `engine/index.js` for the map), with JSDoc types checked by
+  `npm run typecheck`. `client/src/lib/loadflow.js` re-exports all of it and stays the import path
+  for pages. `diagram.js` and `report.js` are dependency-free too. All of it runs outside React
+  with no mocking (the test suite above does exactly that).
 - Every way a design enters the app (server load, JSON import, new design) passes through
   `withDefaults(design)` in `loadflow.js`. A new design field gets its default there, so older
   saved designs keep loading with identical results.

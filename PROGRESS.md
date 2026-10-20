@@ -20,7 +20,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 
 ## Phase 1 — Correctness fixes, engine structure, performance
 
-- [ ] **P1.1** Split engine into `client/src/lib/engine/*` modules; `loadflow.js` becomes a re-export; JSDoc typedefs + `// @ts-check`
+- [x] **P1.1** Split engine into `client/src/lib/engine/*` modules; `loadflow.js` becomes a re-export; JSDoc typedefs + `// @ts-check`
 - [ ] **P1.2** Library refactor — `getConductor(design, code)` / `getTransformerType(design, rating)` reading `design.conductorLibrary` / `design.transformerLibrary`
 - [ ] **P1.3** Bug fixes (each with a test that fails before the fix)
   - [ ] 1. Hosting rounds up to an untested size (`Math.round` → `Math.floor(best*20+1e-9)/20`)
@@ -179,6 +179,16 @@ stack and the database were not touched. Results:
 - At 390 px width, Run & Reports has no horizontal overflow.
 - The only console error is a 404 for `/favicon.ico`: the app has no favicon, which predates this
   work. Icons come with the P7.8 PWA manifest.
+
+**P1.1 engine split (2026-10-20).** `loadflow.js` was sliced into `engine/*.js` by line range,
+not retyped. A script asserted that every non-blank source line landed in exactly one module (the only
+lines dropped were two section banners, which each module replaces with its own header). Then
+JSDoc was inserted above signatures. The only edits to code lines are: `export` added to 7
+formerly-internal names that another module now imports (`netS`, `zipMultiplier`, `loadKvaAt`,
+`pvKvaAt`, `PHASE_ANGLE`, `HOSTING_TEST_HOURS`, `UNCAPPED_CEILING_KVA`); the two hosting loops
+iterate `PHASES` instead of an identical literal `['A','B','C']`; and JSDoc type casts. All 51
+previous `loadflow.js` exports are still exported (checked by script) and the 1e-9 lock passes.
+`npm run typecheck` (TypeScript 5.7, `checkJs`, ES libs only, non-strict) is clean and runs in CI.
 
 ## Open questions for the user
 

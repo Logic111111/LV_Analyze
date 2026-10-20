@@ -25,6 +25,8 @@ jobs:
           cache-dependency-path: client/package-lock.json
       - run: npm ci
       - run: npm run lint
+      # JSDoc types on the pure engine (// @ts-check), ES libs only — no DOM.
+      - run: npm run typecheck
       # Includes the Phase 0 golden tests and the 1e-9 reference lock — the gate every change must pass.
       - run: npm test
       - run: npm run build

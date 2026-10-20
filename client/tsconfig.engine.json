@@ -1,0 +1,17 @@
+{
+  // Type-checks the pure engine (JSDoc + // @ts-check). ES libs only — no DOM — so a browser API
+  // used inside the engine is a type error, the same purity rule ESLint enforces on imports.
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "target": "es2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["es2022"],
+    "types": [],
+    "strict": false,
+    "skipLibCheck": true
+  },
+  "include": ["src/lib/engine/**/*.js", "src/lib/loadflow.js"]
+}
