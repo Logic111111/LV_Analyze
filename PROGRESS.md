@@ -329,7 +329,7 @@ its running task. Load balancing v2 and Monte Carlo will use the same mechanism 
 
 **Phase 1 (2026-10-20).**
 - **Checks.** `npm run lint` (0 problems), `npm run typecheck` (0 errors), `npm test` (173 tests in
-  15 files), `npm run build` (the worker is bundled as its own 41 kB chunk), and in `server/`,
+  13 files), `npm run build` (the worker is bundled as its own 41 kB chunk), and in `server/`,
   `npm test` (4 node:test tests) plus `node --check` on every file. All pass on Node 22.
 - **Browser click-through** (headless Edge, `/api` mocked, run against both the Vite dev server
   and `vite preview` of the production build, 12/12 checks each):
