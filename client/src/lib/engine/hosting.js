@@ -2,7 +2,7 @@
 // Solar PV hosting capacity: per-location binary search, and the simultaneous (queue) version.
 import { PHASES } from './complex.js';
 import { runSnapshot } from './solver.js';
-/** @import { Design, PvConnection } from './types.js' */
+/** @import { Design, PvConnection, Violation } from './types.js' */
 /** @typedef {{ pole: string, phase: import('./types.js').Phase, kva: number }} HostingRow */
 
 /* ============================================================
@@ -50,32 +50,106 @@ export function searchMaxKva(test, cap) {
   return kva;
 }
 
+/* ------------------------------------------------------------
+   Baseline-relative feasibility
+------------------------------------------------------------ */
+// A hosting candidate is judged against the design *as it stands* at the same hour, not against
+// a clean sheet. Otherwise a single pre-existing violation anywhere (say an undervoltage at the
+// end of a long feeder at midday) makes every candidate everywhere "infeasible" and hosting
+// reports zero across the board — even for PV that would relieve that very violation. A
+// candidate fails only if, at some test hour, it
+//   - creates a violation that wasn't there before (a new pole + phase + type), or
+//   - makes a pre-existing one worse by more than WORSEN_TOLERANCE (0.01 V for voltage,
+//     0.01 percentage points for thermal and transformer loading).
+// The baseline is always the original design with no hosting additions — including inside the
+// simultaneous (queue) searches — so the tolerance can't creep as additions accumulate.
+export const WORSEN_TOLERANCE = 0.01;
+
+/** Identity of a violation for baseline comparison: where and what, not how bad. @param {Violation} v */
+export function violationKey(v) { return `${v.pole}|${v.phase}|${v.type}`; }
+
+/**
+ * @typedef {object} HostingBaseline
+ * @property {Map<number, Map<string, Violation>>} byHour Baseline violations at each test hour, by violationKey.
+ * @property {(Violation & { hour: number })[]} violations Flat list, for the pages' banner.
+ * @property {number[]} nonConvergedHours Test hours where the design itself didn't converge.
+ */
+
+/**
+ * Baseline violations at each of `hours`, with `relevant` applied (identity for PV; the BESS
+ * search passes its charge/discharge filter).
+ * @param {Design} design @param {number[]} hours
+ * @param {(hour: number, vs: Violation[]) => Violation[]} [relevant]
+ * @returns {HostingBaseline}
+ */
+export function hostingBaseline(design, hours, relevant = (_h, vs) => vs) {
+  const byHour = new Map();
+  /** @type {(Violation & { hour: number })[]} */
+  const violations = [];
+  /** @type {number[]} */
+  const nonConvergedHours = [];
+  hours.forEach(hour => {
+    const res = runSnapshot(design, { year: 0, hour, loadMult: 1, solarMult: 1 });
+    if (!res.converged) nonConvergedHours.push(hour);
+    const vs = relevant(hour, res.violations);
+    byHour.set(hour, new Map(vs.map(v => [violationKey(v), v])));
+    vs.forEach(v => violations.push({ hour, ...v }));
+  });
+  return { byHour, violations, nonConvergedHours };
+}
+
+/**
+ * The first violation in `violations` that is new relative to `baselineAtHour`, or more than
+ * WORSEN_TOLERANCE worse than it was — or null if the candidate is acceptable at this hour.
+ * "Worse" is lower for undervoltage, higher for overvoltage / thermal / transformer overload.
+ * @param {Violation[]} violations @param {Map<string, Violation>} baselineAtHour
+ * @returns {Violation | null}
+ */
+export function newOrWorsenedViolation(violations, baselineAtHour) {
+  for (const v of violations) {
+    const b = baselineAtHour.get(violationKey(v));
+    if (!b) return v;
+    const worse = v.type === 'undervoltage' ? v.value < b.value - WORSEN_TOLERANCE : v.value > b.value + WORSEN_TOLERANCE;
+    if (worse) return v;
+  }
+  return null;
+}
+
+/** PV hosting baseline (the solar shoulder hours) — what the Hosting page lists. @param {Design} design */
+export function pvHostingBaseline(design) { return hostingBaseline(design, HOSTING_TEST_HOURS); }
+
 // Largest single-phase PV (kVA) addable at pole/phase — on top of any `committed` additions
-// already locked in elsewhere — before a voltage or thermal limit is hit across the solar
-// shoulder hours (see searchMaxKva for how the search reports only tested sizes).
-/** @param {Design} design @param {string} pole @param {import('./types.js').Phase} phase @param {number} hi @param {PvConnection[]} committed @returns {number} kVA */
-function findMaxPV(design, pole, phase, hi, committed) {
+// already locked in elsewhere — without creating or worsening a voltage or thermal violation
+// across the solar shoulder hours (see searchMaxKva for how the search reports only tested sizes,
+// and the baseline note above for what "worsening" means).
+/** @param {Design} design @param {string} pole @param {import('./types.js').Phase} phase @param {number} hi @param {PvConnection[]} committed @param {HostingBaseline} baseline @returns {number} kVA */
+function findMaxPV(design, pole, phase, hi, committed, baseline) {
   return searchMaxKva(kva => {
     for (const h of HOSTING_TEST_HOURS) {
       const res = runSnapshot(design, { year: 0, hour: h, loadMult: 1, solarMult: 1, extraPV: [...committed, { pole, phase, kva }] });
-      if (res.violations.length > 0) return false;
+      if (newOrWorsenedViolation(res.violations, baseline.byHour.get(h))) return false;
     }
     return true;
   }, hi);
 }
 
-/** @param {Design} design @param {number} [capOverride] @returns {HostingRow[]} */
-export function computeHostingCapacity(design, capOverride) {
+/** @param {Design} design @param {number} cap @param {HostingBaseline} baseline @returns {HostingRow[]} */
+function independentPV(design, cap, baseline) {
   const results = [];
-  const cap = capOverride != null ? capOverride : design.maxpv;
   design.poles.forEach(p => {
     PHASES.forEach(phase => {
-      const best = findMaxPV(design, p.id, phase, cap, []);
+      const best = findMaxPV(design, p.id, phase, cap, [], baseline);
       if (best > 0.05) results.push({ pole: p.id, phase, kva: best });
     });
   });
   results.sort((a, b) => b.kva - a.kva);
   return results;
+}
+
+/** @param {Design} design @param {number} [capOverride] @returns {HostingRow[]} */
+export function computeHostingCapacity(design, capOverride) {
+  const cap = capOverride != null ? capOverride : design.maxpv;
+  return independentPV(design, cap, pvHostingBaseline(design));
 }
 
 // Generous ceiling used only to discover each location's true, policy-unconstrained
@@ -95,10 +169,11 @@ export const UNCAPPED_CEILING_KVA = 2000;
 // (voltage/thermal) ceiling, not a policy-limited one.
 /** @param {Design} design */
 export function computeSystemHostingCapacity(design) {
-  const independent = computeHostingCapacity(design, UNCAPPED_CEILING_KVA);
+  const baseline = pvHostingBaseline(design);
+  const independent = independentPV(design, UNCAPPED_CEILING_KVA, baseline);
   const committed = [];
   const results = independent.map(cand => {
-    const best = findMaxPV(design, cand.pole, cand.phase, cand.kva, committed);
+    const best = findMaxPV(design, cand.pole, cand.phase, cand.kva, committed, baseline);
     if (best > 0.05) committed.push({ pole: cand.pole, phase: cand.phase, kva: best });
     return { pole: cand.pole, phase: cand.phase, independentKva: cand.kva, achievableKva: best };
   });

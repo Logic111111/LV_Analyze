@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
-import { computeBessHostingCapacity, computeSystemBessHostingCapacity } from '../lib/loadflow.js';
+import { computeBessHostingCapacity, computeSystemBessHostingCapacity, bessHostingBaseline } from '../lib/loadflow.js';
+import BaselineBanner from '../components/BaselineBanner.jsx';
 
 function windowLabel(design) {
   const h = (n) => String(n).padStart(2, '0') + ':00';
@@ -12,12 +13,14 @@ export default function BessHostingPage() {
   const [results, setResults] = useState(null);
   const [busy, setBusy] = useState(false);
   const [systemBusy, setSystemBusy] = useState(false);
+  const [baseline, setBaseline] = useState(null);
   const system = lastBessHosting;
 
   function run() {
     setBusy(true);
     setTimeout(() => {
       const r = computeBessHostingCapacity(design);
+      setBaseline(bessHostingBaseline(design));
       setResults(r);
       setLastBessHosting(null);
       setBusy(false);
@@ -40,6 +43,8 @@ export default function BessHostingPage() {
         <button className="primary" onClick={run} disabled={busy}>Compute hosting capacity</button>
         {busy && <span className="loading" style={{ marginLeft: 12 }}><span className="spinner"></span> scanning poles…</span>}
       </div>
+
+      <BaselineBanner baseline={baseline} kind={'BESS charge/discharge (' + windowLabel(design) + ')'} />
 
       {results && (
         <div style={{ marginTop: 18 }}>

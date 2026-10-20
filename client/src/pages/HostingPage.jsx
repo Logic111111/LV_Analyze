@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
-import { computeHostingCapacity, computeSystemHostingCapacity } from '../lib/loadflow.js';
+import { computeHostingCapacity, computeSystemHostingCapacity, pvHostingBaseline } from '../lib/loadflow.js';
+import BaselineBanner from '../components/BaselineBanner.jsx';
 
 export default function HostingPage() {
   const { design, setLastHosting } = useDesign();
@@ -8,11 +9,13 @@ export default function HostingPage() {
   const [busy, setBusy] = useState(false);
   const [system, setSystem] = useState(null);
   const [systemBusy, setSystemBusy] = useState(false);
+  const [baseline, setBaseline] = useState(null);
 
   function run() {
     setBusy(true);
     setTimeout(() => {
       const r = computeHostingCapacity(design);
+      setBaseline(pvHostingBaseline(design));
       setResults(r);
       setLastHosting(r);
       setSystem(null);
@@ -32,10 +35,12 @@ export default function HostingPage() {
     <div>
       <div className="card">
         <h2>Additional solar hosting capacity</h2>
-        <p className="hint">Tests adding single-phase PV (up to the cap set in Setup) at every pole and phase across the solar shoulder hours (09:00–15:00), then ranks poles by the extra capacity that can be absorbed before a statutory voltage or conductor-thermal limit is hit. The transformer is not a limiting factor here when the result is a net export — reverse flow back to the grid is unrestricted.</p>
+        <p className="hint">Tests adding single-phase PV (up to the cap set in Setup) at every pole and phase across the solar shoulder hours (09:00–15:00), then ranks poles by the extra capacity that can be absorbed before it creates a statutory voltage or conductor-thermal violation (or makes one the design already has worse). The transformer is not a limiting factor here when the result is a net export — reverse flow back to the grid is unrestricted.</p>
         <button className="primary" onClick={run} disabled={busy}>Compute hosting capacity</button>
         {busy && <span className="loading" style={{ marginLeft: 12 }}><span className="spinner"></span> scanning poles…</span>}
       </div>
+
+      <BaselineBanner baseline={baseline} kind="solar shoulder (09:00–15:00)" />
 
       {results && (
         <div style={{ marginTop: 18 }}>

@@ -3,10 +3,10 @@
 import { PHASES } from './complex.js';
 import { runSnapshot } from './solver.js';
 import { rangeHours, bessMultiplierAt } from './loads.js';
-import { UNCAPPED_CEILING_KVA, searchMaxKva } from './hosting.js';
+import { UNCAPPED_CEILING_KVA, searchMaxKva, hostingBaseline, newOrWorsenedViolation } from './hosting.js';
 import { systemLossW, dailyEnergyLossKwh } from './scan.js';
 /** @import { Design, BessConnection, Violation } from './types.js' */
-/** @import { HostingRow } from './hosting.js' */
+/** @import { HostingRow, HostingBaseline } from './hosting.js' */
 
 /* ============================================================
    BESS HOSTING CAPACITY
@@ -32,41 +32,54 @@ function bessTestHours(design) {
 // violation is coming from solar/load that exists with or without this BESS, and the BESS is
 // helping (or at worst is neutral to) it, not causing it.
 /** @param {Design} design @param {number} hour @param {Violation[]} violations @returns {Violation[]} */
-function bessRelevantViolations(design, hour, violations) {
+export function bessRelevantViolations(design, hour, violations) {
   const mult = bessMultiplierAt(design, hour);
   if (mult < 0) return violations.filter(v => v.type !== 'overvoltage');
   if (mult > 0) return violations.filter(v => v.type !== 'undervoltage');
   return violations;
 }
 
-// Binary-searches the largest single-phase BESS (kVA) addable at pole/phase — on top of any
-// `committed` additions already locked in elsewhere — before a voltage or thermal limit the BESS
-// could actually cause is hit, across the charge or discharge windows (a candidate must be clean
-// in the direction it can affect at each hour — see bessRelevantViolations).
-/** @param {Design} design @param {string} pole @param {import('./types.js').Phase} phase @param {number} hi @param {BessConnection[]} committed @returns {number} kVA */
-function findMaxBess(design, pole, phase, hi, committed) {
+// BESS hosting baseline: the design's own violations across the charge and discharge windows,
+// filtered the same way candidates are (see bessRelevantViolations and the baseline note in
+// hosting.js) — what the BESS Hosting page lists.
+/** @param {Design} design @returns {HostingBaseline} */
+export function bessHostingBaseline(design) {
+  return hostingBaseline(design, bessTestHours(design), (h, vs) => bessRelevantViolations(design, h, vs));
+}
+
+// Largest single-phase BESS (kVA) addable at pole/phase — on top of any `committed` additions
+// already locked in elsewhere — without creating or worsening a violation the BESS could actually
+// cause, across the charge and discharge windows (a candidate is judged only in the direction it
+// can affect at each hour — see bessRelevantViolations — and relative to the baseline).
+/** @param {Design} design @param {string} pole @param {import('./types.js').Phase} phase @param {number} hi @param {BessConnection[]} committed @param {HostingBaseline} baseline @returns {number} kVA */
+function findMaxBess(design, pole, phase, hi, committed, baseline) {
   const testHours = bessTestHours(design);
   return searchMaxKva(kva => {
     for (const h of testHours) {
       const res = runSnapshot(design, { year: 0, hour: h, loadMult: 1, solarMult: 1, extraBess: [...committed, { pole, phase, kva }] });
-      if (bessRelevantViolations(design, h, res.violations).length > 0) return false;
+      if (newOrWorsenedViolation(bessRelevantViolations(design, h, res.violations), baseline.byHour.get(h))) return false;
     }
     return true;
   }, hi);
 }
 
-/** @param {Design} design @param {number} [capOverride] @returns {HostingRow[]} */
-export function computeBessHostingCapacity(design, capOverride) {
+/** @param {Design} design @param {number} cap @param {HostingBaseline} baseline @returns {HostingRow[]} */
+function independentBess(design, cap, baseline) {
   const results = [];
-  const cap = capOverride != null ? capOverride : design.maxbess;
   design.poles.forEach(p => {
     PHASES.forEach(phase => {
-      const best = findMaxBess(design, p.id, phase, cap, []);
+      const best = findMaxBess(design, p.id, phase, cap, [], baseline);
       if (best > 0.05) results.push({ pole: p.id, phase, kva: best });
     });
   });
   results.sort((a, b) => b.kva - a.kva);
   return results;
+}
+
+/** @param {Design} design @param {number} [capOverride] @returns {HostingRow[]} */
+export function computeBessHostingCapacity(design, capOverride) {
+  const cap = capOverride != null ? capOverride : design.maxbess;
+  return independentBess(design, cap, bessHostingBaseline(design));
 }
 
 // Average reduction in total system loss (line + transformer) a small 1 kVA BESS addition at
@@ -92,13 +105,14 @@ function lossImpactScore(design, pole, phase, committed) {
 // page's per-connection BESS cap is ignored here — this reports the physical ceiling.
 /** @param {Design} design */
 export function computeSystemBessHostingCapacity(design) {
-  const independent = computeBessHostingCapacity(design, UNCAPPED_CEILING_KVA);
+  const baseline = bessHostingBaseline(design);
+  const independent = independentBess(design, UNCAPPED_CEILING_KVA, baseline);
   const scored = independent.map(cand => ({ ...cand, lossScore: lossImpactScore(design, cand.pole, cand.phase, []) }));
   scored.sort((a, b) => b.lossScore - a.lossScore || b.kva - a.kva);
 
   const committed = [];
   const results = scored.map(cand => {
-    const best = findMaxBess(design, cand.pole, cand.phase, cand.kva, committed);
+    const best = findMaxBess(design, cand.pole, cand.phase, cand.kva, committed, baseline);
     if (best > 0.05) committed.push({ pole: cand.pole, phase: cand.phase, kva: best });
     return { pole: cand.pole, phase: cand.phase, independentKva: cand.kva, lossScore: cand.lossScore, achievableKva: best };
   });

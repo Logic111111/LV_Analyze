@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   runSnapshot, computeHostingCapacity, computeSystemHostingCapacity, computeBessHostingCapacity,
-  computeSystemBessHostingCapacity, HOSTING_TEST_HOURS, rangeHours, bessMultiplierAt, searchMaxKva
+  computeSystemBessHostingCapacity, HOSTING_TEST_HOURS, rangeHours, bessMultiplierAt, searchMaxKva,
+  pvHostingBaseline, bessHostingBaseline, newOrWorsenedViolation
 } from '../loadflow.js';
 import { balancedIsland } from './fixtures/referenceCases.js';
 import { walkthroughIsland } from './fixtures/walkthroughIsland.js';
@@ -100,5 +101,89 @@ describe('searchMaxKva (hand-checkable thresholds in place of load flows)', () =
       expect(r <= limit + 1e-12).toBe(true);
       expect(Math.min(limit, 5) - r < 0.05 + 0.02).toBe(true); // within one step + the bisection resolution of the true limit (or the cap)
     }
+  });
+});
+
+// Walkthrough Island plus a 20 kVA single-phase shop on P3-A: P3-A sits below the statutory band
+// at every PV and BESS test hour before anything is added.
+function shopIsland() {
+  const d = walkthroughIsland();
+  d.loads.push({ id: 'SHOP', pole: 'P3', type: 'shop', phase: 'A', kva: 20 });
+  return d;
+}
+const key = v => `${v.pole}|${v.phase}|${v.type}`;
+// "Passes relative to the baseline": converged, and every violation already existed at that hour
+// (same pole/phase/type) and is no more than 0.01 (V or %) worse.
+function passesVsBaseline(design, hours, extra, kind, relevant = (h, vs) => vs) {
+  return hours.every(h => {
+    const base = new Map(relevant(h, runSnapshot(design, { year: 0, hour: h }).violations).map(v => [key(v), v]));
+    const r = runSnapshot(design, { year: 0, hour: h, loadMult: 1, solarMult: 1, [kind]: extra });
+    if (!r.converged) return false;
+    return relevant(h, r.violations).every(v => {
+      const b = base.get(key(v));
+      if (!b) return false;
+      return v.type === 'undervoltage' ? v.value >= b.value - 0.01 : v.value <= b.value + 0.01;
+    });
+  });
+}
+
+describe('fix 2: a pre-existing violation no longer zeroes every hosting result', () => {
+  const d = shopIsland();
+
+  it('precondition: P3-A is undervoltage at every PV test hour before anything is added', () => {
+    HOSTING_TEST_HOURS.forEach(h => {
+      expect(runSnapshot(d, { year: 0, hour: h }).violations.map(key)).toContain('P3|A|undervoltage');
+    });
+  });
+
+  it('PV hosting finds capacity, and every reported size passes relative to the baseline', () => {
+    const rows = computeHostingCapacity(d);
+    expect(rows.length).toBeGreaterThan(0);
+    rows.forEach(r => expect(passesVsBaseline(d, HOSTING_TEST_HOURS, [{ pole: r.pole, phase: r.phase, kva: r.kva }], 'extraPV')).toBe(true));
+  });
+
+  it('PV on the undervoltage phase itself is accepted — it relieves the violation', () => {
+    expect(computeHostingCapacity(d).find(r => r.pole === 'P3' && r.phase === 'A')?.kva).toBeGreaterThan(0);
+  });
+
+  it('a candidate that creates a NEW violation is still rejected', () => {
+    // 5 kVA of PV on P3-B pushes P3-B over the upper limit at 12:00 (≈248 V) — not in the baseline.
+    expect(passesVsBaseline(d, [12], [{ pole: 'P3', phase: 'B', kva: 5 }], 'extraPV')).toBe(false);
+    expect(computeHostingCapacity(d).find(r => r.pole === 'P3' && r.phase === 'B')?.kva ?? 0).toBeLessThan(5);
+  });
+
+  it('newOrWorsenedViolation: new keys and >0.01 worsening fail; ≤0.01 and improvement pass', () => {
+    const base = new Map([
+      ['P3|A|undervoltage', { pole: 'P3', phase: 'A', type: 'undervoltage', value: 205 }],
+      ['P2|B|overvoltage', { pole: 'P2', phase: 'B', type: 'overvoltage', value: 250 }],
+      ['P1|A|thermal', { pole: 'P1', phase: 'A', type: 'thermal', value: 104 }]
+    ]);
+    const v = (pole, phase, type, value) => ({ pole, phase, type, value });
+    expect(newOrWorsenedViolation([v('P3', 'A', 'undervoltage', 204.995)], base)).toBeNull();   // 0.005 V worse
+    expect(newOrWorsenedViolation([v('P3', 'A', 'undervoltage', 206)], base)).toBeNull();       // better
+    expect(newOrWorsenedViolation([v('P3', 'A', 'undervoltage', 204.98)], base)).not.toBeNull(); // 0.02 V worse
+    expect(newOrWorsenedViolation([v('P2', 'B', 'overvoltage', 250.009)], base)).toBeNull();
+    expect(newOrWorsenedViolation([v('P2', 'B', 'overvoltage', 250.02)], base)).not.toBeNull();
+    expect(newOrWorsenedViolation([v('P1', 'A', 'thermal', 104.02)], base)).not.toBeNull();     // % points
+    expect(newOrWorsenedViolation([v('P3', 'B', 'overvoltage', 244)], base)).not.toBeNull();    // new key
+    expect(newOrWorsenedViolation([], base)).toBeNull();
+  });
+
+  it('BESS hosting finds capacity, judged against the same baseline', () => {
+    const rows = computeBessHostingCapacity(d);
+    expect(rows.length).toBeGreaterThan(0);
+    rows.forEach(r => expect(passesVsBaseline(d, bessHours(d), [{ pole: r.pole, phase: r.phase, kva: r.kva }], 'extraBess', (h, vs) => bessRelevant(d, h, vs))).toBe(true));
+  });
+
+  it('charging BESS on the undervoltage phase is rejected — it would make P3-A worse', () => {
+    expect(computeBessHostingCapacity(d).find(r => r.pole === 'P3' && r.phase === 'A')).toBeUndefined();
+  });
+
+  it('the baseline is reported so the pages can list it', () => {
+    const b = pvHostingBaseline(d);
+    expect(b.violations.map(v => v.hour)).toEqual(HOSTING_TEST_HOURS);
+    expect(b.violations.every(v => v.pole === 'P3' && v.phase === 'A' && v.type === 'undervoltage')).toBe(true);
+    expect(b.nonConvergedHours).toEqual([]);
+    expect(bessHostingBaseline(d).violations.length).toBeGreaterThan(0);
   });
 });

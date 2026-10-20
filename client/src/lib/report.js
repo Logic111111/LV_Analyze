@@ -1,4 +1,4 @@
-import { getTransformerType, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh } from './loadflow.js';
+import { getTransformerType, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh, pvHostingBaseline, bessHostingBaseline } from './loadflow.js';
 
 function esc(v) {
   return String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -171,6 +171,22 @@ function yearOutlookRow(design, year) {
   ];
 }
 
+// The violations the design already has at the hosting test hours (see hostingBaseline in
+// engine/hosting.js): candidates are judged relative to these, so the report lists them next to
+// the hosting results. Empty string for a clean baseline.
+function hostingBaselineNote(baseline) {
+  const hh = h => String(h).padStart(2, '0') + ':00';
+  let out = '';
+  if (baseline.violations.length) {
+    out += `<p class="warn">The design already has ${baseline.violations.length} violation(s) at the test hours before anything is added. A candidate was rejected only if it created a new violation or made one of these more than 0.01 (V or %) worse.</p>` +
+      table(['Hour', 'Pole', 'Phase', 'Issue', 'Value'], baseline.violations.map(v => [hh(v.hour), esc(v.pole), esc(v.phase), esc(v.type), v.value.toFixed(2)]));
+  }
+  if (baseline.nonConvergedHours.length) {
+    out += `<p class="warn">The load flow for the design as it stands did not converge at ${baseline.nonConvergedHours.map(hh).join(', ')}.</p>`;
+  }
+  return out;
+}
+
 // Renders the network's daily energy-loss picture — line losses plus transformer copper and
 // no-load loss, integrated over a fresh 24-hour scan (year 0, nominal load/solar) so this
 // section is always populated regardless of what the user last ran elsewhere in the app.
@@ -277,10 +293,10 @@ export function buildReportHtml(design, res, hosting, daily, bessHosting) {
   let hostingBody = '<p class="empty">No hosting-capacity scan has been run yet — open "Solar Hosting", compute it, then regenerate this report to include results.</p>';
   if (hosting) {
     if (hosting.length === 0) {
-      hostingBody = '<p class="empty">No additional headroom found at solar-peak conditions in the last scan.</p>';
+      hostingBody = hostingBaselineNote(pvHostingBaseline(design)) + '<p class="empty">No additional headroom found at solar-peak conditions in the last scan.</p>';
     } else {
       const total = hosting.reduce((s, r) => s + r.kva, 0);
-      hostingBody = `<p><b>Total additional PV headroom: ${total.toFixed(2)} kVA</b> across ${hosting.length} pole/phase location${hosting.length === 1 ? '' : 's'} (each tested independently — an upper bound, not a guaranteed simultaneous addition).</p>` +
+      hostingBody = hostingBaselineNote(pvHostingBaseline(design)) + `<p><b>Total additional PV headroom: ${total.toFixed(2)} kVA</b> across ${hosting.length} pole/phase location${hosting.length === 1 ? '' : 's'} (each tested independently — an upper bound, not a guaranteed simultaneous addition).</p>` +
         table(['Rank', 'Pole', 'Phase', 'Additional PV headroom (kVA)'], hosting.map((r, i) => [i + 1, esc(r.pole), esc(r.phase), r.kva.toFixed(2)]));
     }
   }
@@ -291,9 +307,9 @@ export function buildReportHtml(design, res, hosting, daily, bessHosting) {
   if (bessHosting) {
     const accepted = bessHosting.results.filter(r => r.achievableKva > 0);
     if (accepted.length === 0) {
-      bessHostingBody = '<p class="empty">No additional BESS headroom found across the charge/discharge windows in the last scan.</p>';
+      bessHostingBody = hostingBaselineNote(bessHostingBaseline(design)) + '<p class="empty">No additional BESS headroom found across the charge/discharge windows in the last scan.</p>';
     } else {
-      bessHostingBody = `
+      bessHostingBody = hostingBaselineNote(bessHostingBaseline(design)) + `
         <p><b>Total simultaneous BESS hosting capacity: ${bessHosting.totalKva.toFixed(2)} kVA</b> across ${accepted.length} pole/phase location${accepted.length === 1 ? '' : 's'}, priority-ordered by loss-reduction impact.</p>
         <div class="kv">
           <div><span>Baseline network loss (no BESS)</span><b>${bessHosting.baselineLossKwh.totalKwh.toFixed(2)} kWh/day</b></div>
