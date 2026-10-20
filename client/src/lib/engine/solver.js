@@ -158,8 +158,30 @@ function solveTxSubtree(design, tx, opts) {
     if (inj) inj.otherS = { ...inj.otherS, [x.phase]: C.add(inj.otherS[x.phase], { re: x.p, im: x.q }) };
   });
   const invSettings = inverterSettings(design);
-  for (let iter = 0; iter < MAX_ITER; iter++) {
-    iterUsed = iter + 1;
+  // Convergence diagnostics (P4.3): max ΔV of every iteration, and which iteration had the lowest.
+  // The sweep is deterministic, so a failed pass's best iterate is recovered by replaying the pass
+  // from its starting state up to that iteration. Copying the best iterate as it happens instead
+  // made every solve ~60 % slower, to serve only the rare failed one. (V, Vn and Vbus have their
+  // entries replaced, never mutated, so shallow copies hold the starting state.)
+  /** @type {number[]} */
+  const deltaHistory = [];
+  // Copied entry by entry: a spread ({ ...V }) here made every later iteration ~50 % slower,
+  // presumably by changing how V8 represents V.
+  /** @type {Record<string, import('./types.js').PhaseMap<Complex>>} */
+  const startV = {};
+  /** @type {Record<string, Complex>} */
+  const startVn = {};
+  order.forEach(id => { startV[id] = V[id]; startVn[id] = Vn[id]; });
+  const start = { V: startV, Vbus: { A: Vbus.A, B: Vbus.B, C: Vbus.C }, Vn: startVn, VnTx };
+  let bestDelta = Infinity, bestIter = 0, retried = false, retryStart = 0;
+  // Passes: the normal sweep; after a failure, a silent replay to the best iterate, then the
+  // α = 0.3 retry (see below).
+  /** @type {{ maxIter: number, record: boolean }[]} */
+  const passes = [{ maxIter: MAX_ITER, record: true }];
+  for (let pass = 0; pass < passes.length; pass++) {
+  const { maxIter, record } = passes[pass];
+  for (let iter = 0; iter < maxIter; iter++) {
+    if (record) iterUsed++;
     const Iself = {};
     order.forEach(id => {
       const { loadS, otherS, smart } = injections[id]; const Ip = {};
@@ -277,12 +299,39 @@ function solveTxSubtree(design, tx, opts) {
     });
     order.forEach(id => V[id] = newV[id]);
     lastDelta = maxDelta;
+    if (record) deltaHistory.push(maxDelta);
     if (maxDelta < TOL) { converged = true; break; }
+    if (record && maxDelta < bestDelta) { bestDelta = maxDelta; bestIter = iter + 1; }
     // Not improving (or actively getting worse) — ease off the damping for subsequent
     // iterations rather than let it oscillate indefinitely until MAX_ITER is exhausted.
     if (maxDelta >= prevMaxDelta * 0.999) alpha = Math.max(alpha * 0.6, 0.02);
     prevMaxDelta = maxDelta;
   }
+  // Retry once (P4.3): a sweep that used up MAX_ITER restarts from its best iterate with a
+  // gentler α = 0.3 (still backing off the same way). A first pass that converges, which is
+  // every golden case, never gets here, so its results are unchanged bit for bit.
+  if (pass === 0 && !converged && bestIter > 0) {
+    retried = true;
+    order.forEach(id => { V[id] = start.V[id]; });
+    Vbus = { ...start.Vbus }; order.forEach(id => { Vn[id] = start.Vn[id]; }); VnTx = start.VnTx;
+    alpha = 0.65; prevMaxDelta = Infinity;
+    passes.push({ maxIter: bestIter, record: false }, { maxIter: MAX_ITER, record: true });
+  } else if (pass === 1) {
+    alpha = 0.3; prevMaxDelta = Infinity; retryStart = deltaHistory.length;
+  }
+  }
+  // Voltage collapse (P4.3): any |V| below half of nominal, any non-finite value, or a retry
+  // whose ΔV still grew. Such a load is beyond what the network can deliver, which is a design
+  // finding, not a solver hiccup, so it is reported as its own status. (A "converged" solution
+  // below 0.5·vnom is the low-voltage branch of the P–V curve and also counts as collapse.)
+  let collapsed = false;
+  order.forEach(id => PHASES.forEach(ph => {
+    const v = C.abs(V[id][ph]);
+    if (!Number.isFinite(v) || v < 0.5 * design.vnom) collapsed = true;
+  }));
+  if (retried && !converged && deltaHistory.length > retryStart && deltaHistory[deltaHistory.length - 1] > deltaHistory[retryStart]) collapsed = true;
+  /** @type {'converged' | 'not-converged' | 'collapse'} */
+  const status = collapsed ? 'collapse' : converged ? 'converged' : 'not-converged';
 
   // Actual current through a span's neutral conductor: with no grounding this is just the
   // aggregate sum of phase currents (KCL — see the `In` comment above) as before; with grounding,
@@ -381,6 +430,7 @@ function solveTxSubtree(design, tx, opts) {
   const couplingIgnored = groundedIds.length ? order.filter(id => spanZ[id].M) : [];
   return {
     converged, iterUsed, lastDelta, poleResults, totalLossW, lossByPole, groundLossW, groundLossByPole, couplingIgnored,
+    convergence: { status, retried, deltaHistory },
     summary: {
       id: tx.id, name: tx.name, txKVA, txPct, flowDirection, netKW, netKVAR, busVoltPct,
       busVph: { A: { ...Vbus.A }, B: { ...Vbus.B }, C: { ...Vbus.C } }, busVufPct: vufPct(Vbus), phaseCurrentA, txZ, txLossW, txNoLoadW, V0, hvMultiplier: hvMult
@@ -448,6 +498,10 @@ export function runSnapshot(design, opts, ctx = {}) {
   const iterUsed = Math.max(...solved.map(s => s.iterUsed));
   const lastDelta = Math.max(...solved.map(s => s.lastDelta));
   const transformers = solved.map(s => s.summary);
+  // Convergence diagnostics per transformer, and the snapshot's overall status (P4.3).
+  const convergence = solved.map((s, i) => ({ txId: design.transformers[i].id, ...s.convergence }));
+  /** @type {'converged' | 'not-converged' | 'collapse'} */
+  const status = convergence.some(c => c.status === 'collapse') ? 'collapse' : converged ? 'converged' : 'not-converged';
   // Coupled spans in subtrees with earth electrodes fall back to the uncoupled model (lineModel.js).
   const couplingIgnored = solved.flatMap(s => s.couplingIgnored);
 
@@ -481,7 +535,7 @@ export function runSnapshot(design, opts, ctx = {}) {
   });
 
   return {
-    converged, iterUsed, lastDelta, poleResults, totalLossW, lossByPole, groundLossW, groundLossByPole, transformers,
+    converged, status, convergence, iterUsed, lastDelta, poleResults, totalLossW, lossByPole, groundLossW, groundLossByPole, transformers,
     violations, vLimLow, vLimHigh, vufLimitPct, worstVuf, year, hour, loadMult, solarMult,
     ...(design.lineModel === 'coupled' ? { lineModel: 'coupled', couplingIgnored } : {})
   };

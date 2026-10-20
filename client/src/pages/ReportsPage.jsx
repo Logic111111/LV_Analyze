@@ -5,6 +5,7 @@ import { downloadHtml, reportFileName } from '../lib/report.js';
 import TaskProgress from '../components/TaskProgress.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
 import { vufText } from '../lib/format.js';
+import { SolveStatusWarning } from '../components/Convergence.jsx';
 import YearPicker from '../components/YearPicker.jsx';
 
 function pillClassFor(level) { return level === 2 ? 'bad' : level === 1 ? 'warn' : 'ok'; }
@@ -107,11 +108,7 @@ function Report({ res, design }) {
 
   return (
     <div style={{ marginTop: 18 }}>
-      {!res.converged && (
-        <div className="note" style={{ borderColor: 'var(--bad)', color: 'var(--bad)', marginBottom: 14 }}>
-          Load flow did not fully converge after {res.iterUsed} iterations (final mismatch {res.lastDelta.toFixed(3)} V) — results below may be inaccurate.
-        </div>
-      )}
+      <div style={{ marginBottom: 14 }}><SolveStatusWarning res={res} /></div>
       <div className="grid g4">
         <div className={'stat ' + (vBad ? 'bad' : 'ok')}><div className="v">{vBad}</div><div className="l">Voltage violations</div></div>
         <div className={'stat ' + (tBad ? 'bad' : 'ok')}><div className="v">{tBad}</div><div className="l">Thermal (conductor) violations</div></div>

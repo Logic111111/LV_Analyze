@@ -205,21 +205,33 @@ function limitlessIsland() {
 describe('fix 3: a non-converged load flow is infeasible, not a pass', () => {
   const d = limitlessIsland();
 
-  it('precondition: 1000 kVA at P3-B does not converge, yet raises no violation', () => {
-    const r = runSnapshot(d, { year: 0, hour: 12, extraPV: [{ pole: 'P3', phase: 'B', kva: 1000 }] });
+  it('precondition: 1500 kVA at P3-B does not converge, yet raises no violation', () => {
+    // (Was 1000 kVA. Since P4.3 the α = 0.3 retry solves 1000 kVA, and flags it as collapse —
+    // next test.)
+    const r = runSnapshot(d, { year: 0, hour: 12, extraPV: [{ pole: 'P3', phase: 'B', kva: 1500 }] });
     expect(r.converged).toBe(false);
+    expect(r.status).toBe('not-converged');
     expect(r.violations).toEqual([]);
   });
 
-  it('PV hosting stops where the load flow stops converging, and says why', () => {
+  it('P4.3: at 1000 kVA the retry converges on a collapsed solution, reported as such', () => {
+    const r = runSnapshot(d, { year: 0, hour: 12, extraPV: [{ pole: 'P3', phase: 'B', kva: 1000 }] });
+    expect(r.convergence[0].retried).toBe(true);
+    expect(r.converged).toBe(true);
+    expect(r.status).toBe('collapse');
+    expect(r.violations).toEqual([]); // the limitless band can't see it; the status does
+  });
+
+  it('PV hosting stops at voltage collapse or non-convergence, and says why', () => {
     // Before the fix this row came back at the 2000 kVA ceiling with no limit recorded. (The search
     // warm-starts each evaluation from the last converged one — P1.4 — so it gets a little further
     // into this pathological, limit-free region than a flat start would; with real statutory
     // limits a violation stops it long before, see the fix-1 tests, which re-check every reported
     // size with cold-start load flows.)
+    // Since P4.3 the search meets voltage collapse (|V| < 0.5·vnom) before the solver gives up.
     const row = computeHostingCapacity(d, 2000).find(r => r.pole === 'P3' && r.phase === 'B');
     expect(row.kva).toBeLessThan(2000);
-    expect(row.limit).toBe('nonConvergence');
+    expect(row.limit).toBe('collapse');
     expect(HOSTING_TEST_HOURS).toContain(row.limitDetail.hour);
   });
 

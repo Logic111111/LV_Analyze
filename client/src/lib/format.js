@@ -11,6 +11,7 @@ export function hostingLimitText(row, capLabel) {
   if (row.limit === 'cap') return capLabel;
   const d = row.limitDetail || {};
   if (row.limit === 'nonConvergence') return `load flow stopped converging (${hourLabel(d.hour)})`;
+  if (row.limit === 'collapse') return `voltage collapse (${hourLabel(d.hour)})`;
   const where = d.phase && d.phase !== '-' ? `${d.pole} ${d.phase}` : d.pole;
   return `${d.type} at ${where}, ${hourLabel(d.hour)}`;
 }

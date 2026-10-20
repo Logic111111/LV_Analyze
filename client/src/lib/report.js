@@ -84,7 +84,8 @@ function snapshotSectionBody(design, res) {
       <div><span>Total system losses</span><b>${(totalSystemLossW / 1000).toFixed(2)} kW</b></div>
       ${res.worstVuf ? `<div><span>Worst voltage unbalance (VUF, limit ${res.vufLimitPct} %)</span><b>${vufText(res.worstVuf.value)} at ${esc(res.worstVuf.pole)}</b></div>` : ''}
     </div>
-    ${!res.converged ? `<p class="warn">Load flow did not fully converge after ${res.iterUsed} iterations (final mismatch ${res.lastDelta.toFixed(3)} V) — results may be inaccurate.</p>` : ''}
+    ${res.status === 'collapse' ? `<p class="warn"><strong>Voltage collapse:</strong> at this hour the load is more than the network can deliver (a voltage below half of nominal, after ${res.iterUsed} iterations). The figures below are not a valid operating point.</p>`
+    : !res.converged ? `<p class="warn">Load flow did not fully converge after ${res.iterUsed} iterations (final mismatch ${res.lastDelta.toFixed(3)} V) — results may be inaccurate.</p>` : ''}
     <h3>Per-transformer summary</h3>${table(['Transformer', 'Direction', 'Net kW', 'Loading', 'LV bus V (A/B/C)', 'Copper loss (kW)', 'No-load loss (kW)'], txRows)}
     <h3>Violations</h3>${violationsTable}
     <h3>Pole voltages (V, phase-neutral)</h3>${poleVoltTable}
@@ -149,6 +150,7 @@ function dailyScenarioBody(design, scenario, notRunMsg) {
       <div><span>Worst undervoltage</span><b>${worstUnder ? worstUnder.value.toFixed(1) + ` V (h${worstUnder.hour}, ${worstUnder.pole}/${worstUnder.phase})` : '—'}</b></div>
     </div>
     ${anyNonConverged ? '<p class="warn">One or more hours did not fully converge — treat those hours\' figures with caution.</p>' : ''}
+    ${daily.some(r => r.status === 'collapse') ? `<p class="warn"><strong>Voltage collapse</strong> at ${daily.filter(r => r.status === 'collapse').map(r => String(r.hour).padStart(2, '0') + ':00').join(', ')} — the load there is more than the network can deliver.</p>` : ''}
     <h3>Hour-by-hour summary</h3>${table(['Hour', ...txIds.map(id => txName(id)), 'Min V (pole/phase)', 'Max V (pole/phase)', 'Violations'], hourRows)}
     ${daily[0].bess && daily[0].bess.length ? `<h3>Battery state of charge</h3>${table(['Hour', ...daily[0].bess.map(b => `${esc(b.id)} kW (+ discharge) · SOC`)],
       daily.map(r => [String(r.hour).padStart(2, '0') + ':00', ...r.bess.map(b => (b.dataMissing ? 'kWh missing' : `${b.pKw.toFixed(2)} · ${(b.socEnd * 100).toFixed(0)} %`))]))}` : ''}

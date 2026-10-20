@@ -53,7 +53,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 
 - [x] **P4.1** Phase balancing v2 (impedance-weighted / load-flow objectives, local search, Pareto table, seeded SA)
 - [x] **P4.2** Voltage sensitivity matrix
-- [ ] **P4.3** Solver robustness (diagnostics, α=0.3 retry, collapse detection)
+- [x] **P4.3** Solver robustness (diagnostics, α=0.3 retry, collapse detection)
 - [ ] **P4.4** Probabilistic (Monte Carlo) planning
 - [ ] **P4.5** Multi-criteria view for feeder split and fix-it ladder
 
@@ -537,6 +537,29 @@ within 1e-9.
 - Speed: the 50-pole feeder takes 1.4 s, so it runs in the worker.
 - Hosting page: "Instant linear estimate (12:00)" — voltage limits only, labelled as a first
   look. The full search, which the goldens cover, is unchanged and remains the confirmation.
+
+**P4.3 solver robustness (2026-10-20).** In `solver.js`:
+- **Diagnostics.** `res.convergence[]` per transformer: `{ txId, status, retried, deltaHistory }`.
+  `res.status` is `'converged' | 'not-converged' | 'collapse'`.
+- **Retry.** A pass that exhausts MAX_ITER (150) is retried once with α = 0.3 (same back-off
+  rule) from its lowest-ΔV iterate. That iterate is recovered by replaying the deterministic first
+  pass from its saved start, not by copying state each iteration. Copying cost ~60 % on every
+  solve. Separately, a single `{ ...V }` spread made the whole solve ~50 % slower in V8, so the
+  start state is copied entry by entry.
+- **Bench unchanged:** snapshot 3.8 ms, daily scan ~55 ms, hosting ~6.5 s.
+- **Collapse.** Status `'collapse'` means any |V| < 0.5·vnom, a non-finite voltage, or ΔV at the
+  end of the retry above its start. A settled solution below 0.5·vnom is the low-voltage branch
+  of the P–V curve and also counts.
+- **Hosting/BESS.** Searches treat `'collapse'` as a limit of its own: "voltage collapse
+  (hh:00)", checked before non-convergence.
+- **Goldens.** No golden changes: every golden case converges on the first pass.
+- **Changed behaviour (P1.3 fix-3 tests updated).**
+  - In the deliberately limit-free island, 1000 kVA at P3-B used to end "not converged". The
+    retry now solves it and flags it `'collapse'` (minimum 18.9 V).
+  - The precondition test now uses 1500 kVA, which is still not converged after 300 iterations.
+  - That island's PV search now stops at `'collapse'` rather than `'nonConvergence'`.
+- **UI.** `SolveStatusWarning` on Diagram and Run & Reports; collapse hours on Daily; the HTML
+  report states voltage collapse in words.
 
 ## Phase verification log
 

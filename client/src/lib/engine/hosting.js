@@ -8,12 +8,13 @@ import { simulateBessDay } from './bessDispatch.js';
 /**
  * What stopped a hosting search: the ceiling itself passed ('cap'), a new or worsened violation
  * ('violation' — `limitDetail` is that violation plus its hour), or the load flow failing to
- * converge ('nonConvergence' — `limitDetail.hour`). Reported for the tightest failing size found.
- * @typedef {'cap' | 'violation' | 'nonConvergence'} HostingLimit
+ * converge ('nonConvergence' — `limitDetail.hour`), or voltage collapse ('collapse', P4.3 — same
+ * detail). Reported for the tightest failing size found.
+ * @typedef {'cap' | 'violation' | 'nonConvergence' | 'collapse'} HostingLimit
  */
 /** @typedef {{ hour: number } & Partial<Violation>} HostingLimitDetail */
 /** @typedef {{ pole: string, phase: import('./types.js').Phase, kva: number, limit: HostingLimit, limitDetail: HostingLimitDetail | null }} HostingRow */
-/** @typedef {{ reason: 'violation' | 'nonConvergence', detail: HostingLimitDetail }} HostingFailure */
+/** @typedef {{ reason: 'violation' | 'nonConvergence' | 'collapse', detail: HostingLimitDetail }} HostingFailure */
 
 /* ============================================================
    SOLAR HOSTING CAPACITY
@@ -177,6 +178,9 @@ function findMaxPV(design, pole, phase, hi, committed, baseline) {
   return searchWithLimit(kva => {
     for (const h of HOSTING_TEST_HOURS) {
       const res = runSnapshot(design, { year: 0, hour: h, loadMult: 1, solarMult: 1, extraPV: [...committed, { pole, phase, kva }], bessDispatch: baseline.dispatchByHour ? baseline.dispatchByHour.get(h) : null }, { ...baseline.ctx, initialV: warm.get(h) || null });
+      // Voltage collapse (P4.3) is a network limit in its own right, checked first: with any real
+      // voltage band it is also an undervoltage, so only the label differs from before.
+      if (res.status === 'collapse') return { reason: 'collapse', detail: { hour: h } };
       if (!res.converged) return { reason: 'nonConvergence', detail: { hour: h } };
       warm.set(h, warmStartFrom(res));
       const v = newOrWorsenedViolation(res.violations, baseline.byHour.get(h));

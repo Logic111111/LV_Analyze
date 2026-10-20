@@ -237,6 +237,8 @@
 /**
  * @typedef {object} SnapshotResult
  * @property {boolean} converged
+ * @property {'converged' | 'not-converged' | 'collapse'} [status] P4.3: 'collapse' = |V| < 0.5·vnom, non-finite, or ΔV still growing after the α = 0.3 retry.
+ * @property {{ txId: string, status: 'converged' | 'not-converged' | 'collapse', retried: boolean, deltaHistory: number[] }[]} [convergence] Per-transformer max ΔV per iteration (P4.3).
  * @property {number} iterUsed
  * @property {number} lastDelta   Final max |ΔV| between iterations, V.
  * @property {PoleResult[]} poleResults

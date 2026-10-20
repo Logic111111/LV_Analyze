@@ -143,7 +143,8 @@ function DailyResults({ rows, title }) {
 
   const allViolations = [];
   rows.forEach(r => r.violations.forEach(v => allViolations.push({ hour: r.hour, ...v })));
-  const anyNonConverged = rows.some(r => !r.converged);
+  const collapseHours = rows.filter(r => r.status === 'collapse').map(r => r.hour);
+  const anyNonConverged = rows.some(r => !r.converged && r.status !== 'collapse');
   const hoursExporting = rows.filter(r => r.transformers.some(t => t.flowDirection === 'export')).length;
   const hoursWithViolations = new Set(allViolations.map(v => v.hour)).size;
   const worstOver = allViolations.filter(v => v.type === 'overvoltage').sort((a, b) => b.value - a.value)[0];
@@ -231,6 +232,7 @@ function DailyResults({ rows, title }) {
   return (
     <div style={{ marginTop: 18, marginBottom: 28, paddingTop: 14, borderTop: '1px solid var(--line, #22304A)' }}>
       {title && <div className="section-title" style={{ marginTop: 0 }}>{title}</div>}
+      {collapseHours.length > 0 && <div className="note" role="alert" style={{ borderColor: 'var(--bad)', color: 'var(--bad)', marginBottom: 14 }}><strong>Voltage collapse</strong> at {collapseHours.map(h => String(h).padStart(2, '0') + ':00').join(', ')} — the load at those hours is more than the network can deliver (a voltage below half of nominal). Their figures are not a valid operating point.</div>}
       {anyNonConverged && <div className="note" style={{ borderColor: 'var(--bad)', color: 'var(--bad)', marginBottom: 14 }}>One or more hours did not fully converge — treat those hours' figures with caution.</div>}
       <div className="grid g4">
         <div className={'stat ' + (hoursWithViolations ? 'bad' : 'ok')}><div className="v">{hoursWithViolations}/24</div><div className="l">Hours with a violation</div></div>
