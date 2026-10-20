@@ -17,6 +17,7 @@
 //   inverter.js             smart-inverter PV (volt-var, volt-watt, export limit)
 //   bessDispatch.js         BESS state of charge: sequential day simulation
 //   thermal.js              transformer hot spot and ageing (IEC 60076-7)
+//   lineModel.js            optional coupled 4×4 line impedance model
 //   hosting.js              PV hosting capacity
 //   bess.js                 BESS hosting capacity
 //   advisors/feederSplit.js feeder split advisor
@@ -36,6 +37,7 @@ export * from './standards.js';
 export * from './inverter.js';
 export * from './bessDispatch.js';
 export * from './thermal.js';
+export * from './lineModel.js';
 export * from './hosting.js';
 export * from './bess.js';
 export * from './advisors/feederSplit.js';

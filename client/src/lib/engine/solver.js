@@ -7,6 +7,8 @@ import { netS, zipMultiplier, connectionIndex } from './loads.js';
 import { vufPct } from './sequence.js';
 import { standardsOf } from './standards.js';
 import { inverterSettings, inverterOutput } from './inverter.js';
+import { couplingMatrix } from './lineModel.js';
+import { getConductor } from './model.js';
 /** @import { Design, Transformer, SnapshotOptions, SnapshotResult, Violation, Complex } from './types.js' */
 
 /* ============================================================
@@ -64,6 +66,14 @@ function solveTxSubtree(design, tx, opts) {
       Zph: { re: cp.R * km, im: cp.X * km },
       Zn: { re: cp.Rn * kmN, im: cp.Xn * kmN }
     };
+    // Coupled line model (P3.5): the conductor's 4×4 matrix per km, scaled by length — the
+    // neutral self term by the same 1 cm-floored length as Zn above, everything else by km — and
+    // an unfloored copy for the loss calculation (which, like the simple model, uses km).
+    const zm = couplingMatrix(design, getConductor(design, p.cond));
+    if (zm) {
+      spanZ[id].M = zm.map((row, k) => row.map((z, j) => { const L = k === 3 && j === 3 ? kmN : km; return { re: z.re * L, im: z.im * L }; }));
+      spanZ[id].Mloss = zm.map(row => row.map(z => ({ re: z.re * km, im: z.im * km })));
+    }
   });
 
   const txZ = txImpedance(tx, design);
@@ -241,10 +251,18 @@ function solveTxSubtree(design, tx, opts) {
       // NOT negated; the neutral's own impedance drop ADDS to a loaded phase's drop, exactly like
       // any other series impedance in the same current loop, per basic KVL).
       const In = groundedIds.length ? null : C.add(C.add(Icum[id].A, Icum[id].B), Icum[id].C);
-      PHASES.forEach(ph => {
+      // Coupled span (ungrounded subtree only): ΔV = M·[Ia, Ib, Ic, −In], phase-to-neutral drop
+      // ΔV_ph − ΔV_N. Summed from zero term by term, so a diagonal M gives exactly Zph·I + Zn·In.
+      let dV = null;
+      if (z.M && !groundedIds.length) {
+        const I4 = [Icum[id].A, Icum[id].B, Icum[id].C, C.mulS(/** @type {Complex} */ (In), -1)];
+        dV = z.M.map(row => row.reduce((s, zkj, j) => C.add(s, C.mul(zkj, I4[j])), C.zero()));
+      }
+      PHASES.forEach((ph, k) => {
         const raw = groundedIds.length
           ? C.sub(VphaseOnly[id][ph], C.sub(Vn[id], VnTx))
-          : C.sub(Vp[ph], C.add(C.mul(z.Zph, Icum[id][ph]), C.mul(z.Zn, /** @type {Complex} */ (In))));
+          : dV ? C.sub(Vp[ph], C.sub(dV[k], dV[3]))
+            : C.sub(Vp[ph], C.add(C.mul(z.Zph, Icum[id][ph]), C.mul(z.Zn, /** @type {Complex} */ (In))));
         vph[ph] = C.add(V[id][ph], C.mulS(C.sub(raw, V[id][ph]), alpha));
         const d = C.abs(C.sub(vph[ph], V[id][ph]));
         if (d > maxDelta) maxDelta = d;
@@ -298,11 +316,22 @@ function solveTxSubtree(design, tx, opts) {
   order.forEach(id => {
     const p = poleOf(id); const km = p.spanM / 1000;
     const cp = conductorParams(design, p.cond);
+    const z = spanZ[id];
+    const coupled = !!z.Mloss && !groundedIds.length;
     const Rph = cp.R * km, Rn = cp.Rn * km;
     let l = 0;
-    PHASES.forEach(ph => l += Math.pow(C.abs(Icum[id][ph]), 2) * Rph);
+    PHASES.forEach((ph, k) => l += Math.pow(C.abs(Icum[id][ph]), 2) * (coupled ? z.Mloss[k][k].re : Rph));
     const In = C.abs(spanNeutralCurrent(id));
-    l += In * In * Rn;
+    l += In * In * (coupled ? z.Mloss[3][3].re : Rn);
+    // Mutual terms of a coupled span: Re(Σ_{k≠j} conj(I_k)·Z_kj·I_j) (zero, and skipped, when the
+    // matrix is diagonal).
+    if (coupled) {
+      const I4 = [Icum[id].A, Icum[id].B, Icum[id].C, C.mulS(spanNeutralCurrent(id), -1)];
+      for (let k = 0; k < 4; k++) for (let j = 0; j < 4; j++) {
+        const zkj = z.Mloss[k][j];
+        if (k !== j && (zkj.re !== 0 || zkj.im !== 0)) l += C.mul(C.conj(I4[k]), C.mul(zkj, I4[j])).re;
+      }
+    }
     lossByPole[id] = l; totalLossW += l;
   });
   // Real dissipation in each grounded pole's earth electrode — a genuine loss component that
@@ -343,8 +372,9 @@ function solveTxSubtree(design, tx, opts) {
   const netKW = Stx.re / 1000, netKVAR = Stx.im / 1000;
   const flowDirection = /** @type {'import' | 'export'} */ (netKW >= 0 ? 'import' : 'export');
 
+  const couplingIgnored = groundedIds.length ? order.filter(id => spanZ[id].M) : [];
   return {
-    converged, iterUsed, lastDelta, poleResults, totalLossW, lossByPole, groundLossW, groundLossByPole,
+    converged, iterUsed, lastDelta, poleResults, totalLossW, lossByPole, groundLossW, groundLossByPole, couplingIgnored,
     summary: {
       id: tx.id, name: tx.name, txKVA, txPct, flowDirection, netKW, netKVAR, busVoltPct,
       busVph: { A: { ...Vbus.A }, B: { ...Vbus.B }, C: { ...Vbus.C } }, busVufPct: vufPct(Vbus), phaseCurrentA, txZ, txLossW, txNoLoadW, V0, hvMultiplier: hvMult
@@ -412,6 +442,8 @@ export function runSnapshot(design, opts, ctx = {}) {
   const iterUsed = Math.max(...solved.map(s => s.iterUsed));
   const lastDelta = Math.max(...solved.map(s => s.lastDelta));
   const transformers = solved.map(s => s.summary);
+  // Coupled spans in subtrees with earth electrodes fall back to the uncoupled model (lineModel.js).
+  const couplingIgnored = solved.flatMap(s => s.couplingIgnored);
 
   const vLimLow = design.vnom * (1 - design.vdev / 100), vLimHigh = design.vnom * (1 + design.vdev / 100);
   // Loading limits from the design's standards (P2.7); 100 % of rating unless a profile says
@@ -444,6 +476,7 @@ export function runSnapshot(design, opts, ctx = {}) {
 
   return {
     converged, iterUsed, lastDelta, poleResults, totalLossW, lossByPole, groundLossW, groundLossByPole, transformers,
-    violations, vLimLow, vLimHigh, vufLimitPct, worstVuf, year, hour, loadMult, solarMult
+    violations, vLimLow, vLimHigh, vufLimitPct, worstVuf, year, hour, loadMult, solarMult,
+    ...(design.lineModel === 'coupled' ? { lineModel: 'coupled', couplingIgnored } : {})
   };
 }

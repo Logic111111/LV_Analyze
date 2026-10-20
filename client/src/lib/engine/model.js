@@ -109,6 +109,7 @@ export function defaultDesign() {
     loadModel: 'constant', zipZ: 0.2, zipI: 0.2, zipP: 0.6,
     txNoLoadW: Object.fromEntries(Object.entries(TRANSFORMERS).map(([k, t]) => [k, t.noLoadW])),
     vnom: 230, vdev: 6, maxpv: 5, maxbess: 5, bessRte: 0.90,
+    lineModel: 'simple', // P3.5: 'coupled' uses conductors' 4×4 matrices where given
     // Standards the results are judged against (grows in P2.3 / P2.7). VUF limit 2 % is the
     // EN 50160 LV value (95 % of 10-min means over a week); counting it as a violation is opt-in.
     // ("Current app defaults" — see engine/standards.js; the voltage band is vnom/vdev above.)

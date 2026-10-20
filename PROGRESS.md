@@ -47,7 +47,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P3.2** BESS with state of charge (`schedule` default; `socSchedule` / `solarFollowing`)
 - [x] **P3.3** Transformer thermal ageing (IEC 60076-7)
 - [x] **P3.4** HV voltage profile (`hvProfile`, default all 1.0)
-- [ ] **P3.5** Coupled line model (4×4 matrices, behind a flag)
+- [x] **P3.5** Coupled line model (4×4 matrices, behind a flag)
 
 ## Phase 4 — Optimisation and mathematics
 
@@ -479,6 +479,20 @@ or invalid counts as 1.0). Decision: `withDefaults` doesn't add an all-1.0 array
 transformer. The accessor's default is the migration, and it keeps saved designs and the
 transformer comparisons in existing tests unchanged. Snapshots report `hvMultiplier`; the fault
 calculation uses `vnom` and isn't affected. **Waiting on data:** the HV voltage profile.
+
+**P3.5 coupled line model (2026-10-20).** `engine/lineModel.js` (`parseZMatrix`,
+`couplingMatrix`, `diagonalZMatrix`), plus `design.lineModel` (`'simple'` by default) and
+`conductor.zMatrix`.
+- **Exact equality.** The forward pass sums `ΔV` from zero term by term, the neutral current is
+  negated exactly, and diagonal-loss terms use the same `|I|²·R` expression. So a diagonal matrix
+  from today's values is **bit-identical** to the simple model (tested with `toEqual`).
+- **Neutral scaling.** The neutral self term uses the same 1 cm-floored length as the simple
+  model's `Zn`.
+- **Limitation:** grounded subtrees don't carry coupling into the nodal neutral solve. They keep
+  the uncoupled model and are listed in `couplingIgnored`.
+
+No geometry is assumed. Matrices come from the user. The test matrix with mutual terms is labelled
+test-only.
 
 ## Phase verification log
 

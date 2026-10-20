@@ -94,6 +94,7 @@
  * @property {number} I             Current rating, A.
  * @property {number} neutralScale  Rn = R × neutralScale.
  * @property {number} [L_mH]        Self-inductance, mH/km (informational).
+ * @property {any} [zMatrix]         Optional 4×4 series impedance per km, rows/cols A, B, C, N (P3.5).
  */
 
 /**
@@ -148,6 +149,7 @@
  * @property {import('./faults.js').FaultSettings} [fault]
  * @property {import('./faults.js').FuseType[]} [fuseLibrary]
  * @property {{ feederFuses: Record<string, string>, poleFuses: Record<string, string> }} [protection]
+ * @property {'simple' | 'coupled'} [lineModel] 'coupled' uses conductors' zMatrix where given (P3.5).
  * @property {Record<string, ConductorType>} [conductorLibrary]
  * @property {Record<string, TransformerType>} [transformerLibrary]
  */

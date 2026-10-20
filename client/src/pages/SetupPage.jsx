@@ -6,6 +6,7 @@ import ConductorLibraryEditor from '../components/ConductorLibraryEditor.jsx';
 import StandardsCard from '../components/StandardsCard.jsx';
 import InverterCard from '../components/InverterCard.jsx';
 import ThermalCard from '../components/ThermalCard.jsx';
+import LineModelCard from '../components/LineModelCard.jsx';
 
 export default function SetupPage() {
   const { design, setDesign } = useDesign();
@@ -231,6 +232,7 @@ export default function SetupPage() {
 
       <div className="section-title">Conductor library</div>
       <ConductorLibraryEditor />
+      <div style={{ marginTop: 18 }}><LineModelCard /></div>
 
       <div className="grid g4" style={{ marginTop: 18 }}>
         <div className="card">
