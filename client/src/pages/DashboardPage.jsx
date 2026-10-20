@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDesign } from '../context/DesignContext.jsx';
 import { api } from '../api.js';
+import CsvButton from '../components/CsvButton.jsx';
 
 // Fleet dashboard (P6.5): every design the user can open (own and shared with their
 // organisations), from the summaries stored at each save — sortable, filterable, and a
@@ -73,6 +74,8 @@ export default function DashboardPage() {
         {error && <p className="hint" role="alert" style={{ color: 'var(--bad)' }}>{error}</p>}
       </div>
       <div className="card" style={{ marginTop: 14 }}>
+        {rows && rows.length > 0 && <div style={{ marginBottom: 8 }}><CsvButton name="Fleet dashboard" columns={['Design', 'Status', 'Owner', 'Organisation', 'Updated', 'Violations', 'Worst V', 'Worst at', 'Transformer peak %', 'Losses kWh/day', 'PV headroom kVA', 'Protection']}
+          rows={shown.map(d => { const s = d.summary || {}; return [d.name, d.status, d.own ? 'me' : d.ownerEmail, d.orgName || '', d.updatedAt, s.violations ? s.violations.total : '', s.worstV ?? '', s.worstAt ?? '', s.txPeakPct ?? '', s.lossKwhDay ?? '', s.hostingTotalKva ?? '', s.protection ?? '']; })} /></div>}
         {!rows ? <p className="hint">Loading…</p> : !rows.length ? <p className="hint">No saved designs yet.</p> : (
           <div className="tbl-wrap" style={{ maxHeight: 'none' }}><table>
             <thead><tr>

@@ -5,6 +5,7 @@ import TaskProgress from '../components/TaskProgress.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
 import { HostingLimitCell, HostingNonConvergenceWarning } from '../components/Convergence.jsx';
 import ExplainDrawer from '../components/ExplainDrawer.jsx';
+import CsvButton from '../components/CsvButton.jsx';
 
 export default function HostingPage() {
   const { design, setLastHosting } = useDesign();
@@ -86,6 +87,7 @@ export default function HostingPage() {
               <p className="hint">Ranked best-to-worst. Values are the extra single-phase PV (kVA) that can be added at that pole/phase before a voltage or thermal limit is reached, capped at {design.maxpv} kW. Each row is tested independently, so the total below is an upper bound, not a guaranteed simultaneous addition.</p>
               <p><strong>Total additional PV headroom: {results.reduce((sum, r) => sum + r.kva, 0).toFixed(2)} kVA</strong> across {results.length} pole/phase location{results.length === 1 ? '' : 's'}</p>
               <HostingNonConvergenceWarning rows={results} />
+              <CsvButton name="PV hosting (independent)" columns={['Rank', 'Pole', 'Phase', 'kVA', 'Limited by']} rows={results.map((r, i) => [i + 1, r.pole, r.phase, r.kva, r.limit])} />
               <TaskProgress task={explainTask} />
               <ExplainDrawer trace={explain} onClose={() => setExplain(null)} />
               <div className="tbl-wrap"><table>

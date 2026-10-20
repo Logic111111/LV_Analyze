@@ -7,6 +7,7 @@ import {
   TAPS, BUILTIN_STANDARDS_PROFILES, CURRENT_DESIGN_SCENARIO, MAX_COMPARED_SCENARIOS, SCENARIO_ROWS, describePatch, applyScenario
 } from '../lib/loadflow.js';
 import { useT } from '../i18n/i18n.jsx';
+import CsvButton from '../components/CsvButton.jsx';
 
 // Scenario manager (P5.4): named overrides of the design (year, multipliers, taps, standards
 // profile, and network changes kept from an advisor preview via "Keep as scenario"), compared up
@@ -115,6 +116,7 @@ export default function ScenariosPage() {
                 ))}
               </tbody>
             </table></div>
+            <CsvButton name="Scenario comparison" columns={['Quantity', ...result.columns.map(c => c.name)]} rows={SCENARIO_ROWS.map(row => [row.label, ...result.columns.map(c => c[row.key] ?? '')])} />
             <p className="hint">★ = best in the row (ties all marked; rows with fewer than two numbers mark none). LKR/yr needs the energy cost of losses (Economics).</p>
           </>
         )}

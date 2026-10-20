@@ -9,6 +9,7 @@ import { ConvergenceWarning } from '../components/Convergence.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
 import { adoptionSizesFromDesign, MC_CRITICAL_HOURS } from '../lib/loadflow.js';
 import { CHART_PALETTES, themedScales } from '../lib/chartTheme.js';
+import CsvButton from '../components/CsvButton.jsx';
 
 // Probabilistic planning (P4.4): random EV / PV adoption, many runs, in the engine worker.
 const METRICS = [
@@ -104,6 +105,7 @@ export default function MonteCarloPage() {
 
           <div className="card" style={{ marginTop: 14 }}>
             <h2>Where violations happen</h2>
+            <CsvButton name="Violation probability" columns={['Pole', 'A', 'B', 'C']} rows={result.nodeProbability.map(n => [n.pole, n.A, n.B, n.C])} />
             <p className="hint">Share of runs with a voltage or thermal violation at each pole and phase, at any of the solved hours. Shading deepens with probability; the number is always printed.</p>
             <div className="tbl-wrap"><table>
               <thead><tr><th scope="col">Pole</th><th scope="col">Phase A</th><th scope="col">Phase B</th><th scope="col">Phase C</th></tr></thead>

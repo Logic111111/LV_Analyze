@@ -3,6 +3,7 @@ import TaskProgress from './TaskProgress.jsx';
 import { ConvergenceWarning } from './Convergence.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
 import { useT } from '../i18n/i18n.jsx';
+import CsvButton from './CsvButton.jsx';
 
 // Phase balancing v2 (P4.1): the "Optimised" method. Runs optimisePhaseBalance in the engine
 // worker and shows the "moves vs benefit" table. Each row is the best arrangement found with at
@@ -106,6 +107,7 @@ export default function PhaseOptimiserCard({ design, txId, testOpts, onPreview }
               </tr>
             </tbody>
           </table></div>
+          <CsvButton name="Phase balance moves vs benefit" columns={['K', 'Moves', 'Objective', 'Voltage violations', 'Loss kWh', 'Worst VUF %']} rows={result.pareto.map(r => [r.k, r.moves, r.objectiveValue, r.metrics?.voltageViolationCount ?? '', r.metrics?.lossKwh ?? '', r.metrics?.worstVuf?.value ?? ''])} />
           <ConvergenceWarning show={!!anyNotConverged}>One or more scanned hours did not converge for some rows — treat those rows with caution.</ConvergenceWarning>
 
           {row && (

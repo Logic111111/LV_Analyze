@@ -7,6 +7,7 @@ import { useEngineTask } from '../hooks/useEngineTask.js';
 import { vufText } from '../lib/format.js';
 import { SolveStatusWarning } from '../components/Convergence.jsx';
 import YearPicker from '../components/YearPicker.jsx';
+import ExportsCard from '../components/ExportsCard.jsx';
 
 function pillClassFor(level) { return level === 2 ? 'bad' : level === 1 ? 'warn' : 'ok'; }
 
@@ -96,6 +97,8 @@ export default function ReportsPage() {
         </div>
         <p className="hint" style={{ marginBottom: 0 }}>The report includes the single-line diagram, every advisor's last result (tap, reconductor, fix-it, scenarios, Monte Carlo), economics when set, and prints cleanly to A4 (Print → Save as PDF).</p>
       </details>
+
+      <ExportsCard />
 
       <div className="card" style={{ marginTop: 14 }}>
         <h2>Simulation snapshot</h2>

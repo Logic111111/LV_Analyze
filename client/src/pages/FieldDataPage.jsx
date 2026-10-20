@@ -3,6 +3,7 @@ import { useDesign } from '../context/DesignContext.jsx';
 import TaskProgress from '../components/TaskProgress.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
 import { parseAmiCsv, amiAnalysis, applyAmiSuggestions, AMI_TYPES, parseFieldCsv, FLAG_V } from '../lib/loadflow.js';
+import CsvButton from '../components/CsvButton.jsx';
 
 // Field data (P6.3, P6.4): smart-meter import (suggested curves and ADMD, applied only on
 // confirmation) and measured vs simulated voltages with the phase-label check.
@@ -116,6 +117,7 @@ function MeasuredCard() {
             <div className={'stat ' + (s.flagged ? 'bad' : 'ok')}><div className="v">{s.flagged} / {s.likelyPhaseErrors}</div><div className="l">Flagged / likely phase errors</div></div>
           </div> : <p className="hint">No readings matched poles in the design.</p>}
           {res.unknown.length > 0 && <p className="hint">Readings at poles not in the design: {res.unknown.map(u => u.pole).join(', ')}.</p>}
+          {res.rows.length > 0 && <CsvButton name="Measured vs simulated" columns={['Pole', 'Phase', 'Hour', 'Measured V', 'Simulated V', 'Error V', 'Measured A', 'Simulated A', 'Likely phase']} rows={res.rows.map(r => [r.pole, r.phase, r.hour, r.v, r.simulatedV, r.error, r.amps ?? '', r.simulatedA, r.likelyPhase || ''])} />}
           {res.rows.length > 0 && <div className="tbl-wrap" style={{ marginTop: 10 }}><table>
             <thead><tr><th scope="col">Pole</th><th scope="col">Phase</th><th scope="col">Hour</th><th scope="col">Measured V</th><th scope="col">Simulated V</th><th scope="col">Error V</th><th scope="col">Current: measured / simulated A</th><th scope="col">Check</th></tr></thead>
             <tbody>{res.rows.map((r, i) => (

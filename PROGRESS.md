@@ -77,7 +77,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P6.3** Smart-meter (AMI) import
 - [x] **P6.4** Measured vs simulated (incl. phase-label check)
 - [x] **P6.5** Fleet dashboard (`designs.summary` JSON column)
-- [ ] **P6.6** Exports (xlsx, CSV, GeoJSON)
+- [x] **P6.6** Exports (xlsx, CSV, GeoJSON)
 
 ## Phase 7 — Platform
 
@@ -938,6 +938,16 @@ within 1e-9.
   sortable columns, and a "worst first" view (most violations, then the furthest from nominal).
 - **Gap.** The hosting total is the sum of the last independent hosting scan when one was run in
   the session.
+
+**P6.6 exports (2026-10-21).**
+- **Code.** `lib/exports.js`: `designTables`, `toCsv`, `toXlsx`, `toGeoJson`.
+- **Excel.** Built with **exceljs 4.4.0 (MIT)**, which is lazy-loaded (938 kB chunk only on
+  export; main bundle 228 kB). One sheet per table, read back in tests.
+- **CSV.** RFC 4180 with a BOM on download. Available from the Exports card (any table) and as
+  buttons on the dashboard, hosting, scenario, Monte Carlo, field-data and phase-balance tables.
+- **GeoJSON.** WGS 84 [lon, lat]: transformer and pole points with results, span and open-point
+  lines; unplaced items are counted and left out.
+- **Browser check.** The .xlsx downloads as a valid zip, and the CSV header is correct.
 
 ## Phase verification log
 
