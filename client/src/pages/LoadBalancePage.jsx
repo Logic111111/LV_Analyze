@@ -3,6 +3,7 @@ import { useDesign } from '../context/DesignContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import { proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runSnapshot, DAILY_HOURS } from '../lib/loadflow.js';
 import { buildDiagramSVG } from '../lib/diagram.js';
+import { ConvergenceWarning } from '../components/Convergence.jsx';
 
 function testOptsFor(testMode) {
   if (testMode === 'solarPeak') return { hours: [12], solarMult: 1, periodLabel: 'at 12:00 (solar peak)' };
@@ -103,6 +104,9 @@ export default function LoadBalancePage() {
             <p className="hint" style={{ marginBottom: 4 }}>Tx loading — before: {txSummary(proposal.beforeMetrics.transformers, 'peakPct', '%')} · after: {txSummary(proposal.afterMetrics.transformers, 'peakPct', '%')}</p>
             <p className="hint" style={{ marginBottom: 4 }}>Tx current — before: {txSummary(proposal.beforeMetrics.transformers, 'peakCurrentA', 'A')} · after: {txSummary(proposal.afterMetrics.transformers, 'peakCurrentA', 'A')}</p>
             <p className="hint" style={{ marginBottom: 0 }}>Tx bus voltage — before: {txVoltageBand(proposal.beforeMetrics.transformers)} · after: {txVoltageBand(proposal.afterMetrics.transformers)}</p>
+            <ConvergenceWarning show={!proposal.beforeMetrics.converged || !proposal.afterMetrics.converged}>
+              One or more scanned hours did not converge ({!proposal.beforeMetrics.converged ? 'before' : ''}{!proposal.beforeMetrics.converged && !proposal.afterMetrics.converged ? ' and ' : ''}{!proposal.afterMetrics.converged ? 'after' : ''} rebalancing) — treat the comparison with caution.
+            </ConvergenceWarning>
           </div>
 
           <div className="card" style={{ marginTop: 14 }}>
@@ -144,6 +148,9 @@ export default function LoadBalancePage() {
           {previewSnapshot && (
             <p><span className={'pill ' + (previewSnapshot.violations.length ? 'bad' : 'ok')}>{previewSnapshot.violations.length} violation{previewSnapshot.violations.length === 1 ? '' : 's'} at 20:00</span></p>
           )}
+          <ConvergenceWarning show={!!previewSnapshot && !previewSnapshot.converged}>
+            The preview load flow at 20:00 did not converge ({previewSnapshot?.iterUsed} iterations) — the diagram below may be inaccurate.
+          </ConvergenceWarning>
           {previewSvg && <div className="diagram" dangerouslySetInnerHTML={{ __html: previewSvg }} />}
         </div>
       )}

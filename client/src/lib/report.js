@@ -1,4 +1,5 @@
 import { getTransformerType, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh, pvHostingBaseline, bessHostingBaseline } from './loadflow.js';
+import { hostingLimitText } from './format.js';
 
 function esc(v) {
   return String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -297,7 +298,7 @@ export function buildReportHtml(design, res, hosting, daily, bessHosting) {
     } else {
       const total = hosting.reduce((s, r) => s + r.kva, 0);
       hostingBody = hostingBaselineNote(pvHostingBaseline(design)) + `<p><b>Total additional PV headroom: ${total.toFixed(2)} kVA</b> across ${hosting.length} pole/phase location${hosting.length === 1 ? '' : 's'} (each tested independently — an upper bound, not a guaranteed simultaneous addition).</p>` +
-        table(['Rank', 'Pole', 'Phase', 'Additional PV headroom (kVA)'], hosting.map((r, i) => [i + 1, esc(r.pole), esc(r.phase), r.kva.toFixed(2)]));
+        table(['Rank', 'Pole', 'Phase', 'Additional PV headroom (kVA)', 'Limited by'], hosting.map((r, i) => [i + 1, esc(r.pole), esc(r.phase), r.kva.toFixed(2), esc(hostingLimitText(r, `Setup cap (${design.maxpv} kW)`))]));
     }
   }
 
@@ -316,8 +317,8 @@ export function buildReportHtml(design, res, hosting, daily, bessHosting) {
           <div><span>Loss with accepted BESS allocation</span><b>${bessHosting.withBessLossKwh.totalKwh.toFixed(2)} kWh/day</b></div>
           <div><span>Loss reduction</span><b>${bessHosting.lossReductionKwh.toFixed(2)} kWh/day (${bessHosting.baselineLossKwh.totalKwh > 0 ? (bessHosting.lossReductionKwh / bessHosting.baselineLossKwh.totalKwh * 100).toFixed(1) : '0.0'}%)</b></div>
         </div>
-        ${table(['Priority', 'Pole', 'Phase', 'Independent, uncapped estimate (kVA)', 'Achievable simultaneously (kVA)'],
-          bessHosting.results.map((r, i) => [i + 1, esc(r.pole), esc(r.phase), r.independentKva.toFixed(2), r.achievableKva.toFixed(2)]))}
+        ${table(['Priority', 'Pole', 'Phase', 'Independent, uncapped estimate (kVA)', 'Achievable simultaneously (kVA)', 'Limited by'],
+          bessHosting.results.map((r, i) => [i + 1, esc(r.pole), esc(r.phase), r.independentKva.toFixed(2), r.achievableKva.toFixed(2), esc(hostingLimitText(r, 'its independent estimate still fits'))]))}
       `;
     }
   }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
 import { computeHostingCapacity, computeSystemHostingCapacity, pvHostingBaseline } from '../lib/loadflow.js';
 import BaselineBanner from '../components/BaselineBanner.jsx';
+import { HostingLimitCell, HostingNonConvergenceWarning } from '../components/Convergence.jsx';
 
 export default function HostingPage() {
   const { design, setLastHosting } = useDesign();
@@ -50,15 +51,16 @@ export default function HostingPage() {
             <div className="card">
               <p className="hint">Ranked best-to-worst. Values are the extra single-phase PV (kVA) that can be added at that pole/phase before a voltage or thermal limit is reached, capped at {design.maxpv} kW. Each row is tested independently, so the total below is an upper bound, not a guaranteed simultaneous addition.</p>
               <p><strong>Total additional PV headroom: {results.reduce((sum, r) => sum + r.kva, 0).toFixed(2)} kVA</strong> across {results.length} pole/phase location{results.length === 1 ? '' : 's'}</p>
+              <HostingNonConvergenceWarning rows={results} />
               <div className="tbl-wrap"><table>
-                <thead><tr><th>Rank</th><th>Pole</th><th>Phase</th><th>Additional PV headroom (kVA)</th></tr></thead>
+                <thead><tr><th>Rank</th><th>Pole</th><th>Phase</th><th>Additional PV headroom (kVA)</th><th>Limited by</th></tr></thead>
                 <tbody>
                   {results.map((r, i) => (
-                    <tr key={i}><td>{i + 1}</td><td>{r.pole}</td><td className={'phase' + r.phase}>{r.phase}</td><td>{r.kva.toFixed(2)}</td></tr>
+                    <tr key={i}><td>{i + 1}</td><td>{r.pole}</td><td className={'phase' + r.phase}>{r.phase}</td><td>{r.kva.toFixed(2)}</td><HostingLimitCell row={r} capLabel={`Setup cap (${design.maxpv} kW)`} /></tr>
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr><td colSpan={3}><strong>Total</strong></td><td><strong>{results.reduce((sum, r) => sum + r.kva, 0).toFixed(2)}</strong></td></tr>
+                  <tr><td colSpan={3}><strong>Total</strong></td><td><strong>{results.reduce((sum, r) => sum + r.kva, 0).toFixed(2)}</strong></td><td></td></tr>
                 </tfoot>
               </table></div>
             </div>
@@ -74,19 +76,21 @@ export default function HostingPage() {
               {system && (
                 <div style={{ marginTop: 14 }}>
                   <p><strong>Maximum further solar hosting capacity for this design: {system.totalKva.toFixed(2)} kVA</strong> addable simultaneously across {system.results.filter(r => r.achievableKva > 0).length} location{system.results.filter(r => r.achievableKva > 0).length === 1 ? '' : 's'}.</p>
+                  <HostingNonConvergenceWarning rows={system.results} />
                   <div className="tbl-wrap"><table>
-                    <thead><tr><th>Priority</th><th>Pole</th><th>Phase</th><th>Independent, uncapped estimate (kVA)</th><th>Achievable simultaneously (kVA)</th></tr></thead>
+                    <thead><tr><th>Priority</th><th>Pole</th><th>Phase</th><th>Independent, uncapped estimate (kVA)</th><th>Achievable simultaneously (kVA)</th><th>Limited by</th></tr></thead>
                     <tbody>
                       {system.results.map((r, i) => (
                         <tr key={i}>
                           <td>{i + 1}</td><td>{r.pole}</td><td className={'phase' + r.phase}>{r.phase}</td>
                           <td>{r.independentKva.toFixed(2)}</td>
                           <td>{r.achievableKva > 0 ? r.achievableKva.toFixed(2) : <span style={{ color: 'var(--muted)' }}>0 — absorbed by higher-priority locations</span>}</td>
+                          <HostingLimitCell row={r} capLabel="its independent estimate still fits" />
                         </tr>
                       ))}
                     </tbody>
                     <tfoot>
-                      <tr><td colSpan={4}><strong>Total achievable simultaneously</strong></td><td><strong>{system.totalKva.toFixed(2)}</strong></td></tr>
+                      <tr><td colSpan={4}><strong>Total achievable simultaneously</strong></td><td><strong>{system.totalKva.toFixed(2)}</strong></td><td></td></tr>
                     </tfoot>
                   </table></div>
                   <p className="hint" style={{ marginTop: 10 }}>Recommended build order is this same priority list, top to bottom — allocate each location the "achievable simultaneously" amount, not the independent estimate.</p>

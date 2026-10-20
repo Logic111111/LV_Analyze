@@ -187,3 +187,52 @@ describe('fix 2: a pre-existing violation no longer zeroes every hosting result'
     expect(bessHostingBaseline(d).violations.length).toBeGreaterThan(0);
   });
 });
+
+// Walkthrough Island with statutory limits so wide (±1000 %), conductor ratings so high, and a
+// transformer kVA base so large (for the loading % only — its impedance is unchanged) that no
+// violation can ever be raised: the only thing that can stop a large PV/BESS addition is the load
+// flow failing to converge (it does, somewhere between 400 and 1000 kVA of PV at P3-B, and below
+// 500 kVA of BESS charging at P3-B).
+function limitlessIsland() {
+  const d = walkthroughIsland();
+  return {
+    ...d, vdev: 1000,
+    conductorLibrary: Object.fromEntries(Object.entries(d.conductorLibrary).map(([k, c]) => [k, { ...c, I: 1e9 }])),
+    transformerLibrary: { ...d.transformerLibrary, 100: { ...d.transformerLibrary[100], kVA: 1e9 } }
+  };
+}
+
+describe('fix 3: a non-converged load flow is infeasible, not a pass', () => {
+  const d = limitlessIsland();
+
+  it('precondition: 1000 kVA at P3-B does not converge, yet raises no violation', () => {
+    const r = runSnapshot(d, { year: 0, hour: 12, extraPV: [{ pole: 'P3', phase: 'B', kva: 1000 }] });
+    expect(r.converged).toBe(false);
+    expect(r.violations).toEqual([]);
+  });
+
+  it('PV hosting stops below the non-convergence point and says why', () => {
+    const row = computeHostingCapacity(d, 2000).find(r => r.pole === 'P3' && r.phase === 'B');
+    expect(row.kva).toBeLessThan(1000);
+    expect(row.limit).toBe('nonConvergence');
+    HOSTING_TEST_HOURS.forEach(h => {
+      expect(runSnapshot(d, { year: 0, hour: h, extraPV: [{ pole: 'P3', phase: 'B', kva: row.kva }] }).converged).toBe(true);
+    });
+  });
+
+  it('BESS hosting treats non-convergence the same way', () => {
+    const row = computeBessHostingCapacity(d, 2000).find(r => r.pole === 'P3' && r.phase === 'B');
+    expect(row.kva).toBeLessThan(2000);
+    expect(row.limit).toBe('nonConvergence');
+  });
+
+  it('rows say what limited them: the cap, or the violation that stopped them', () => {
+    const rows = computeHostingCapacity(balancedIsland());
+    const p1a = rows.find(r => r.pole === 'P1' && r.phase === 'A');
+    expect(p1a.limit).toBe('cap');
+    const p3b = rows.find(r => r.pole === 'P3' && r.phase === 'B');
+    expect(p3b.limit).toBe('violation');
+    expect(p3b.limitDetail).toMatchObject({ pole: expect.any(String), type: expect.stringMatching(/overvoltage|thermal/) });
+    expect(HOSTING_TEST_HOURS).toContain(p3b.limitDetail.hour);
+  });
+});

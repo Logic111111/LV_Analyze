@@ -4,6 +4,7 @@ import { useTheme } from '../context/ThemeContext.jsx';
 import { runSnapshot } from '../lib/loadflow.js';
 import { buildDiagramSVG } from '../lib/diagram.js';
 import YearPicker from '../components/YearPicker.jsx';
+import { ConvergenceWarning } from '../components/Convergence.jsx';
 
 export default function DiagramPage() {
   const { design } = useDesign();
@@ -74,6 +75,9 @@ export default function DiagramPage() {
               <span>Two labels on each feeder's first span = that feeder's total connected load, and its installed solar PV (nameplate), per phase (kVA, ADMD-substituted where unspecified)</span>
               <span><span style={{ display: 'inline-block', width: 18, height: 0, borderTop: '1.5px dashed var(--muted)', marginRight: 6, verticalAlign: 'middle' }}></span>Dashed line = a common open point (see the Network page) — no current flows, shown for reference only</span>
             </div>
+            <ConvergenceWarning show={!res.converged}>
+              Load flow did not fully converge after {res.iterUsed} iterations (final mismatch {res.lastDelta.toFixed(3)} V) — the voltages and flows drawn below may be inaccurate.
+            </ConvergenceWarning>
             <div className="diagram" dangerouslySetInnerHTML={{ __html: svg }} />
           </div>
           {exporting && (

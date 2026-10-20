@@ -25,7 +25,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [ ] **P1.3** Bug fixes (each with a test that fails before the fix)
   - [x] 1. Hosting rounds up to an untested size (`Math.round` → `Math.floor(best*20+1e-9)/20`)
   - [x] 2. Pre-existing violations zero out hosting — baseline-relative feasibility + banner
-  - [ ] 3. Non-converged load flow counts as a pass in hosting/BESS — treat as infeasible; surface non-convergence on every scanning page
+  - [x] 3. Non-converged load flow counts as a pass in hosting/BESS — treat as infeasible; surface non-convergence on every scanning page
   - [ ] 4. Feeder-split transformer current assumes balance — add `txMaxPhaseCurrentA` (true max phase current), show balanced-equivalent as secondary
   - [ ] 5. AI model hard-coded — `ANTHROPIC_MODEL` env var (default `claude-sonnet-4-6`), documented in both `.env.example`
 - [ ] **P1.4** Performance — precompute per-pole `loadS`/`otherS` once per snapshot, `connectionsByPole` index, optional warm start (`initialV`), `npm run bench` (50 poles / 200 connections), before/after timings recorded here
@@ -258,6 +258,16 @@ On a test island with a 20 kVA shop on P3-A, the old search reported zero PV and
 everywhere. It now finds 5 kVA of PV at P1A, P2A and P3A (PV on P3-A relieves the undervoltage).
 It still rejects PV on the B/C phases, because by neutral shift that deepens the P3-A
 undervoltage by more than 0.01 V. That is the criterion working as specified, not a bug.
+
+**P1.3 fix 3 — non-convergence (2026-10-20).** An unconverged snapshot now fails a hosting size
+(checked before its violations, which can't be trusted). On a test island with ±1000 % limits,
+1000 kVA of PV at P3-B fails to converge yet raises no violation, so the old search walked all the
+way up to the 2000 kVA ceiling. Each hosting row (independent and queue) now carries `limit`
+(`'cap' | 'violation' | 'nonConvergence'`) and `limitDetail` (the binding violation and its hour,
+or the hour that didn't converge). The pages show this as "Limited by". Non-convergence warnings
+were added to Hosting, BESS Hosting, Feeder Split (candidate rows, quick result, preview), Load
+Balance (before/after metrics, preview) and Diagram; Reports and Daily already had them. No golden
+changed.
 
 ## Open questions for the user
 

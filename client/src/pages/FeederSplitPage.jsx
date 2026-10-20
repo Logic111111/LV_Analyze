@@ -7,6 +7,7 @@ import {
   buildSplitCandidate, runSnapshot, scanAndSummarize, feederConnectedTotals, DAILY_HOURS
 } from '../lib/loadflow.js';
 import { buildDiagramSVG } from '../lib/diagram.js';
+import { ConvergenceWarning } from '../components/Convergence.jsx';
 
 const DUAL_SHORTLIST_K = 8;
 const tick = () => new Promise(r => setTimeout(r, 0));
@@ -419,6 +420,7 @@ export default function FeederSplitPage() {
           <p className="hint" style={{ marginBottom: 8 }}>
             Tx loading: {txSummary(quickResult.candidate.transformers, 'peakPct', '%')} · Tx current: {txSummary(quickResult.candidate.transformers, 'peakCurrentA', 'A')} · Tx bus voltage: {txVoltageBand(quickResult.candidate.transformers)}
           </p>
+          <ConvergenceWarning show={!quickResult.candidate.converged}>One or more scanned hours of this evaluation did not converge — treat its figures with caution.</ConvergenceWarning>
           <button className="mini" onClick={previewQuick}>Preview</button>
         </div>
       )}
@@ -442,6 +444,9 @@ export default function FeederSplitPage() {
 
           <div className="card" style={{ marginTop: 14 }}>
             <p className="hint">Ranked best-to-worst{results.mode === 'single' ? <> for feeder <b>{results.feederName}</b></> : <> for feeders <b>{results.feederA}</b> &amp; <b>{results.feederB}</b></>}, tested {results.periodLabel}. Voltage violations drive the ranking, network loss is the tie-breaker; the per-transformer columns (every transformer in the resulting design, not just the new one) are reported for context and don't affect the ranking. Click Preview to see the resulting network before applying anything.</p>
+            <ConvergenceWarning show={results.candidates.some(c => !c.converged)}>
+              {results.candidates.filter(c => !c.converged).length} candidate(s) had one or more scanned hours that did not converge — marked “not converged” below; their figures are unreliable.
+            </ConvergenceWarning>
             <div className="tbl-wrap"><table>
               <thead>
                 {results.mode === 'single' ? (
@@ -464,7 +469,7 @@ export default function FeederSplitPage() {
                         <td>{c.poleB}</td><td>{c.connectorBM.toFixed(0)}</td>
                       </>
                     )}
-                    <td><span className={'pill ' + (c.voltageViolationCount ? 'bad' : 'ok')}>{c.voltageViolationCount}</span></td>
+                    <td><span className={'pill ' + (c.voltageViolationCount ? 'bad' : 'ok')}>{c.voltageViolationCount}</span>{!c.converged && <> <span className="pill bad" title="One or more scanned hours did not converge">not converged</span></>}</td>
                     <td>{c.lossKwh.toFixed(2)}</td>
                     <td>{c.thermalViolationCount}</td>
                     <td>{c.txOverloadViolationCount}</td>
@@ -493,6 +498,9 @@ export default function FeederSplitPage() {
           {previewSnapshot && (
             <p><span className={'pill ' + (previewSnapshot.violations.length ? 'bad' : 'ok')}>{previewSnapshot.violations.length} violation{previewSnapshot.violations.length === 1 ? '' : 's'} at 20:00</span></p>
           )}
+          <ConvergenceWarning show={!!previewSnapshot && !previewSnapshot.converged}>
+            The preview load flow at 20:00 did not converge ({previewSnapshot?.iterUsed} iterations) — the diagram below may be inaccurate.
+          </ConvergenceWarning>
           {previewSvg && <div className="diagram" dangerouslySetInnerHTML={{ __html: previewSvg }} />}
           <div className="section-title" style={{ marginTop: 14 }}>Feeders after the split — connected load &amp; solar PV (kVA per phase)</div>
           <p className="hint" style={{ marginTop: 0 }}>Every feeder in the resulting design, so you can see what moved to the new transformer and what stayed. Load is ADMD-substituted where unspecified; PV is installed (nameplate) kVA.</p>

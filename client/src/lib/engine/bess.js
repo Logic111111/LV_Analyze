@@ -3,7 +3,7 @@
 import { PHASES } from './complex.js';
 import { runSnapshot } from './solver.js';
 import { rangeHours, bessMultiplierAt } from './loads.js';
-import { UNCAPPED_CEILING_KVA, searchMaxKva, hostingBaseline, newOrWorsenedViolation } from './hosting.js';
+import { UNCAPPED_CEILING_KVA, searchWithLimit, hostingBaseline, newOrWorsenedViolation } from './hosting.js';
 import { systemLossW, dailyEnergyLossKwh } from './scan.js';
 /** @import { Design, BessConnection, Violation } from './types.js' */
 /** @import { HostingRow, HostingBaseline } from './hosting.js' */
@@ -50,16 +50,19 @@ export function bessHostingBaseline(design) {
 // Largest single-phase BESS (kVA) addable at pole/phase — on top of any `committed` additions
 // already locked in elsewhere — without creating or worsening a violation the BESS could actually
 // cause, across the charge and discharge windows (a candidate is judged only in the direction it
-// can affect at each hour — see bessRelevantViolations — and relative to the baseline).
-/** @param {Design} design @param {string} pole @param {import('./types.js').Phase} phase @param {number} hi @param {BessConnection[]} committed @param {HostingBaseline} baseline @returns {number} kVA */
+// can affect at each hour — see bessRelevantViolations — and relative to the baseline). A size
+// whose load flow doesn't converge at a test hour fails, exactly as in the PV search.
+/** @param {Design} design @param {string} pole @param {import('./types.js').Phase} phase @param {number} hi @param {BessConnection[]} committed @param {HostingBaseline} baseline */
 function findMaxBess(design, pole, phase, hi, committed, baseline) {
   const testHours = bessTestHours(design);
-  return searchMaxKva(kva => {
+  return searchWithLimit(kva => {
     for (const h of testHours) {
       const res = runSnapshot(design, { year: 0, hour: h, loadMult: 1, solarMult: 1, extraBess: [...committed, { pole, phase, kva }] });
-      if (newOrWorsenedViolation(bessRelevantViolations(design, h, res.violations), baseline.byHour.get(h))) return false;
+      if (!res.converged) return { reason: 'nonConvergence', detail: { hour: h } };
+      const v = newOrWorsenedViolation(bessRelevantViolations(design, h, res.violations), baseline.byHour.get(h));
+      if (v) return { reason: 'violation', detail: { hour: h, ...v } };
     }
-    return true;
+    return null;
   }, hi);
 }
 
@@ -69,7 +72,7 @@ function independentBess(design, cap, baseline) {
   design.poles.forEach(p => {
     PHASES.forEach(phase => {
       const best = findMaxBess(design, p.id, phase, cap, [], baseline);
-      if (best > 0.05) results.push({ pole: p.id, phase, kva: best });
+      if (best.kva > 0.05) results.push({ pole: p.id, phase, kva: best.kva, limit: best.limit, limitDetail: best.limitDetail });
     });
   });
   results.sort((a, b) => b.kva - a.kva);
@@ -113,8 +116,8 @@ export function computeSystemBessHostingCapacity(design) {
   const committed = [];
   const results = scored.map(cand => {
     const best = findMaxBess(design, cand.pole, cand.phase, cand.kva, committed, baseline);
-    if (best > 0.05) committed.push({ pole: cand.pole, phase: cand.phase, kva: best });
-    return { pole: cand.pole, phase: cand.phase, independentKva: cand.kva, lossScore: cand.lossScore, achievableKva: best };
+    if (best.kva > 0.05) committed.push({ pole: cand.pole, phase: cand.phase, kva: best.kva });
+    return { pole: cand.pole, phase: cand.phase, independentKva: cand.kva, lossScore: cand.lossScore, achievableKva: best.kva, limit: best.limit, limitDetail: best.limitDetail };
   });
   const totalKva = results.reduce((s, r) => s + r.achievableKva, 0);
 

@@ -3,7 +3,15 @@
 import { PHASES } from './complex.js';
 import { runSnapshot } from './solver.js';
 /** @import { Design, PvConnection, Violation } from './types.js' */
-/** @typedef {{ pole: string, phase: import('./types.js').Phase, kva: number }} HostingRow */
+/**
+ * What stopped a hosting search: the ceiling itself passed ('cap'), a new or worsened violation
+ * ('violation' — `limitDetail` is that violation plus its hour), or the load flow failing to
+ * converge ('nonConvergence' — `limitDetail.hour`). Reported for the tightest failing size found.
+ * @typedef {'cap' | 'violation' | 'nonConvergence'} HostingLimit
+ */
+/** @typedef {{ hour: number } & Partial<Violation>} HostingLimitDetail */
+/** @typedef {{ pole: string, phase: import('./types.js').Phase, kva: number, limit: HostingLimit, limitDetail: HostingLimitDetail | null }} HostingRow */
+/** @typedef {{ reason: 'violation' | 'nonConvergence', detail: HostingLimitDetail }} HostingFailure */
 
 /* ============================================================
    SOLAR HOSTING CAPACITY
@@ -48,6 +56,26 @@ export function searchMaxKva(test, cap) {
   const next = (Math.round(kva * STEPS_PER_KVA) + 1) / STEPS_PER_KVA;
   if (next < hi && test(next)) return next;
   return kva;
+}
+
+/**
+ * searchMaxKva with a per-size `check` that says *why* a size fails (null = it passes), returning
+ * the size and what limited it. The most recent failure is always the tightest bound — the
+ * bisection only ever lowers its upper bound on a failure, and the final one-step-up probe sits
+ * below that bound — so it's the one reported.
+ * @param {(kva: number) => HostingFailure | null} check
+ * @param {number} cap
+ * @returns {{ kva: number, limit: HostingLimit, limitDetail: HostingLimitDetail | null }}
+ */
+export function searchWithLimit(check, cap) {
+  /** @type {HostingFailure | null} */
+  let last = null;
+  const kva = searchMaxKva(size => {
+    const f = check(size);
+    if (f) { last = f; return false; }
+    return true;
+  }, cap);
+  return { kva, limit: last ? last.reason : 'cap', limitDetail: last ? last.detail : null };
 }
 
 /* ------------------------------------------------------------
@@ -121,15 +149,19 @@ export function pvHostingBaseline(design) { return hostingBaseline(design, HOSTI
 // Largest single-phase PV (kVA) addable at pole/phase — on top of any `committed` additions
 // already locked in elsewhere — without creating or worsening a voltage or thermal violation
 // across the solar shoulder hours (see searchMaxKva for how the search reports only tested sizes,
-// and the baseline note above for what "worsening" means).
-/** @param {Design} design @param {string} pole @param {import('./types.js').Phase} phase @param {number} hi @param {PvConnection[]} committed @param {HostingBaseline} baseline @returns {number} kVA */
+// and the baseline note above for what "worsening" means). A size whose load flow doesn't converge
+// at any test hour fails too: an unconverged result's voltages can't be trusted either way (and a
+// diverging solve can show no violations at all), so it must never count as a pass.
+/** @param {Design} design @param {string} pole @param {import('./types.js').Phase} phase @param {number} hi @param {PvConnection[]} committed @param {HostingBaseline} baseline */
 function findMaxPV(design, pole, phase, hi, committed, baseline) {
-  return searchMaxKva(kva => {
+  return searchWithLimit(kva => {
     for (const h of HOSTING_TEST_HOURS) {
       const res = runSnapshot(design, { year: 0, hour: h, loadMult: 1, solarMult: 1, extraPV: [...committed, { pole, phase, kva }] });
-      if (newOrWorsenedViolation(res.violations, baseline.byHour.get(h))) return false;
+      if (!res.converged) return { reason: 'nonConvergence', detail: { hour: h } };
+      const v = newOrWorsenedViolation(res.violations, baseline.byHour.get(h));
+      if (v) return { reason: 'violation', detail: { hour: h, ...v } };
     }
-    return true;
+    return null;
   }, hi);
 }
 
@@ -139,7 +171,7 @@ function independentPV(design, cap, baseline) {
   design.poles.forEach(p => {
     PHASES.forEach(phase => {
       const best = findMaxPV(design, p.id, phase, cap, [], baseline);
-      if (best > 0.05) results.push({ pole: p.id, phase, kva: best });
+      if (best.kva > 0.05) results.push({ pole: p.id, phase, kva: best.kva, limit: best.limit, limitDetail: best.limitDetail });
     });
   });
   results.sort((a, b) => b.kva - a.kva);
@@ -174,8 +206,8 @@ export function computeSystemHostingCapacity(design) {
   const committed = [];
   const results = independent.map(cand => {
     const best = findMaxPV(design, cand.pole, cand.phase, cand.kva, committed, baseline);
-    if (best > 0.05) committed.push({ pole: cand.pole, phase: cand.phase, kva: best });
-    return { pole: cand.pole, phase: cand.phase, independentKva: cand.kva, achievableKva: best };
+    if (best.kva > 0.05) committed.push({ pole: cand.pole, phase: cand.phase, kva: best.kva });
+    return { pole: cand.pole, phase: cand.phase, independentKva: cand.kva, achievableKva: best.kva, limit: best.limit, limitDetail: best.limitDetail };
   });
   const totalKva = results.reduce((s, r) => s + r.achievableKva, 0);
   return { results, totalKva };
