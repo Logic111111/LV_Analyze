@@ -63,6 +63,7 @@ export * from './velander.js';
 export * from './ami.js';
 export * from './fieldReadings.js';
 export * from './summary.js';
+export * from './opendss.js';
 export * from './hosting.js';
 export * from './bess.js';
 export * from './advisors/feederSplit.js';

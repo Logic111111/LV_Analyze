@@ -86,7 +86,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P7.3** Version history and undo/redo
 - [x] **P7.4** Teams, roles and approval workflow
 - [x] **P7.5** Session revocation
-- [ ] **P7.6** OpenDSS export and cross-validation
+- [x] **P7.6** OpenDSS export and cross-validation
 - [ ] **P7.7** AI insights with tools
 - [ ] **P7.8** Field mode (PWA)
 
@@ -1021,6 +1021,38 @@ within 1e-9.
   confirm).
 - **Checks.** End to end with two browsers, plus supertest (logout, replayed cookie, logout-all,
   legacy token).
+
+**P7.6 OpenDSS export and cross-validation (2026-10-21).**
+- **Export** (`toOpenDSS(design, opts)` in the engine; "OpenDSS script (.dss)" on Run & Reports →
+  Export data). The script is the same model the app solves:
+  - a stiff Vsource and a delta–wye Transformer (no magnetising branch) whose LV-referred R/X equal
+    `txImpedance()` and whose turns ratio gives the app's V0 (tap and HV profile included);
+  - a 4-wire Line per span (phases on nodes 1–3, neutral on node 4, no Kron reduction, no shunt
+    capacitance) from a LineCode per conductor — diagonal for the simple model, the conductor's
+    `zMatrix` for the coupled model (outside earthed subtrees, as in the app);
+  - earth electrodes as resistors to ground;
+  - per pole and phase, a single-phase Load phase-to-neutral (constant power, or ZIP via
+    `model=8`) plus a constant-power Load for PV/BESS/test injections (negative for generation).
+    Smart-inverter PV and SOC-scheduled BESS go at the P/Q the app solved for that hour.
+  - 0 m spans become 1 cm (OpenDSS can't take 0 length; the app already floors the neutral).
+- **Validation** (`scripts/validate-opendss.py`, dev-only, needs `pip install opendssdirect.py`;
+  it runs `scripts/opendss-cases.mjs` to export the cases and the app's own voltages). OpenDSS
+  (DSS C-API 0.14.5), every pole and transformer bus, phase-to-local-neutral:
+
+  | Case | Points | Max \|ΔV\| | RMS |
+  |---|---|---|---|
+  | Walkthrough Island 20:00 | 12 | 0.10 mV | 0.03 mV |
+  | Walkthrough Island 12:00 | 12 | 0.07 mV | 0.02 mV |
+  | Synthetic 50 poles 20:00 | 153 | 0.21 mV | 0.04 mV |
+  | Synthetic 50 poles 12:00 (PV, BESS) | 153 | 0.16 mV | 0.02 mV |
+  | Synthetic 50 poles, 8 earthed poles | 153 | 0.10 mV | 0.02 mV |
+  | Synthetic 50 poles, ZIP loads | 153 | 0.10 mV | 0.01 mV |
+  | Walkthrough Island, coupled 4×4 (test matrix) | 12 | 0.08 mV | 0.03 mV |
+
+  Target was 0.5 V; the differences are at the app solver's own stopping tolerance (1e-4 V per
+  iteration). The IEEE European LV Test Feeder was not provided, so it isn't a case yet.
+- **Tests.** Script shape, transformer impedance and V0 round-trip, injection totals, earthing and
+  the coupled fallback, safe unique names, determinism.
 
 ## Phase verification log
 
