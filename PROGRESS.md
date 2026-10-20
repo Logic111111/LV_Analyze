@@ -81,7 +81,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 
 ## Phase 7 — Platform
 
-- [ ] **P7.1** Shared engine package (`packages/engine/`)
+- [x] **P7.1** Shared engine package (`packages/engine/`)
 - [x] **P7.2** Database migrations (numbered SQL, `schema_migrations`)
 - [ ] **P7.3** Version history and undo/redo
 - [ ] **P7.4** Teams, roles and approval workflow
@@ -948,6 +948,27 @@ within 1e-9.
 - **GeoJSON.** WGS 84 [lon, lat]: transformer and pole points with results, span and open-point
   lines; unplaced items are counted and left out.
 - **Browser check.** The .xlsx downloads as a valid zip, and the CSV header is correct.
+
+**P7.1 shared engine package (2026-10-21).**
+- **Move.** `client/src/lib/engine/` → `packages/engine/` with `git mv` (history kept), as package
+  `@feeder-island/engine` (pure ESM, `sideEffects: false`). Paths named in earlier notes now
+  live there.
+- **Client.** A Vite alias plus the `file:../packages/engine` dependency (npm links it, so Node
+  scripts resolve it). `src/lib/loadflow.js` re-exports it, so the public API is unchanged
+  (imports test). `server.fs.allow: ['..']` lets the dev server serve the package.
+- **Lint and types.**
+  - `npm run lint` = the client pass, then `eslint -c client/eslint.engine.config.js
+    packages/engine` from the repo root. ESLint ignores files outside its base path, hence the
+    second pass. The purity rule was proven by planting a `react` import in the package.
+  - `tsconfig.engine.json` includes the package.
+- **Server.** `src/engine.js` → `loadEngine()`, a dynamic `import()` from CommonJS; tested on the
+  golden fixture (P3 A 212.9 V).
+- **Docker.**
+  - Both images build from the repo root (compose `context: .`), with `.dockerignore`.
+  - Node 22 (alpine). The server copies `packages/engine` to `/app/packages/engine`, the same
+    relative path as in the repo, and runs as `node`. The client build installs the `file:`
+    dependency.
+  - The image build and a throwaway-stack check are in the final verification.
 
 ## Phase verification log
 

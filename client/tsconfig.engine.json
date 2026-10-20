@@ -11,7 +11,10 @@
     "lib": ["es2022"],
     "types": [],
     "strict": false,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": { "@feeder-island/engine": ["../packages/engine/index.js"] }
   },
-  "include": ["src/lib/engine/**/*.js", "src/lib/loadflow.js"]
+  // The engine package (P7.1) and the client's re-export of it.
+  "include": ["../packages/engine/**/*.js", "src/lib/loadflow.js"]
 }

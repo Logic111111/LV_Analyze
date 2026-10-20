@@ -17,7 +17,10 @@ services:
       retries: 10
 
   server:
-    build: ./server
+    # Built from the repository root so the image holds the shared engine package (P7.1).
+    build:
+      context: .
+      dockerfile: server/Dockerfile
     restart: unless-stopped
     depends_on:
       db:
@@ -37,7 +40,9 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE}
 
   client:
-    build: ./client
+    build:
+      context: .
+      dockerfile: client/Dockerfile
     restart: unless-stopped
     depends_on:
       - server

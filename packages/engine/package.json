@@ -1,0 +1,11 @@
+{
+  "name": "@feeder-island/engine",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Feeder Island LV unbalanced load-flow engine and advisors: pure, dependency-free ES modules (browser, Web Worker, Node).",
+  "type": "module",
+  "main": "./index.js",
+  "exports": { ".": "./index.js" },
+  "sideEffects": false,
+  "license": "UNLICENSED"
+}

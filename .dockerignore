@@ -1,0 +1,7 @@
+# Build context is the repository root (both images, P7.1): keep it small and free of local state.
+**/node_modules
+**/dist
+**/.env
+.git
+walkthrough
+**/*.log

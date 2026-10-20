@@ -3,11 +3,9 @@ import globals from 'globals';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 
-// The load-flow engine must stay pure and dependency-free so it runs unchanged in the browser, a
-// Web Worker and Node (brief rule 3). These files get ES globals only (no window/document) and may
-// import only other relative modules — a React, DOM or npm import there is a lint error, not a
-// code-review catch. Grows to cover src/lib/engine/** once the engine is split into modules.
-const ENGINE_FILES = ['src/lib/loadflow.js', 'src/lib/engine/**/*.js'];
+// The load-flow engine (packages/engine, P7.1) is linted by eslint.engine.config.js, which
+// enforces its purity rule; here only the client's one-line re-export of it remains.
+const ENGINE_FILES = ['src/lib/loadflow.js'];
 
 export default [
   { ignores: ['dist/**', 'node_modules/**'] },
@@ -36,12 +34,7 @@ export default [
   },
   {
     files: ENGINE_FILES,
-    languageOptions: { globals: { ...globals.es2021 } },
-    rules: {
-      'no-restricted-imports': ['error', {
-        patterns: [{ regex: '^[^.]', message: 'The engine must stay dependency-free: relative imports of other engine modules only.' }]
-      }]
-    }
+    languageOptions: { globals: { ...globals.es2021 } }
   },
   {
     files: ['src/**/__tests__/**', 'scripts/**', 'vite.config.js', 'eslint.config.js'],
