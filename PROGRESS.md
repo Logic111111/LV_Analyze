@@ -45,7 +45,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 
 - [x] **P3.1** Smart-inverter PV (volt-var / volt-watt / export limit; IEEE 1547-2018 Cat B seed curves, labelled)
 - [x] **P3.2** BESS with state of charge (`schedule` default; `socSchedule` / `solarFollowing`)
-- [ ] **P3.3** Transformer thermal ageing (IEC 60076-7)
+- [x] **P3.3** Transformer thermal ageing (IEC 60076-7)
 - [ ] **P3.4** HV voltage profile (`hvProfile`, default all 1.0)
 - [ ] **P3.5** Coupled line model (4×4 matrices, behind a flag)
 
@@ -462,6 +462,17 @@ Decisions:
 - **kWh is never assumed.** A SOC-mode unit without it is idle and flagged `dataMissing`.
 - **The fixed schedule keeps the historical discharge-side RTE derate.** The SOC modes instead
   apply the efficiencies to stored energy.
+
+**P3.3 thermal ageing (2026-10-20).** `engine/thermal.js` (`simulateHotSpot`,
+`transformerAgeing`, `ageingRate`, `thermalSettings`) plus `design.thermal`.
+- **Method:** 1-minute steps, the hourly K from the scan's |S| / rating (direction ignored,
+  because heating doesn't care), and the day repeated until it is periodic.
+- **Defaults:** x 0.8, y 1.6, R 5, k11 1, k21 1, k22 2, τo 180 min, τw 4 min, Δθor 55 K,
+  Hgr 23 K (98 °C at rated load and a 20 °C ambient).
+
+**Caveat:** the rises Δθor and Hgr are unit-specific heat-run values, and the UI asks for them.
+**Waiting on data:** the site ambient profile (the flat 20 °C IEC reference is flagged in the UI
+and the report) and heat-run values where available.
 
 ## Phase verification log
 

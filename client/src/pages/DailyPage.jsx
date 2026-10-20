@@ -6,6 +6,7 @@ import LineChart from '../components/LineChart.jsx';
 import TaskProgress from '../components/TaskProgress.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
 import { vufText } from '../lib/format.js';
+import { transformerAgeing } from '../lib/loadflow.js';
 
 // Chart.js needs literal colour strings (not CSS var()), so the two themes' chart palettes are
 // kept here in step with the --* custom properties in styles.css.
@@ -278,6 +279,8 @@ function DailyResults({ rows, title }) {
         </>
       )}
 
+      <AgeingCard rows={rows} labels={labels} palette={P} />
+
       <div className="section-title">Hour-by-hour summary</div>
       <div className="card"><div className="tbl-wrap"><table>
         <thead><tr><th>Hour</th>{txIds.map(id => <th key={id}>{txName(id)}</th>)}<th>Min V (pole/phase)</th><th>Max V (pole/phase)</th><th>Max VUF (pole)</th><th>Violations</th></tr></thead>
@@ -316,5 +319,39 @@ function DailyResults({ rows, title }) {
         </>
       ) : <div className="empty">No voltage, thermal or transformer-import violations across the full 24-hour profile.</div>}
     </div>
+  );
+}
+
+// Transformer hot spot and ageing over this scan's day (IEC 60076-7) — cheap, so computed here on
+// render from the scan's loading and the design's thermal settings.
+function AgeingCard({ rows, labels, palette }) {
+  const { design } = useDesign();
+  if (rows.length !== 24) return null;
+  const ageing = transformerAgeing(design, rows);
+  const { axisColor, gridColor, legendColor, seriesColors } = palette;
+  const flatRef = design.thermal && design.thermal.ambientC.every(v => v === 20);
+  return (
+    <>
+      <div className="section-title">Transformer hot spot and ageing (IEC 60076-7)</div>
+      <div className="card">
+        {flatRef && <p className="hint" style={{ marginTop: 0 }}>Using the flat 20 °C reference ambient — enter the site's hourly ambient on the Setup page for a real estimate.</p>}
+        <div className="grid g3">
+          {ageing.map(a => (
+            <div key={a.id} className={'stat ' + (a.peakHotSpotC > 98 ? 'warn' : 'ok')}>
+              <div className="v">{a.peakHotSpotC.toFixed(1)} °C</div>
+              <div className="l">{a.name}: peak hot spot ({String(a.peakHour).padStart(2, '0')}:00) · relative ageing {a.relativeAgeing.toFixed(3)} · loss of life {a.lossOfLifeHoursPerDay.toFixed(2)} h/day</div>
+            </div>
+          ))}
+        </div>
+        <LineChart data={{
+          labels,
+          datasets: [
+            ...ageing.map((a, i) => ({ label: `${a.name} hot spot (°C)`, data: a.hours.map(h => h.hotSpotC), borderColor: seriesColors[i % seriesColors.length], tension: 0.2, pointRadius: 2 })),
+            { label: '98 °C ageing reference', data: labels.map(() => 98), borderColor: axisColor, borderDash: [6, 4], pointRadius: 0 }
+          ]
+        }} options={{ responsive: true, scales: { y: { title: { display: true, text: '°C', color: axisColor }, grid: { color: gridColor }, ticks: { color: axisColor } }, x: { grid: { color: gridColor }, ticks: { color: axisColor } } }, plugins: { legend: { labels: { color: legendColor } } } }} />
+        <p className="hint" style={{ marginTop: 8 }}>Relative ageing 1.0 = the rate at a constant 98 °C hot spot; loss of life is in equivalent hours per day (24 = reference). The day is repeated until it is periodic.</p>
+      </div>
+    </>
   );
 }

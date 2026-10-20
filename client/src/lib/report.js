@@ -1,4 +1,4 @@
-import { getTransformerType, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh, pvHostingBaseline, bessHostingBaseline, faultLevels, protectionCheck, C, describeReconductor, standardsOf, inverterSettings } from './loadflow.js';
+import { getTransformerType, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh, pvHostingBaseline, bessHostingBaseline, faultLevels, protectionCheck, C, describeReconductor, standardsOf, inverterSettings, transformerAgeing, thermalSettings } from './loadflow.js';
 import { hostingLimitText, vufText } from './format.js';
 
 function esc(v) {
@@ -153,6 +153,12 @@ function dailyScenarioBody(design, scenario, notRunMsg) {
     ${daily[0].bess && daily[0].bess.length ? `<h3>Battery state of charge</h3>${table(['Hour', ...daily[0].bess.map(b => `${esc(b.id)} kW (+ discharge) · SOC`)],
       daily.map(r => [String(r.hour).padStart(2, '0') + ':00', ...r.bess.map(b => (b.dataMissing ? 'kWh missing' : `${b.pKw.toFixed(2)} · ${(b.socEnd * 100).toFixed(0)} %`))]))}` : ''}
     <h3>Transformer LV bus voltage (post-transformer drop, pre-feeder drop)</h3>${txBusTable}
+    ${daily.length === 24 ? (() => {
+      const ag = transformerAgeing(design, daily);
+      const flatRef = thermalSettings(design).ambientC.every(v => v === 20);
+      return `<h3>Transformer hot spot and ageing (IEC 60076-7)</h3>${flatRef ? '<p class="warn">Flat 20 °C reference ambient — not site climate data.</p>' : ''}` +
+        table(['Transformer', 'Peak hot spot', 'At', 'Relative ageing', 'Loss of life (h/day)'], ag.map(a => [esc(a.name), a.peakHotSpotC.toFixed(1) + ' °C', String(a.peakHour).padStart(2, '0') + ':00', a.relativeAgeing.toFixed(3), a.lossOfLifeHoursPerDay.toFixed(2)]));
+    })() : ''}
     <h3>Violations — all 24 hours</h3>${violationsTable}
   `;
 }

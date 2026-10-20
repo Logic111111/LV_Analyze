@@ -5,6 +5,7 @@ import TapAdvisorCard from '../components/TapAdvisorCard.jsx';
 import ConductorLibraryEditor from '../components/ConductorLibraryEditor.jsx';
 import StandardsCard from '../components/StandardsCard.jsx';
 import InverterCard from '../components/InverterCard.jsx';
+import ThermalCard from '../components/ThermalCard.jsx';
 
 export default function SetupPage() {
   const { design, setDesign } = useDesign();
@@ -196,6 +197,7 @@ export default function SetupPage() {
       </div>
 
       <div style={{ marginTop: 18 }}><InverterCard /></div>
+      <div style={{ marginTop: 18 }}><ThermalCard /></div>
 
       <div className="section-title">Fault level &amp; protection settings</div>
       <div className="card">
