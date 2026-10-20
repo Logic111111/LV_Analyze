@@ -23,8 +23,8 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P1.1** Split engine into `client/src/lib/engine/*` modules; `loadflow.js` becomes a re-export; JSDoc typedefs + `// @ts-check`
 - [x] **P1.2** Library refactor — `getConductor(design, code)` / `getTransformerType(design, rating)` reading `design.conductorLibrary` / `design.transformerLibrary`
 - [ ] **P1.3** Bug fixes (each with a test that fails before the fix)
-  - [ ] 1. Hosting rounds up to an untested size (`Math.round` → `Math.floor(best*20+1e-9)/20`)
-  - [ ] 2. Pre-existing violations zero out hosting — baseline-relative feasibility + banner
+  - [x] 1. Hosting rounds up to an untested size (`Math.round` → `Math.floor(best*20+1e-9)/20`)
+  - [x] 2. Pre-existing violations zero out hosting — baseline-relative feasibility + banner
   - [ ] 3. Non-converged load flow counts as a pass in hosting/BESS — treat as infeasible; surface non-convergence on every scanning page
   - [ ] 4. Feeder-split transformer current assumes balance — add `txMaxPhaseCurrentA` (true max phase current), show balanced-equivalent as secondary
   - [ ] 5. AI model hard-coded — `ANTHROPIC_MODEL` env var (default `claude-sonnet-4-6`), documented in both `.env.example`
@@ -240,6 +240,24 @@ Setup, Network, Feeder Split and Reports pages and the report. Decisions:
   as before.
 - The Network page's conductor pickers list the library codes (`70ABC`) instead of the
   hard-coded "70 ABC" labels.
+
+**P1.3 fix 2 — baseline-relative hosting (2026-10-20).** Hosting candidates are judged against the
+design's own violations at the same test hour (`hostingBaseline`, `newOrWorsenedViolation` in
+engine/hosting.js). A candidate fails on a new pole + phase + type, or on a pre-existing violation
+getting more than 0.01 worse (V for voltage, percentage points for thermal / transformer
+loading). Decisions:
+- **The baseline is the original design**, with no committed additions, even inside the
+  simultaneous queue. This is the conservative reading: the 0.01 tolerance can't creep as
+  additions accumulate.
+- **The BESS baseline uses the same charge/discharge relevance filter as the candidates.**
+- **The Hosting and BESS pages list the baseline in a banner** (`BaselineBanner.jsx`), and so do
+  the report's hosting sections.
+
+Effect: on the balanced fixture the baseline is clean at every test hour, so no golden changed.
+On a test island with a 20 kVA shop on P3-A, the old search reported zero PV and zero BESS
+everywhere. It now finds 5 kVA of PV at P1A, P2A and P3A (PV on P3-A relieves the undervoltage).
+It still rejects PV on the B/C phases, because by neutral shift that deepens the P3-A
+undervoltage by more than 0.01 V. That is the criterion working as specified, not a bug.
 
 ## Open questions for the user
 
