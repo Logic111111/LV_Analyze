@@ -67,7 +67,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P5.6** "Explain this number" drawer
 - [x] **P5.7** Map-based network editor (react-leaflet, configurable tiles, haversine "measured vs entered")
 - [x] **P5.8** Guided new-design wizard
-- [ ] **P5.9** Report upgrade (new sections, print stylesheet, sign-off block, optional logo)
+- [x] **P5.9** Report upgrade (new sections, print stylesheet, sign-off block, optional logo)
 - [ ] **P5.10** Internationalisation & accessibility (`t()`, en default, Sinhala/Tamil machine drafts)
 
 ## Phase 6 — Data and economics
@@ -779,6 +779,25 @@ within 1e-9.
   - Warnings: spans over 60 m, no customers, connected ADMD above the transformer rating, more
     PV/EV than customers.
 - **Context.** `newDesign(built)` now accepts a built design; it still goes through `withDefaults`.
+
+**P5.9 report upgrade (2026-10-21).**
+- **Added.**
+  - A table of contents.
+  - A sign-off block (`design.signOff`, shared with the diagram title block).
+  - An optional logo: `design.logo`, PNG/JPEG/SVG up to 100 kB, inside the server's 600 kB body
+    limit. Only `data:image/(png|jpeg|svg+xml);base64,…` is rendered (tested).
+  - The SLD as inline SVG.
+  - Scenario comparison and Monte Carlo sections, fed by `lastScenarios` / `lastMonteCarlo` in
+    DesignContext.
+  - An Economics section: "not set" until P6.1, which fills it.
+  - An Optimisation section slot for O7.
+- **Already present from earlier items:** VUF, fault and protection, tap, reconductor, fix-it,
+  inverter, SOC and thermal ageing.
+- **Print CSS.** `@page A4`, `print-color-adjust: exact`, headings kept with their content,
+  repeating table heads.
+- **UI.** A "Report options" card on Run & Reports holds the logo upload and sign-off fields.
+- **Browser check.** The downloaded report contains the TOC, SVG, sign-off and print CSS; the
+  print rendering was checked visually.
 
 ## Phase verification log
 

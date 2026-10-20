@@ -13,7 +13,7 @@ import {
 const newId = () => 'sc' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
 export default function ScenariosPage() {
-  const { design, setDesign } = useDesign();
+  const { design, setDesign, setLastScenarios } = useDesign();
   const scenarios = design.scenarios || [];
   const [selected, setSelected] = useState(['__current']);
   const [result, setResult] = useState(null);
@@ -34,7 +34,7 @@ export default function ScenariosPage() {
   async function compare() {
     const list = selected.map(id => (id === '__current' ? CURRENT_DESIGN_SCENARIO : scenarios.find(s => s.id === id))).filter(Boolean);
     const r = await task.run('compareScenarios', { design, scenarios: list }, 'Comparing scenarios');
-    if (r.ok) setResult(r.result);
+    if (r.ok) { setResult(r.result); setLastScenarios(r.result); }
   }
 
   const fmt = (v, digits) => (Number.isFinite(v) ? v.toFixed(digits) : '—');

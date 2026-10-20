@@ -141,3 +141,19 @@ describe('exports', () => {
     expect([...dxf].every(ch => ch.charCodeAt(0) < 128)).toBe(true); // ASCII only
   });
 });
+
+describe('report upgrade (P5.9)', () => {
+  it('has a table of contents, the SLD, sign-off, scenarios and Monte Carlo sections, and print CSS', async () => {
+    const { buildReportHtml } = await import('../report.js');
+    const { monteCarloStudy, compareScenarios, CURRENT_DESIGN_SCENARIO } = await import('../loadflow.js');
+    const d = { ...walkthroughIsland(), signOff: { prepared: 'A. Engineer', preparedDate: '2026-10-21', checked: '', approved: '' }, logo: 'data:image/png;base64,iVBORw0KGgo=' };
+    const res = snap(d);
+    const html = buildReportHtml(d, res, null, null, null, {
+      scenarios: compareScenarios(d, [CURRENT_DESIGN_SCENARIO]),
+      monteCarlo: monteCarloStudy(d, { evPct: 20, evSizes: [{ kva: 7, weight: 1 }], runs: 5, hours: [20] })
+    });
+    ['class="toc"', 'id="s-single-line-diagram"', '<svg', 'A. Engineer', 'Signature', 'id="s-scenarios-comparison"', 'Probability of any violation', '@page{size:A4', 'thead{display:table-header-group}', 'class="logo"', 'Economics not set'].forEach(t => expect(html).toContain(t));
+    // A logo that isn't a plain base64 image data URL is dropped.
+    expect(buildReportHtml({ ...d, logo: 'javascript:alert(1)' }, res, null, null, null)).not.toContain('class="logo"');
+  });
+});

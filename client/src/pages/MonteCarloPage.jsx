@@ -32,7 +32,7 @@ function Histogram({ dist, metric, palette }) {
 }
 
 export default function MonteCarloPage() {
-  const { design } = useDesign();
+  const { design, setLastMonteCarlo } = useDesign();
   const { theme } = useTheme();
   const palette = CHART_PALETTES[theme] || CHART_PALETTES.light;
   const fromDesign = () => adoptionSizesFromDesign(design);
@@ -54,7 +54,7 @@ export default function MonteCarloPage() {
       pvSizes: pvSizes.map(s => ({ kva: Number(s.kva), weight: Number(s.weight) })),
       runs: Number(runs) || 1, seed: Number(seed) || 0, hours: fullDay ? [...Array(24).keys()] : [...MC_CRITICAL_HOURS]
     }, 'Monte Carlo study');
-    if (r.ok) setResult(r.result);
+    if (r.ok) { setResult(r.result); setLastMonteCarlo(r.result); }
   }
 
   const maxNodeP = result ? Math.max(0, ...result.nodeProbability.flatMap(n => [n.A, n.B, n.C])) : 0;

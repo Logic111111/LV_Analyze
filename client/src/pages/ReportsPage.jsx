@@ -21,7 +21,8 @@ function groupByTx(design, items, txOf) {
 function txOfViolation(design, v) { return isTransformerId(design, v.pole) ? v.pole : transformerOfPole(design, v.pole); }
 
 export default function ReportsPage() {
-  const { design, lastResults, setLastResults, lastHosting, lastBessHosting, lastDaily, lastTapAdvice, lastReconductor, lastFixIt } = useDesign();
+  const { design, setDesign, lastResults, setLastResults, lastHosting, lastBessHosting, lastDaily, lastTapAdvice, lastReconductor, lastFixIt, lastScenarios, lastMonteCarlo } = useDesign();
+  const [logoMsg, setLogoMsg] = useState('');
   const [year, setYear] = useState(0);
   const [hour, setHour] = useState(20);
   const [loadMult, setLoadMult] = useState(1);
@@ -31,7 +32,7 @@ export default function ReportsPage() {
   // built in the engine worker; only the download itself happens here.
   const reportTask = useEngineTask();
   async function downloadComprehensiveReport() {
-    const extras = { tapAdvice: lastTapAdvice, reconductor: lastReconductor, fixIt: lastFixIt };
+    const extras = { tapAdvice: lastTapAdvice, reconductor: lastReconductor, fixIt: lastFixIt, scenarios: lastScenarios, monteCarlo: lastMonteCarlo };
     const r = await reportTask.run('report', { design, res: lastResults, hosting: lastHosting, daily: lastDaily, bessHosting: lastBessHosting, extras }, 'Building the report');
     if (r.ok) downloadHtml(r.result, reportFileName(design));
   }
@@ -67,6 +68,34 @@ export default function ReportsPage() {
       </div>
 
       <TaskProgress task={reportTask} />
+
+      {/* Report options (P5.9): an optional logo (stored in the design, so keep it small) and the
+          sign-off block shared with the diagram's title block. */}
+      <details className="card" style={{ marginTop: 14 }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Report options — logo and sign-off</summary>
+        <div className="grid g3" style={{ marginTop: 10 }}>
+          <div className="field"><span>Logo (PNG, JPEG or SVG, up to 100 kB)</span>
+            <input type="file" accept="image/png,image/jpeg,image/svg+xml" onChange={e => {
+              const f = e.target.files && e.target.files[0];
+              if (!f) return;
+              if (!['image/png', 'image/jpeg', 'image/svg+xml'].includes(f.type)) { setLogoMsg('Use a PNG, JPEG or SVG file.'); return; }
+              if (f.size > 100 * 1024) { setLogoMsg(`That file is ${(f.size / 1024).toFixed(0)} kB — the limit is 100 kB (it is saved inside the design).`); return; }
+              const reader = new FileReader();
+              reader.onload = () => { setDesign(d => ({ ...d, logo: String(reader.result) })); setLogoMsg('Logo added.'); };
+              reader.readAsDataURL(f);
+            }} />
+            {design.logo && <span style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }}><img src={design.logo} alt="Report logo" style={{ maxHeight: 40, maxWidth: 160 }} /><button className="mini" onClick={() => { setDesign(d => { const n = { ...d }; delete n.logo; return n; }); setLogoMsg('Logo removed.'); }}>Remove</button></span>}
+            {logoMsg && <span className="hint" role="status">{logoMsg}</span>}
+          </div>
+          {[['prepared', 'Prepared by'], ['checked', 'Checked by'], ['approved', 'Approved by']].map(([k, label]) => (
+            <div key={k} style={{ display: 'flex', gap: 6 }}>
+              <label className="field" style={{ flex: 2 }}><span>{label}</span><input value={(design.signOff || {})[k] || ''} onChange={e => setDesign(d => ({ ...d, signOff: { ...(d.signOff || {}), [k]: e.target.value } }))} /></label>
+              <label className="field" style={{ flex: 1 }}><span>Date</span><input type="date" value={(design.signOff || {})[k + 'Date'] || ''} onChange={e => setDesign(d => ({ ...d, signOff: { ...(d.signOff || {}), [k + 'Date']: e.target.value } }))} /></label>
+            </div>
+          ))}
+        </div>
+        <p className="hint" style={{ marginBottom: 0 }}>The report includes the single-line diagram, every advisor's last result (tap, reconductor, fix-it, scenarios, Monte Carlo), economics when set, and prints cleanly to A4 (Print → Save as PDF).</p>
+      </details>
 
       <div className="card" style={{ marginTop: 14 }}>
         <h2>Simulation snapshot</h2>

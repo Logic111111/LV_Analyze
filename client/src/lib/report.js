@@ -1,4 +1,6 @@
-import { getTransformerType, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh, pvHostingBaseline, bessHostingBaseline, faultLevels, protectionCheck, C, describeReconductor, standardsOf, inverterSettings, transformerAgeing, thermalSettings } from './loadflow.js';
+import { getTransformerType, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh, pvHostingBaseline, bessHostingBaseline, faultLevels, protectionCheck, C, describeReconductor, standardsOf, inverterSettings, transformerAgeing, thermalSettings, SCENARIO_ROWS } from './loadflow.js';
+import { buildSldScene } from './sld/scene.js';
+import { sceneToSvg } from './sld/svg.js';
 import { hostingLimitText, vufText } from './format.js';
 
 function esc(v) {
@@ -6,9 +8,6 @@ function esc(v) {
 }
 const LOAD_TYPE_LABEL = { general: 'General', ev: 'EV', evcs: 'EVCS', shop: 'Commercial Shop' };
 
-function section(title, bodyHtml) {
-  return `<div class="section"><h2>${esc(title)}</h2>${bodyHtml}</div>`;
-}
 function table(headers, rows) {
   if (rows.length === 0) return '<p class="empty">None</p>';
   return `<table><thead><tr>${headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead>` +
@@ -324,6 +323,46 @@ function fixItSectionBody(r) {
 // Builds a standalone, printable HTML report combining the design's setup, network and
 // (if available) the latest simulation snapshot, hosting-capacity scan and 24-hour scan.
 // `extras` carries the latest advisor results the pages have stored (tap advisor, …).
+// ---- P5.9 sections ----
+const SIGN_ROLES = [['prepared', 'Prepared by'], ['checked', 'Checked by'], ['approved', 'Approved by']];
+function signOffBody(design) {
+  const s = design.signOff || {};
+  return `<table class="signoff"><tr>${SIGN_ROLES.map(([k, label]) => `<td><div class="lbl">${label}</div><div class="nm">${esc(s[k] || '')}&nbsp;</div><div class="line">Signature</div><div class="lbl">Date: ${esc(s[k + 'Date'] || '')}</div></td>`).join('')}</tr></table>`;
+}
+function sldSectionBody(design, res, label) {
+  const svg = sceneToSvg(buildSldScene(design, res), { theme: 'light' });
+  return `<p class="hint">${esc(label)}. Pole outline: green OK, amber within 1 % of a limit, red outside the band; every drop is labelled with its phase.</p><div class="sld">${svg}</div>`;
+}
+function scenariosSectionBody(r) {
+  if (!r || !r.columns || !r.columns.length) return '<p class="empty">No scenario comparison has been run — open "Scenarios", compare, then regenerate this report.</p>';
+  const rows = SCENARIO_ROWS.map(row => [esc(row.label), ...r.columns.map(c => {
+    const v = c[row.key];
+    const best = (r.best[row.key] || []).includes(c.id);
+    const txt = Number.isFinite(v) ? v.toFixed(row.digits) : (row.key === 'lossLkrYear' ? 'not set' : '—');
+    return best ? `<b>★ ${txt}</b>` : txt;
+  })]);
+  return table(['Quantity', ...r.columns.map(c => `${esc(c.name)} (yr ${c.year}, ×${c.loadMult}/×${c.solarMult})`)], rows) + '<p class="hint">★ = best in the row.</p>';
+}
+function monteCarloSectionBody(r) {
+  if (!r) return '<p class="empty">No probabilistic study has been run — open "Probabilistic", run it, then regenerate this report.</p>';
+  const q = (k, d) => ['P5', 'P50', 'P95'].map(p => r.distributions[k].quantiles[p].toFixed(d)).join(' / ');
+  const hot = r.nodeProbability.flatMap(n => ['A', 'B', 'C'].map(ph => ({ at: `${n.pole} ${ph}`, p: n[ph] }))).filter(x => x.p > 0).sort((a, b) => b.p - a.p).slice(0, 8);
+  return `<div class="kv">
+      <div><span>Runs / seed / hours</span><b>${r.inputs.runs} / ${r.inputs.seed} / ${r.inputs.hours.length === 24 ? 'full day' : r.inputs.hours.map(h => h + ':00').join(', ')}</b></div>
+      <div><span>Year; EV / PV adoption</span><b>${r.inputs.year}; ${r.inputs.evPct} % / ${r.inputs.pvPct} % (${r.evPerRun} EV, ${r.pvPerRun} PV of ${r.customers} customers per run)</b></div>
+      <div><span>Probability of any violation</span><b>${(r.probabilityAnyViolation * 100).toFixed(1)} %</b></div>
+      <div><span>Min voltage P5 / P50 / P95</span><b>${q('minV', 1)} V</b></div>
+      <div><span>Max voltage P5 / P50 / P95</span><b>${q('maxV', 1)} V</b></div>
+      <div><span>Transformer peak P5 / P50 / P95</span><b>${q('txPeakPct', 0)} %</b></div>
+    </div>
+    ${hot.length ? `<h3>Most likely violation locations</h3>${table(['Pole / phase', 'Probability'], hot.map(h => [esc(h.at), (h.p * 100).toFixed(1) + ' %']))}` : '<p>No pole-phase had a violation in any run.</p>'}`;
+}
+function economicsSectionBody(design, extras) {
+  const e = design.economics || {};
+  if (!(Number(e.lossCostLkrPerKwh) > 0)) return '<p class="empty">Economics not set — enter the energy cost of losses (and optionally the discount rate, study period and unit costs) under Setup → Economics to see LKR figures.</p>';
+  return extras.economicsHtml || `<p>Energy cost of losses: ${Number(e.lossCostLkrPerKwh)} LKR/kWh.</p>`;
+}
+
 export function buildReportHtml(design, res, hosting, daily, bessHosting, extras = {}) {
   const now = new Date().toLocaleString();
 
@@ -433,6 +472,34 @@ export function buildReportHtml(design, res, hosting, daily, bessHosting, extras
     ${table(['Year', 'Hours with a violation', 'Hours exporting', 'Peak transformer loading (import, worst of all transformers)', 'Peak overvoltage', 'Worst undervoltage'], outlookRows)}
   `;
 
+  // Table of contents: every section gets an id from its title.
+  const SECTIONS = [
+    ['Sign-off', signOffBody(design)],
+    ['Single-line diagram', sldSectionBody(design, res || nightPeakRes, res ? `At the latest snapshot (year ${res.year}, ${String(res.hour).padStart(2, '0')}:00)` : 'Night peak, year 0, 20:00')],
+    ['Setup', setupBody],
+    ['Network', networkBody],
+    ['Energy loss — 24-hour distribution network (incl. transformer)', energyLossBody],
+    ['Latest simulation snapshot', snapshotBody],
+    ['Solar peak snapshot (year 0, 12:00, full PV)', solarPeakBody],
+    ['Night peak snapshot (year 0, 20:00, no solar)', nightPeakBody],
+    ['24-hour scan — combined (typical load & solar)', dailyCombinedBody],
+    ['24-hour scan — typical solar / low load', dailyLowLoadBody],
+    ['24-hour scan — low solar / typical load', dailyLowSolarBody],
+    ['5-year 24-hour scan outlook', outlookBody],
+    ['Latest solar hosting-capacity scan', hostingBody],
+    ['Latest BESS hosting-capacity scan', bessHostingBody],
+    ['Fault levels and protection', faultSectionBody(design)],
+    ['Tap advisor', tapAdviceSectionBody(design, extras.tapAdvice)],
+    ['Reconductoring advisor', reconductorSectionBody(extras.reconductor)],
+    ['Fix-it ladder', fixItSectionBody(extras.fixIt)],
+    ['Scenarios comparison', scenariosSectionBody(extras.scenarios)],
+    ['Probabilistic planning (Monte Carlo)', monteCarloSectionBody(extras.monteCarlo)],
+    ['Economics', economicsSectionBody(design, extras)],
+    ...(extras.optimisationHtml ? [['Optimisation', extras.optimisationHtml]] : [])
+  ];
+  const sid = (t) => 's-' + t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const logo = typeof design.logo === 'string' && /^data:image\/(png|jpeg|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(design.logo) ? `<img class="logo" src="${design.logo}" alt="Logo">` : '';
+
   return `<!doctype html>
 <html><head><meta charset="utf-8"><title>${esc(design.name)} — Feeder Island Report</title>
 <style>
@@ -452,27 +519,36 @@ export function buildReportHtml(design, res, hosting, daily, bessHosting, extras
   th{background:var(--head);font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted)}
   .empty{color:var(--muted);font-style:italic;font-size:13px}
   .warn{background:#fff6e5;border:1px solid #f0c36b;padding:8px 12px;border-radius:6px;font-size:13px}
-  @media print{body{padding:0 8mm}}
+  .hint{color:var(--muted);font-size:12px}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+  .logo{max-height:64px;max-width:220px}
+  .toc{columns:2;font-size:12.5px;margin:0 0 26px;padding-left:18px}
+  .toc a{color:var(--accent);text-decoration:none}
+  .sld{overflow-x:auto;border:1px solid var(--line);border-radius:6px}
+  .sld svg{max-width:100%;height:auto}
+  table.signoff td{width:33%;vertical-align:top;padding:10px}
+  .signoff .lbl{color:var(--muted);font-size:11px;text-transform:uppercase}
+  .signoff .nm{font-weight:600;margin:4px 0 22px}
+  .signoff .line{border-top:1px solid var(--text);color:var(--muted);font-size:10.5px;padding-top:2px;margin-bottom:8px}
+  /* Print / PDF (P5.9): A4, colours kept, section headings stay with their content, table heads
+     repeat on every page. */
+  @page{size:A4;margin:14mm 12mm}
+  @media print{
+    body{padding:0}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .section{page-break-inside:auto}
+    .section>h2{page-break-after:avoid}
+    thead{display:table-header-group}
+    tr,.kv div{page-break-inside:avoid}
+    .sld{overflow:visible;border:0}
+    a{color:inherit}
+  }
 </style></head>
 <body>
-  <h1>${esc(design.name)}</h1>
-  <div class="meta">Feeder Island comprehensive report — generated ${esc(now)}</div>
-  ${section('Setup', setupBody)}
-  ${section('Network', networkBody)}
-  ${section('Energy loss — 24-hour distribution network (incl. transformer)', energyLossBody)}
-  ${section('Latest simulation snapshot', snapshotBody)}
-  ${section('Solar peak snapshot (year 0, 12:00, full PV)', solarPeakBody)}
-  ${section('Night peak snapshot (year 0, 20:00, no solar)', nightPeakBody)}
-  ${section('24-hour scan — combined (typical load & solar)', dailyCombinedBody)}
-  ${section('24-hour scan — typical solar / low load', dailyLowLoadBody)}
-  ${section('24-hour scan — low solar / typical load', dailyLowSolarBody)}
-  ${section('5-year 24-hour scan outlook', outlookBody)}
-  ${section('Latest solar hosting-capacity scan', hostingBody)}
-  ${section('Latest BESS hosting-capacity scan', bessHostingBody)}
-  ${section('Fault levels and protection', faultSectionBody(design))}
-  ${section('Tap advisor', tapAdviceSectionBody(design, extras.tapAdvice))}
-  ${section('Reconductoring advisor', reconductorSectionBody(extras.reconductor))}
-  ${section('Fix-it ladder', fixItSectionBody(extras.fixIt))}
+  <div class="head"><div><h1>${esc(design.name)}</h1>
+  <div class="meta">Feeder Island comprehensive report — generated ${esc(now)}</div></div>${logo}</div>
+  <ol class="toc">${SECTIONS.map(([t]) => `<li><a href="#${sid(t)}">${esc(t)}</a></li>`).join('')}</ol>
+  ${SECTIONS.map(([t, body]) => `<div class="section" id="${sid(t)}"><h2>${esc(t)}</h2>${body}</div>`).join('\n  ')}
 </body></html>`;
 }
 
