@@ -8,6 +8,11 @@ import { diffReference } from './helpers.js';
 // golden table on purpose — a refactor that drifts in the 6th decimal fails here long before it
 // would show up at 2–3 decimals. If this fails, the engine's results moved: find out why. Do not
 // regenerate the reference to make it pass (see scripts/gen-reference.mjs).
+//
+// Multi-hour cases are checked twice: cold-started (warmStart: false), which must still match to
+// 1e-9, and on the default warm-started path (P1.4), which the brief holds to 1e-3 — the solver
+// stops at |ΔV| < 1e-4 V, so two starts land within that band of the same fixed point. Counts
+// (violations) must match exactly either way.
 const reference = JSON.parse(readFileSync(new URL('./fixtures/reference.json', import.meta.url), 'utf8'));
 
 describe('full-precision reference lock (1e-9)', () => {
@@ -17,8 +22,14 @@ describe('full-precision reference lock (1e-9)', () => {
 
   REFERENCE_CASES.forEach((c, i) => {
     it(caseLabel(c), () => {
-      const mismatches = diffReference(reference[i].result, computeCase(c), 1e-9);
+      const mismatches = diffReference(reference[i].result, computeCase(c, { warmStart: false }), 1e-9);
       expect(mismatches.slice(0, 20), `${mismatches.length} value(s) drifted`).toEqual([]);
     });
+    if (c.kind !== 'snapshot') {
+      it(caseLabel(c) + ' — default warm-started path, to 1e-3', () => {
+        const mismatches = diffReference(reference[i].result, computeCase(c, { warmStart: true }), 1e-3);
+        expect(mismatches.slice(0, 20), `${mismatches.length} value(s) drifted`).toEqual([]);
+      });
+    }
   });
 });

@@ -101,13 +101,15 @@ export function caseLabel(c) {
 }
 
 // Returns a JSON-plain copy so a reference captured from disk and a freshly computed result
-// compare like for like (no undefined-vs-missing or Infinity surprises).
-export function computeCase(c) {
+// compare like for like (no undefined-vs-missing or Infinity surprises). Multi-hour cases take
+// `warmStart` (scans warm-start by default since P1.4; the reference was captured cold, before
+// warm starts existed, so `warmStart: false` must reproduce it exactly).
+export function computeCase(c, { warmStart = false } = {}) {
   const d = VARIANTS[c.variant]();
   let out;
   if (c.kind === 'snapshot') out = runSnapshot(d, c.opts);
-  else if (c.kind === 'scan') out = scanAndSummarize(d, c.hours, c.solarMult);
-  else if (c.kind === 'dailyLoss') out = dailyEnergyLossKwh(d);
+  else if (c.kind === 'scan') out = scanAndSummarize(d, c.hours, c.solarMult, { warmStart });
+  else if (c.kind === 'dailyLoss') out = dailyEnergyLossKwh(d, [], { warmStart });
   else throw new Error('unknown case kind ' + c.kind);
   return JSON.parse(JSON.stringify(out));
 }

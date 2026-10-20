@@ -1,9 +1,9 @@
 // @ts-check
 // The load-flow solver: a damped backward-forward sweep per transformer subtree (4-wire, with
 // an optional multi-grounded neutral nodal solve), and the snapshot/violation assembly.
-import { C, PHASES, PHASE_ANGLE, solveComplexLinearSystem } from './complex.js';
-import { conductorParams, getTransformerType, poleById, children, bfsOrderFrom, secondaryLNVoltage, txImpedance } from './model.js';
-import { netS, zipMultiplier } from './loads.js';
+import { C, PHASES, PHASE_ANGLE, factorComplexSystem, solveFactoredSystem } from './complex.js';
+import { conductorParams, getTransformerType, secondaryLNVoltage, txImpedance } from './model.js';
+import { netS, zipMultiplier, connectionIndex } from './loads.js';
 /** @import { Design, Transformer, SnapshotOptions, SnapshotResult, Violation, Complex } from './types.js' */
 
 /* ============================================================
@@ -14,22 +14,40 @@ import { netS, zipMultiplier } from './loads.js';
 // independently with the original single-TX backward-forward sweep).
 /**
  * @param {Design} design @param {Transformer} tx
- * @param {{ year: number, hour: number, loadMult: number, solarMult: number, extraPV: import('./types.js').PvConnection[], extraBess?: import('./types.js').BessConnection[] }} opts
+ * @param {{ year: number, hour: number, loadMult: number, solarMult: number, extraPV: import('./types.js').PvConnection[], extraBess?: import('./types.js').BessConnection[], index: import('./loads.js').ConnectionIndex, topo: ReturnType<typeof topologyOf>, initialV?: InitialV | null }} opts
  */
 function solveTxSubtree(design, tx, opts) {
-  const { year, hour, loadMult, solarMult, extraPV, extraBess = [] } = opts;
+  const { year, hour, loadMult, solarMult, extraPV, extraBess = [], index, topo, initialV } = opts;
   const V0 = secondaryLNVoltage(tx);
   const V0ph = { A: C.fromPolar(V0, PHASE_ANGLE.A), B: C.fromPolar(V0, PHASE_ANGLE.B), C: C.fromPolar(V0, PHASE_ANGLE.C) };
-  const feederRootIds = design.poles.filter(p => p.parent === tx.id).map(p => p.id);
-  const order = bfsOrderFrom(design, feederRootIds);
-  const parentOf = {}; order.forEach(id => parentOf[id] = poleById(design, id).parent);
-  const kidsOf = {}; order.forEach(id => kidsOf[id] = children(design, id));
+  // Topology from the per-snapshot maps (see topologyOf): same ids in the same order as
+  // design.poles.filter(...) / bfsOrderFrom / children produced, without their O(n²) scans.
+  const poleOf = (/** @type {string} */ id) => topo.poleMap.get(id);
+  const kidsIn = (/** @type {string} */ id) => topo.kidsMap.get(id) || [];
+  const feederRootIds = kidsIn(tx.id);
+  const order = [];
+  { const queue = [...feederRootIds]; const seen = new Set(queue);
+    while (queue.length) { const id = queue.shift(); order.push(id); for (const c of kidsIn(id)) { if (!seen.has(c)) { seen.add(c); queue.push(c); } } } }
+  const parentOf = {}; order.forEach(id => parentOf[id] = poleOf(id).parent);
+  const kidsOf = {}; order.forEach(id => kidsOf[id] = kidsIn(id));
 
-  const V = {}; order.forEach(id => V[id] = { A: { ...V0ph.A }, B: { ...V0ph.B }, C: { ...V0ph.C } });
+  // Starting voltages: the open-circuit source EMF everywhere (a "flat" cold start), unless a warm
+  // start (initialV, from an earlier converged solve of the same design) supplies a pole's or the
+  // bus's phasors. The fixed point is the same either way; a good starting point just reaches it
+  // in fewer iterations (see runSnapshot).
+  /** @param {import('./types.js').PhaseMap<Complex> | undefined} w */
+  const startFrom = (w) => (w ? { A: { ...w.A }, B: { ...w.B }, C: { ...w.C } } : { A: { ...V0ph.A }, B: { ...V0ph.B }, C: { ...V0ph.C } });
+  // A subtree with an earth electrode also iterates its neutral potentials (Vn), which always
+  // start from zero; pairing warm phase voltages with a cold neutral measured *slower* than a flat
+  // start (484 vs 421 iterations over a 24 h scan of the grounded synthetic feeder), so grounded
+  // subtrees ignore initialV — and stay bit-identical to a cold start.
+  const anyGrounded = order.some(id => { const p = poleOf(id); return p.grounded && Number(p.groundOhms) > 0; });
+  const warm = anyGrounded ? null : initialV;
+  const V = {}; order.forEach(id => V[id] = startFrom(warm && warm.poles[id]));
   let Icum = {};
   const spanZ = {};
   order.forEach(id => {
-    const p = poleById(design, id);
+    const p = poleOf(id);
     const km = p.spanM / 1000;
     // Neutral impedance gets a tiny length floor (1 cm). Once any pole is grounded, the neutral
     // is solved as a nodal network that divides by each span's neutral impedance (1/Zn for its
@@ -46,7 +64,7 @@ function solveTxSubtree(design, tx, opts) {
 
   const txZ = txImpedance(tx, design);
   const txZc = { re: txZ.r, im: txZ.x };
-  let Vbus = { A: { ...V0ph.A }, B: { ...V0ph.B }, C: { ...V0ph.C } };
+  let Vbus = startFrom(warm && warm.buses[tx.id]);
   let Itot = { A: C.zero(), B: C.zero(), C: C.zero() };
 
   // Poles with an earth electrode at their neutral. When none exist in this subtree, the nodal
@@ -57,7 +75,7 @@ function solveTxSubtree(design, tx, opts) {
   // radial network only sets an absolute potential nothing here measures (phase-to-*local*-
   // neutral readings are unaffected by it), so it only needs to enter the solve once there's a
   // *second* ground point (a pole) for current to genuinely split between.
-  const groundedIds = order.filter(id => { const p = poleById(design, id); return p.grounded && Number(p.groundOhms) > 0; });
+  const groundedIds = order.filter(id => { const p = poleOf(id); return p.grounded && Number(p.groundOhms) > 0; });
   const nodeIdx = {}; order.forEach((id, i) => nodeIdx[id] = i);
   const txNodeIdx = order.length; // the transformer bus's own row/column, appended after all poles
   const RgTx = Number(tx.txGroundOhms) || 7.5;
@@ -88,12 +106,15 @@ function solveTxSubtree(design, tx, opts) {
       Ymat[j][i] = C.sub(Ymat[j][i], ySpan);
     });
     groundedIds.forEach(id => {
-      const p = poleById(design, id);
+      const p = poleOf(id);
       const i = nodeIdx[id];
       Ymat[i][i] = C.add(Ymat[i][i], { re: 1 / Number(p.groundOhms), im: 0 });
     });
     Ymat[txNodeIdx][txNodeIdx] = C.add(Ymat[txNodeIdx][txNodeIdx], { re: 1 / RgTx, im: 0 });
   }
+  // Ymat is fixed for the whole solve (only the injections J change between iterations), so it's
+  // eliminated once here; each iteration only replays that elimination on its own J.
+  const Yfact = Ymat ? factorComplexSystem(Ymat) : null;
   // (The transformer bus's own current injection into this matrix — not zero, since its ideal
   // per-phase sources are eliminated into this reduced system — is set alongside the pole
   // injections each iteration below, not here, since it depends on Icum which isn't known yet.)
@@ -112,11 +133,15 @@ function solveTxSubtree(design, tx, opts) {
   const MAX_ITER = 150, TOL = 1e-4;
   let alpha = 0.65, prevMaxDelta = Infinity;
   let converged = false, lastDelta = Infinity, iterUsed = 0;
+  // Each pole's constant-power injections don't depend on voltage, so they're computed once per
+  // snapshot here rather than on every iteration; only the ZIP multiplier (which does depend on
+  // the iterate's |V|) is applied inside the loop.
+  const injections = {}; order.forEach(id => { injections[id] = netS(design, id, year, hour, loadMult, solarMult, extraPV, extraBess, index); });
   for (let iter = 0; iter < MAX_ITER; iter++) {
     iterUsed = iter + 1;
     const Iself = {};
     order.forEach(id => {
-      const { loadS, otherS } = netS(design, id, year, hour, loadMult, solarMult, extraPV, extraBess); const Ip = {};
+      const { loadS, otherS } = injections[id]; const Ip = {};
       PHASES.forEach(ph => {
         const zip = zipMultiplier(design, C.abs(V[id][ph]));
         const S = C.add(C.mulS(loadS[ph], zip), otherS[ph]);
@@ -156,7 +181,7 @@ function solveTxSubtree(design, tx, opts) {
       // cascades from, just like Vbus, so leaving them undamped (unlike literally everything
       // else in this loop) let a low-impedance ground path feed back into itself too strongly
       // from one iteration to the next and oscillate instead of settling.
-      const sol = solveComplexLinearSystem(Ymat, J);
+      const sol = solveFactoredSystem(Yfact, J);
       order.forEach((id, i) => { Vn[id] = C.add(Vn[id], C.mulS(C.sub(sol[i], Vn[id]), alpha)); });
       VnTx = C.add(VnTx, C.mulS(C.sub(sol[txNodeIdx], VnTx), alpha));
     }
@@ -236,7 +261,7 @@ function solveTxSubtree(design, tx, opts) {
   };
 
   const poleResults = order.map(id => {
-    const p = poleById(design, id);
+    const p = poleOf(id);
     const volt = /** @type {import('./types.js').PhaseMap<number>} */ ({}); PHASES.forEach(ph => { volt[ph] = C.abs(V[id][ph]); });
     const cur = /** @type {import('./types.js').PhaseMap<number>} */ ({}); PHASES.forEach(ph => cur[ph] = C.abs(Icum[id][ph]));
     const In = C.abs(spanNeutralCurrent(id));
@@ -246,7 +271,8 @@ function solveTxSubtree(design, tx, opts) {
     const flowKW = Sspan.re / 1000, flowKVAR = Sspan.im / 1000;
     return {
       id, feeder: p.feeder, parent: p.parent, cond: p.cond, spanM: p.spanM,
-      volt, cur, In, rating, condPct: { A: cur.A / rating * 100, B: cur.B / rating * 100, C: cur.C / rating * 100 },
+      volt, vph: { A: { ...V[id].A }, B: { ...V[id].B }, C: { ...V[id].C } },
+      cur, In, rating, condPct: { A: cur.A / rating * 100, B: cur.B / rating * 100, C: cur.C / rating * 100 },
       flowKW, flowKVAR
     };
   });
@@ -254,7 +280,7 @@ function solveTxSubtree(design, tx, opts) {
   let totalLossW = 0;
   const lossByPole = {};
   order.forEach(id => {
-    const p = poleById(design, id); const km = p.spanM / 1000;
+    const p = poleOf(id); const km = p.spanM / 1000;
     const cp = conductorParams(design, p.cond);
     const Rph = cp.R * km, Rn = cp.Rn * km;
     let l = 0;
@@ -274,7 +300,7 @@ function solveTxSubtree(design, tx, opts) {
   let groundLossW = Math.pow(C.abs(VnTx), 2) / RgTx;
   const groundLossByPole = {};
   groundedIds.forEach(id => {
-    const p = poleById(design, id);
+    const p = poleOf(id);
     const Rg = Number(p.groundOhms);
     const Igr = C.abs(C.div(Vn[id], { re: Rg, im: 0 }));
     const l = Igr * Igr * Rg;
@@ -303,16 +329,63 @@ function solveTxSubtree(design, tx, opts) {
 
   return {
     converged, iterUsed, lastDelta, poleResults, totalLossW, lossByPole, groundLossW, groundLossByPole,
-    summary: { id: tx.id, name: tx.name, txKVA, txPct, flowDirection, netKW, netKVAR, busVoltPct, phaseCurrentA, txZ, txLossW, txNoLoadW, V0 }
+    summary: {
+      id: tx.id, name: tx.name, txKVA, txPct, flowDirection, netKW, netKVAR, busVoltPct,
+      busVph: { A: { ...Vbus.A }, B: { ...Vbus.B }, C: { ...Vbus.C } }, phaseCurrentA, txZ, txLossW, txNoLoadW, V0
+    }
   };
 }
 
 // Runs one full load-flow snapshot across every transformer in the design.
 // options: {year, hour, loadMult, solarMult, extraPV, extraBess}
-/** @param {Design} design @param {SnapshotOptions} opts @returns {SnapshotResult} */
-export function runSnapshot(design, opts) {
+// Pole lookup and parent → children lists (children in design.poles order, like children()) —
+// built once per snapshot so the solver's topology walks are O(n), not O(n²).
+/** @param {Design} design */
+export function topologyOf(design) {
+  const poleMap = new Map(design.poles.map(p => [p.id, p]));
+  /** @type {Map<string, string[]>} */
+  const kidsMap = new Map();
+  design.poles.forEach(p => { const k = kidsMap.get(p.parent); if (k) k.push(p.id); else kidsMap.set(p.parent, [p.id]); });
+  return { poleMap, kidsMap };
+}
+
+/**
+ * Starting phasors for a warm start: every pole's and transformer bus's complex voltage from a
+ * previous snapshot of the same design — or null if that snapshot didn't converge (an
+ * unconverged iterate is no better a starting point than a flat start, and can be worse).
+ * @typedef {{ poles: Record<string, import('./types.js').PhaseMap<Complex>>, buses: Record<string, import('./types.js').PhaseMap<Complex>> }} InitialV
+ * @param {SnapshotResult} res
+ * @returns {InitialV | null}
+ */
+export function warmStartFrom(res) {
+  if (!res || !res.converged) return null;
+  const poles = /** @type {InitialV['poles']} */ ({}); res.poleResults.forEach(p => { poles[p.id] = p.vph; });
+  const buses = /** @type {InitialV['buses']} */ ({}); res.transformers.forEach(t => { buses[t.id] = t.busVph; });
+  return { poles, buses };
+}
+
+/**
+ * One load-flow snapshot across every transformer in the design.
+ *
+ * `ctx` (all optional) lets a caller that runs many snapshots of the same design reuse work:
+ *   - index / topo: connectionIndex(design) / topologyOf(design), built here if omitted;
+ *   - initialV: a warm start (see warmStartFrom). The damped sweep converges to the same fixed
+ *     point from any reasonable start, stopping once the largest voltage change between
+ *     iterations is below TOL (1e-4 V); starting from a nearby solution (the previous hour of a
+ *     scan, the previous size tried in a hosting search) just gets there in fewer iterations. Two
+ *     solves that stop at that tolerance from different starts agree to well within 1e-3 V, so
+ *     a warm-started result is the same answer at engineering precision but not bit-for-bit — the
+ *     goldens and the reference lock that pin exact snapshot values use cold starts.
+ * @param {Design} design @param {SnapshotOptions} opts
+ * @param {{ index?: import('./loads.js').ConnectionIndex, topo?: ReturnType<typeof topologyOf>, initialV?: InitialV | null }} [ctx]
+ * @returns {SnapshotResult}
+ */
+export function runSnapshot(design, opts, ctx = {}) {
   const { year, hour, loadMult = 1, solarMult = 1, extraPV = [], extraBess = [] } = opts;
-  const solved = design.transformers.map(tx => solveTxSubtree(design, tx, { year, hour, loadMult, solarMult, extraPV, extraBess }));
+  const index = ctx.index || connectionIndex(design);
+  const topo = ctx.topo || topologyOf(design);
+  const initialV = ctx.initialV || null;
+  const solved = design.transformers.map(tx => solveTxSubtree(design, tx, { year, hour, loadMult, solarMult, extraPV, extraBess, index, topo, initialV }));
 
   const poleResults = solved.flatMap(s => s.poleResults);
   const lossByPole = Object.assign({}, ...solved.map(s => s.lossByPole));

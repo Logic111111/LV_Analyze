@@ -2,20 +2,45 @@
 // Multi-hour scans: the 24-hour profile, loss accounting, and the scan summary every advisor
 // scores candidates with.
 import { PHASES } from './complex.js';
-import { runSnapshot } from './solver.js';
+import { runSnapshot, warmStartFrom, topologyOf } from './solver.js';
+import { connectionIndex } from './loads.js';
 /** @import { Design, SnapshotResult, BessConnection } from './types.js' */
 
 /* ============================================================
    24-HOUR PROFILE
 ============================================================ */
+// Runs one snapshot per hour in `hours`, reusing the design's connection index and topology, and
+// (unless warmStart is false) starting each hour from the previous hour's converged voltages. A
+// warm start reaches the same fixed point within the solver's tolerance — measured at under
+// 1e-3 V on every scan of the test fixtures, with identical violation counts — in fewer
+// iterations. warmStart:false reproduces the cold-start values exactly (as a single runSnapshot
+// gives), which is what the full-precision reference lock checks.
+/**
+ * @param {Design} design @param {number[]} hours
+ * @param {import('./types.js').SnapshotOptions | Omit<import('./types.js').SnapshotOptions, 'hour'>} base Snapshot options other than `hour`.
+ * @param {{ warmStart?: boolean }} [opts]
+ * @returns {SnapshotResult[]}
+ */
+export function runHours(design, hours, base, opts = {}) {
+  const warmStart = opts.warmStart !== false;
+  const ctx = { index: connectionIndex(design), topo: topologyOf(design) };
+  /** @type {SnapshotResult | null} */
+  let prev = null;
+  return hours.map(hour => {
+    const res = runSnapshot(design, { ...base, hour }, { ...ctx, initialV: warmStart ? warmStartFrom(prev) : null });
+    prev = res;
+    return res;
+  });
+}
+
 /**
  * @param {Design} design @param {number} year
- * @param {{ loadMult?: number, solarMult?: number, extraBess?: BessConnection[] }} [opts]
+ * @param {{ loadMult?: number, solarMult?: number, extraBess?: BessConnection[], warmStart?: boolean }} [opts]
  * @returns {SnapshotResult[]}
  */
 export function runDailyScan(design, year, opts = {}) {
-  const { loadMult = 1, solarMult = 1, extraBess = [] } = opts;
-  return [...Array(24).keys()].map(h => runSnapshot(design, { year, hour: h, loadMult, solarMult, extraBess }));
+  const { loadMult = 1, solarMult = 1, extraBess = [], warmStart = true } = opts;
+  return runHours(design, DAILY_HOURS, { year, loadMult, solarMult, extraBess }, { warmStart });
 }
 
 // Splits a runSnapshot result's losses into line vs. transformer (copper + no-load), and their
@@ -31,9 +56,9 @@ export function systemLossW(res) {
 // Sums system loss (line + transformer) across a fresh 24-hour scan at year 0, nominal (1x)
 // load/solar, with `extraBess` candidate BESS additions applied at every hour — used by the
 // report's energy-loss section and to report the loss impact of a BESS hosting allocation.
-/** @param {Design} design @param {BessConnection[]} [extraBess] @returns {{ lineKwh: number, txKwh: number, groundKwh: number, totalKwh: number }} */
-export function dailyEnergyLossKwh(design, extraBess = []) {
-  const daily = runDailyScan(design, 0, { loadMult: 1, solarMult: 1, extraBess });
+/** @param {Design} design @param {BessConnection[]} [extraBess] @param {{ warmStart?: boolean }} [opts] @returns {{ lineKwh: number, txKwh: number, groundKwh: number, totalKwh: number }} */
+export function dailyEnergyLossKwh(design, extraBess = [], opts = {}) {
+  const daily = runDailyScan(design, 0, { loadMult: 1, solarMult: 1, extraBess, warmStart: opts.warmStart });
   let lineKwh = 0, txKwh = 0, groundKwh = 0;
   daily.forEach(res => {
     const { lineLossW, txLossW, groundLossW } = systemLossW(res);
@@ -102,7 +127,7 @@ export const DAILY_HOURS = [...Array(24).keys()];
 // summarizes it — the one shared code path every split-search scorer below uses, so "test over
 // the full day" vs "test at solar peak only" vs "test at night peak only" is just a different
 // `hours`/`solarMult` pair, not different logic.
-/** @param {Design} design @param {number[]} [hours] @param {number} [solarMult] */
-export function scanAndSummarize(design, hours = DAILY_HOURS, solarMult = 1) {
-  return summarizeScan(hours.map(h => runSnapshot(design, { year: 0, hour: h, loadMult: 1, solarMult })));
+/** @param {Design} design @param {number[]} [hours] @param {number} [solarMult] @param {{ warmStart?: boolean }} [opts] */
+export function scanAndSummarize(design, hours = DAILY_HOURS, solarMult = 1, opts = {}) {
+  return summarizeScan(runHours(design, hours, { year: 0, loadMult: 1, solarMult }, opts));
 }

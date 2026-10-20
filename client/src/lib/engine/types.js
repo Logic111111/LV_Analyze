@@ -158,6 +158,7 @@
  * @property {string} cond
  * @property {number} spanM
  * @property {PhaseMap<number>} volt    |V| phase-to-local-neutral, V.
+ * @property {PhaseMap<Complex>} vph    The same voltages as complex phasors (source phase A at 0°).
  * @property {PhaseMap<number>} cur     |I| per phase in the span, A.
  * @property {number} In                |I| in the span's neutral, A.
  * @property {number} rating            Conductor rating, A.
@@ -176,6 +177,7 @@
  * @property {number} netKW
  * @property {number} netKVAR
  * @property {PhaseMap<number>} busVoltPct LV bus |V| per phase, V (historical name).
+ * @property {PhaseMap<Complex>} busVph LV bus voltage phasors.
  * @property {PhaseMap<number>} phaseCurrentA |I| per phase through the transformer, A.
  * @property {{ r: number, x: number, z: number }} txZ
  * @property {number} txLossW   Copper loss, W.

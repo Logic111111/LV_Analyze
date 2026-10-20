@@ -32,29 +32,61 @@ export const PHASE_ANGLE = { A: 0, B: -120, C: 120 };
  * @returns {Complex[]}
  */
 export function solveComplexLinearSystem(Y, J) {
-  const n = J.length;
+  return solveFactoredSystem(factorComplexSystem(Y), J);
+}
+
+// The same elimination, split in two so a matrix that stays fixed while only the right-hand side
+// changes — the neutral admittance matrix across every iteration of one load-flow solve — is
+// eliminated once (O(n³)) instead of on every iteration, leaving O(n²) per right-hand side.
+// factorComplexSystem records exactly what the elimination does to the right-hand side (each
+// column's pivot swap and its row multipliers, in order); solveFactoredSystem replays those steps
+// on b in the same sequence and then back-substitutes, so solveComplexLinearSystem's result is
+// bit-for-bit what the single-pass version produced.
+/**
+ * @typedef {object} FactoredSystem
+ * @property {Complex[][]} U Upper-triangular matrix after elimination.
+ * @property {{ pivot: number, rows: { r: number, factor: Complex }[] }[]} steps One per column.
+ */
+/** @param {Complex[][]} Y @returns {FactoredSystem} */
+export function factorComplexSystem(Y) {
+  const n = Y.length;
   const A = Y.map(row => row.map(v => ({ ...v })));
-  const b = J.map(v => ({ ...v }));
+  const steps = [];
   for (let col = 0; col < n; col++) {
     let pivot = col, pivotMag = C.abs(A[col][col]);
     for (let r = col + 1; r < n; r++) {
       const m = C.abs(A[r][col]);
       if (m > pivotMag) { pivot = r; pivotMag = m; }
     }
-    if (pivot !== col) { [A[col], A[pivot]] = [A[pivot], A[col]]; [b[col], b[pivot]] = [b[pivot], b[col]]; }
+    if (pivot !== col) { [A[col], A[pivot]] = [A[pivot], A[col]]; }
     const diag = A[col][col];
+    const rows = [];
     for (let r = col + 1; r < n; r++) {
       if (A[r][col].re === 0 && A[r][col].im === 0) continue;
       const factor = C.div(A[r][col], diag);
       for (let c = col; c < n; c++) A[r][c] = C.sub(A[r][c], C.mul(factor, A[col][c]));
-      b[r] = C.sub(b[r], C.mul(factor, b[col]));
+      rows.push({ r, factor });
     }
+    steps.push({ pivot, rows });
+  }
+  return { U: A, steps };
+}
+
+/** @param {FactoredSystem} f @param {Complex[]} J @returns {Complex[]} */
+export function solveFactoredSystem(f, J) {
+  const { U, steps } = f;
+  const n = J.length;
+  const b = J.map(v => ({ ...v }));
+  for (let col = 0; col < n; col++) {
+    const { pivot, rows } = steps[col];
+    if (pivot !== col) { [b[col], b[pivot]] = [b[pivot], b[col]]; }
+    for (const { r, factor } of rows) b[r] = C.sub(b[r], C.mul(factor, b[col]));
   }
   const x = new Array(n);
   for (let r = n - 1; r >= 0; r--) {
     let sum = b[r];
-    for (let c = r + 1; c < n; c++) sum = C.sub(sum, C.mul(A[r][c], x[c]));
-    x[r] = C.div(sum, A[r][r]);
+    for (let c = r + 1; c < n; c++) sum = C.sub(sum, C.mul(U[r][c], x[c]));
+    x[r] = C.div(sum, U[r][r]);
   }
   return x;
 }

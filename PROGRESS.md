@@ -28,7 +28,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
   - [x] 3. Non-converged load flow counts as a pass in hosting/BESS — treat as infeasible; surface non-convergence on every scanning page
   - [x] 4. Feeder-split transformer current assumes balance — add `txMaxPhaseCurrentA` (true max phase current), show balanced-equivalent as secondary
   - [x] 5. AI model hard-coded — `ANTHROPIC_MODEL` env var (default `claude-sonnet-4-6`), documented in both `.env.example`
-- [ ] **P1.4** Performance — precompute per-pole `loadS`/`otherS` once per snapshot, `connectionsByPole` index, optional warm start (`initialV`), `npm run bench` (50 poles / 200 connections), before/after timings recorded here
+- [x] **P1.4** Performance — precompute per-pole `loadS`/`otherS` once per snapshot, `connectionsByPole` index, optional warm start (`initialV`), `npm run bench` (50 poles / 200 connections), before/after timings recorded here
 - [ ] **P1.5** Web Worker infrastructure — `engine.worker.js`, `runInWorker(task, args, {onProgress, signal})`, progress bar + Cancel on every long action
 
 ## Phase 2 — Engineering analyses
@@ -287,6 +287,34 @@ dependencies) and run in CI. Notes for P7.7:
   larger value; this is noted in `.env.example`.
 - **Refusals.** A `refusal` stop reason currently shows as "No response received."
 
+**P1.4 performance (2026-10-20).** The structural changes are bit-identical, and the 1e-9 lock
+passes on its cold path:
+- injections hoisted out of the iteration loop;
+- `connectionIndex` and `topologyOf` maps;
+- a factor-once neutral solve.
+
+Results now carry phasors (`poleResults[].vph`, `transformers[].busVph`). `runSnapshot(design, opts,
+ctx)` takes `ctx.initialV`, built with `warmStartFrom(previousResult)`. Scans warm-start hour to
+hour by default, and `warmStart: false` reproduces the cold values exactly. The PV and BESS
+searches warm-start each hour from the baseline, then from the last converged evaluation.
+
+Measured on the fixtures and the 50-pole feeder: warm vs cold max |ΔV| was 6.3e-4 V, with zero
+violation-count changes across 32 scans. The reference lock checks the warm path at 1e-3 for
+every scan case. Every golden is unchanged.
+
+Decisions and caveats:
+- **Grounded subtrees always start flat.** A warm start with cold neutral potentials measured
+  slower there.
+- **Warm starts can converge where a flat start doesn't.** In a limit-free test island (±1000 %),
+  the warm-started search reaches ~978 kVA of PV at P3-B, a size whose cold snapshot doesn't
+  converge. With real limits a violation stops the search long before that region. The fix-1
+  tests confirm this by re-checking every reported size with cold-start load flows. P4.3's
+  α = 0.3 retry should close the gap.
+- **The connection index is per snapshot (or per scan), not cached per design object.** A cache
+  keyed on the object would go stale if anything mutated a design in place.
+- **Not done: inlining complex arithmetic.** It would avoid object allocation but risks changing
+  floating-point operation order. Not needed: the budget is met with a wide margin.
+
 ## Open questions for the user
 
 1. Docker images run Node 20, which is end-of-life. OK to move both Dockerfiles to `node:22-alpine`
@@ -299,16 +327,23 @@ dependencies) and run in CI. Notes for P7.7:
 `npm run bench` (client) — synthetic 50-pole / 200-connection island (`syntheticFeeder()`), Node 22,
 this dev machine. "Before" = untouched engine at `6326123`, captured before any Phase 1 change.
 
-| Case | Before (6326123) | After P1.4 |
-|---|---|---|
-| Snapshot, 50 poles / 200 conn, 20:00 (41 iterations) | 11.3 ms | — |
-| Snapshot, same with 8 grounded poles (21 iterations) | 11.0 ms | — |
-| `runDailyScan` (24 snapshots) | 231 ms | — |
-| `runDailyScan`, grounded | 210 ms | — |
-| `scanAndSummarize` (24 h) | 226 ms | — |
-| `proposePhaseBalance` | 0.26 ms | — |
-| Walkthrough Island snapshot (3 poles) | 0.35 ms | — |
-| `computeHostingCapacity`, 50 poles × 3 phases | 17.3 s | — |
+| Case | Before (6326123) | After P1.4 | Speed-up |
+|---|---|---|---|
+| Snapshot, 50 poles / 200 conn, 20:00 (41 iterations) | 11.3 ms | 3.6 ms | 3.2× |
+| Snapshot, same with 8 grounded poles (21 iterations) | 11.0 ms | 4.3 ms | 2.5× |
+| `runDailyScan` (24 snapshots) | 231 ms | 51 ms | 4.5× |
+| `runDailyScan`, grounded | 210 ms | 61 ms | 3.4× |
+| `scanAndSummarize` (24 h) | 226 ms | 49 ms | 4.6× |
+| `proposePhaseBalance` | 0.26 ms | 0.30 ms | — |
+| Walkthrough Island snapshot (3 poles) | 0.35 ms | 0.16 ms | 2.2× |
+| `computeHostingCapacity`, 50 poles × 3 phases | 17.3 s | 6.5 s | 2.6× |
 
-The snapshot is inside the 50 ms budget already; a 24 h scan (~230 ms) is not inside the "UI thread
-never blocked > 100 ms" rule, so scans move to the worker in P1.5 regardless of P1.4 gains.
+Where the time went:
+- Hoisting `netS` out of the iteration loop and replacing per-pole list filters with
+  `connectionIndex` took the snapshot from 11.3 to 4.2 ms.
+- Eliminating the grounded neutral matrix once per solve (`factorComplexSystem`, replaying the
+  identical row operations per iteration) took the grounded snapshot from 7.5 to 4.4 ms.
+- Warm starts add about 15 % on scans and about 37 % on hosting searches.
+
+The 50 ms snapshot budget is met with a wide margin. A 24 h scan is now about 50 ms on this machine,
+but slower client hardware can push it past the 100 ms UI rule, so scans still move to the worker in P1.5.

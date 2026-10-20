@@ -1,7 +1,7 @@
 // @ts-check
 // BESS hosting capacity (charge and discharge windows) and its loss-reduction priority queue.
 import { PHASES } from './complex.js';
-import { runSnapshot } from './solver.js';
+import { runSnapshot, warmStartFrom } from './solver.js';
 import { rangeHours, bessMultiplierAt } from './loads.js';
 import { UNCAPPED_CEILING_KVA, searchWithLimit, hostingBaseline, newOrWorsenedViolation } from './hosting.js';
 import { systemLossW, dailyEnergyLossKwh } from './scan.js';
@@ -55,10 +55,12 @@ export function bessHostingBaseline(design) {
 /** @param {Design} design @param {string} pole @param {import('./types.js').Phase} phase @param {number} hi @param {BessConnection[]} committed @param {HostingBaseline} baseline */
 function findMaxBess(design, pole, phase, hi, committed, baseline) {
   const testHours = bessTestHours(design);
+  const warm = new Map(baseline.startByHour); // warm starts, as in the PV search (hosting.js)
   return searchWithLimit(kva => {
     for (const h of testHours) {
-      const res = runSnapshot(design, { year: 0, hour: h, loadMult: 1, solarMult: 1, extraBess: [...committed, { pole, phase, kva }] });
+      const res = runSnapshot(design, { year: 0, hour: h, loadMult: 1, solarMult: 1, extraBess: [...committed, { pole, phase, kva }] }, { ...baseline.ctx, initialV: warm.get(h) || null });
       if (!res.converged) return { reason: 'nonConvergence', detail: { hour: h } };
+      warm.set(h, warmStartFrom(res));
       const v = newOrWorsenedViolation(bessRelevantViolations(design, h, res.violations), baseline.byHour.get(h));
       if (v) return { reason: 'violation', detail: { hour: h, ...v } };
     }

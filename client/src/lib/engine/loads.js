@@ -34,6 +34,34 @@ export function bessMultiplierAt(design, hour) {
   return 0;
 }
 
+// Every connection grouped by pole and kind, each group in its original list order. Built once per
+// snapshot (or once per scan by the caller) instead of re-filtering every list for every pole —
+// and, inside the solver, on every iteration, as netS used to be. Because each group keeps list
+// order, netS adds injections up in exactly the same sequence as before, so results are
+// bit-identical. Loads of a type the engine doesn't model are left out, as the old per-type
+// filters left them out.
+/** @typedef {{ loads: { general: import('./types.js').Connection[], ev: import('./types.js').Connection[], shop: import('./types.js').Connection[], evcs: import('./types.js').Connection[] }, pv: PvConnection[], bess: PvConnection[] }} PoleConnections */
+/** @typedef {Map<string, PoleConnections>} ConnectionIndex */
+const LOAD_TYPES = ['general', 'ev', 'shop', 'evcs'];
+/** @type {PoleConnections} */
+const NO_CONNECTIONS = Object.freeze({ loads: Object.freeze({ general: [], ev: [], shop: [], evcs: [] }), pv: [], bess: [] });
+
+/** @param {Design} design @returns {ConnectionIndex} */
+export function connectionIndex(design) {
+  /** @type {ConnectionIndex} */
+  const byPole = new Map();
+  /** @param {string} pole */
+  const slot = (pole) => {
+    let s = byPole.get(pole);
+    if (!s) byPole.set(pole, s = { loads: { general: [], ev: [], shop: [], evcs: [] }, pv: [], bess: [] });
+    return s;
+  };
+  design.loads.forEach(l => { if (LOAD_TYPES.includes(l.type)) slot(l.pole).loads[l.type].push(l); });
+  design.pv.forEach(p => slot(p.pole).pv.push(p));
+  design.bess.forEach(b => slot(b.pole).bess.push(b));
+  return byPole;
+}
+
 // Per-pole net complex power injection at a given hour/year, split into `loadS` (general/EV/shop
 // connections — positive, the only injections the ZIP voltage-dependence below ever applies to)
 // and `otherS` (rooftop PV and BESS charge/discharge — always constant-power, since a ZIP mix
@@ -44,9 +72,11 @@ export function bessMultiplierAt(design, hour) {
  * @param {Design} design @param {string} poleId @param {number} year @param {number} hour
  * @param {number} loadMult @param {number} solarMult
  * @param {PvConnection[]} extraPV @param {PvConnection[]} [extraBess]
+ * @param {ConnectionIndex} [index] Prebuilt connectionIndex(design); built here if omitted.
  * @returns {{ loadS: import('./types.js').PhaseMap<Complex>, otherS: import('./types.js').PhaseMap<Complex> }} kVA
  */
-export function netS(design, poleId, year, hour, loadMult, solarMult, extraPV, extraBess = []) {
+export function netS(design, poleId, year, hour, loadMult, solarMult, extraPV, extraBess = [], index = undefined) {
+  const conns = (index || connectionIndex(design)).get(poleId) || NO_CONNECTIONS;
   const loadS = { A: C.zero(), B: C.zero(), C: C.zero() };
   const otherS = { A: C.zero(), B: C.zero(), C: C.zero() };
   const addTo = (bucket, phase, kva, pf, sign) => {
@@ -56,27 +86,27 @@ export function netS(design, poleId, year, hour, loadMult, solarMult, extraPV, e
     else { bucket[phase] = C.add(bucket[phase], s); }
   };
   if (design.includeGeneral) {
-    design.loads.filter(l => l.pole === poleId && l.type === 'general').forEach(l => {
+    conns.loads.general.forEach(l => {
       addTo(loadS, l.phase, loadKvaAt(design, l, year, hour) * loadMult, design.pf, +1);
     });
   }
   if (design.includeEV) {
-    design.loads.filter(l => l.pole === poleId && l.type === 'ev').forEach(l => {
+    conns.loads.ev.forEach(l => {
       addTo(loadS, l.phase, loadKvaAt(design, l, year, hour) * loadMult, design.pf, +1);
     });
   }
   if (design.includeShop) {
-    design.loads.filter(l => l.pole === poleId && l.type === 'shop').forEach(l => {
+    conns.loads.shop.forEach(l => {
       addTo(loadS, l.phase, loadKvaAt(design, l, year, hour) * loadMult, design.pf, +1);
     });
   }
   if (design.includeEVCS) {
-    design.loads.filter(l => l.pole === poleId && l.type === 'evcs').forEach(l => {
+    conns.loads.evcs.forEach(l => {
       addTo(loadS, l.phase, loadKvaAt(design, l, year, hour) * loadMult, design.pf, +1);
     });
   }
   if (design.includeSolar) {
-    design.pv.filter(p => p.pole === poleId).forEach(p => {
+    conns.pv.forEach(p => {
       addTo(otherS, p.phase, pvKvaAt(design, p, hour) * solarMult, 1.0, -1);
     });
   }
@@ -90,7 +120,7 @@ export function netS(design, poleId, year, hour, loadMult, solarMult, extraPV, e
   // so this is the standard simplification: the round-trip loss shows up as reduced usable output.
   const rte = design.bessRte ?? 1;
   if (design.includeBess) {
-    design.bess.filter(b => b.pole === poleId).forEach(b => {
+    conns.bess.forEach(b => {
       const mult = bessMultiplierAt(design, hour);
       if (mult > 0) addTo(otherS, b.phase, Number(b.kva) * mult * rte, 1.0, -1);
       else if (mult < 0) addTo(otherS, b.phase, Number(b.kva) * Math.abs(mult), 1.0, +1);
