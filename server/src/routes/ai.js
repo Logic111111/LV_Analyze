@@ -1,5 +1,6 @@
 const express = require('express');
 const { requireAuth } = require('../middleware/auth');
+const { anthropicModel } = require('../config');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -34,7 +35,7 @@ Write directly to the engineer, no preamble.`;
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: anthropicModel(),
         max_tokens: 1000,
         messages: [{ role: 'user', content: prompt }]
       })

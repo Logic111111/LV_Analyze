@@ -22,12 +22,12 @@ stable, no invented engineering/commercial data, commit after each item, no push
 
 - [x] **P1.1** Split engine into `client/src/lib/engine/*` modules; `loadflow.js` becomes a re-export; JSDoc typedefs + `// @ts-check`
 - [x] **P1.2** Library refactor — `getConductor(design, code)` / `getTransformerType(design, rating)` reading `design.conductorLibrary` / `design.transformerLibrary`
-- [ ] **P1.3** Bug fixes (each with a test that fails before the fix)
+- [x] **P1.3** Bug fixes (each with a test that fails before the fix)
   - [x] 1. Hosting rounds up to an untested size (`Math.round` → `Math.floor(best*20+1e-9)/20`)
   - [x] 2. Pre-existing violations zero out hosting — baseline-relative feasibility + banner
   - [x] 3. Non-converged load flow counts as a pass in hosting/BESS — treat as infeasible; surface non-convergence on every scanning page
   - [x] 4. Feeder-split transformer current assumes balance — add `txMaxPhaseCurrentA` (true max phase current), show balanced-equivalent as secondary
-  - [ ] 5. AI model hard-coded — `ANTHROPIC_MODEL` env var (default `claude-sonnet-4-6`), documented in both `.env.example`
+  - [x] 5. AI model hard-coded — `ANTHROPIC_MODEL` env var (default `claude-sonnet-4-6`), documented in both `.env.example`
 - [ ] **P1.4** Performance — precompute per-pole `loadS`/`otherS` once per snapshot, `connectionsByPole` index, optional warm start (`initialV`), `npm run bench` (50 poles / 200 connections), before/after timings recorded here
 - [ ] **P1.5** Web Worker infrastructure — `engine.worker.js`, `runInWorker(task, args, {onProgress, signal})`, progress bar + Cancel on every long action
 
@@ -275,6 +275,17 @@ over the scanned hours) next to the unchanged balanced-equivalent `peakCurrentA`
 Walkthrough Island the worst phase carries 121.3 A against a 54 A balanced-equivalent estimate.
 Feeder Split and Load Balance now show "Tx max phase current: TX 121 A (bal.-eq. 54 A)". No golden
 changed.
+
+**P1.3 fix 5 — AI model (2026-10-20).** `ANTHROPIC_MODEL` (`server/src/config.js`, default
+`claude-sonnet-4-6`, still a valid current model ID). Blank counts as unset. Compose passes
+`${ANTHROPIC_MODEL:-}`. Server unit tests now exist (`npm test` in `server/`, `node:test`, no
+dependencies) and run in CI. Notes for P7.7:
+- **SDK.** The route still uses raw `fetch`. When it becomes a tool-using loop, move it to the
+  official `@anthropic-ai/sdk`.
+- **Thinking and `max_tokens`.** Newer models (Opus 5.5, Sonnet 5.5, Fable) always think, and
+  thinking counts against `max_tokens` (1000 today). Switching models via the env var may need a
+  larger value; this is noted in `.env.example`.
+- **Refusals.** A `refusal` stop reason currently shows as "No response received."
 
 ## Open questions for the user
 

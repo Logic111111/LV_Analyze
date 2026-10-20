@@ -120,6 +120,8 @@ so the auth cookie gets the `Secure` flag.
 - **Rate limiting** is in-memory (`express-rate-limit` defaults), fine for a single server
   instance; if you scale to multiple instances behind a load balancer, move it to a shared store
   (e.g. Redis) or it under-counts.
+- **AI model** — AI Insights uses `ANTHROPIC_MODEL` (default `claude-sonnet-4-6`) from the same
+  environment, so a deployment can change model without a code change.
 - **Anthropic API key lives only in the server's environment** (`ANTHROPIC_API_KEY` in
   `server/.env`, or in the root `.env` when running via Docker Compose), never sent to the
   client — the browser calls your own `/api/ai/insights`, which calls Anthropic server-side.
