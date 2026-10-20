@@ -12,7 +12,7 @@ const TABS = [
 
 export default function TopNav() {
   const { user, logout } = useAuth();
-  const { design } = useDesign();
+  const { design, undo, redo, canUndo, canRedo } = useDesign();
   const { theme, toggleTheme } = useTheme();
   const { t, lang, setLang } = useI18n();
   const nTx = design.transformers.length;
@@ -37,6 +37,9 @@ export default function TopNav() {
         ))}
       </nav>
       <div className="headright">
+        {/* Undo / redo every edit (P7.3); also Ctrl/⌘+Z and Shift+Ctrl/⌘+Z. */}
+        <button className="iconbtn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl/⌘+Z)" aria-label={t('Undo')}>↶ {t('Undo')}</button>
+        <button className="iconbtn" onClick={redo} disabled={!canRedo} title="Redo (Shift+Ctrl/⌘+Z)" aria-label={t('Redo')}>↷ {t('Redo')}</button>
         <button className="iconbtn" onClick={toggleTheme} title="Toggle colour theme">
           {theme === 'dark' ? t('Light mode') : t('Dark mode')}
         </button>

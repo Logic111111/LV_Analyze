@@ -83,7 +83,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 
 - [x] **P7.1** Shared engine package (`packages/engine/`)
 - [x] **P7.2** Database migrations (numbered SQL, `schema_migrations`)
-- [ ] **P7.3** Version history and undo/redo
+- [x] **P7.3** Version history and undo/redo
 - [ ] **P7.4** Teams, roles and approval workflow
 - [ ] **P7.5** Session revocation
 - [ ] **P7.6** OpenDSS export and cross-validation
@@ -969,6 +969,23 @@ within 1e-9.
     relative path as in the repo, and runs as `node`. The client build installs the `file:`
     dependency.
   - The image build and a throwaway-stack check are in the final verification.
+
+**P7.3 version history and undo/redo (2026-10-21).**
+- **Server.** From P7.2: `design_versions`; each save is a version (and, via migration 002,
+  existing designs become v1). Routes: versions list/get, restore (a new version), duplicate.
+- **Client.**
+  - `VersionHistoryCard` on Designs: notes, author, date; the 🔒 approved version.
+  - A field-level diff (`lib/designDiff.js`, tested) of a version against the open design or the
+    previous version.
+  - Restore, Duplicate, and a "Version note" field on save.
+- **Undo/redo.** `lib/history.js` (pure, tested).
+  - Every `setDesign` goes through it, applied proposals included.
+  - Edits less than 600 ms apart form one step, so typing is one undo; 100 steps are kept;
+    load and new reset it.
+  - Top-bar ↶/↷ buttons, plus Ctrl/⌘+Z and Shift+Ctrl/⌘+Z / Ctrl+Y outside text fields (where
+    the browser's own text undo applies).
+- **End to end.** Real API (in-memory repo) plus browser: undo/redo, versions with notes, diff
+  shows "Pole P3 changed: spanM 60→75", restore, duplicate — all pass.
 
 ## Phase verification log
 

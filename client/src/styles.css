@@ -28,6 +28,7 @@ nav.tabs a.active{background:var(--accent-2);color:var(--accent-ink)}
 nav.tabs a:hover:not(.active){color:var(--text)}
 .headright{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .iconbtn{border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:7px 12px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600}
+.iconbtn:disabled{opacity:.5;cursor:not-allowed}
 .iconbtn:hover{color:var(--text);border-color:var(--accent-2)}
 main{padding:22px 24px 60px;max-width:1400px;margin:0 auto}
 .grid{display:grid;gap:18px}

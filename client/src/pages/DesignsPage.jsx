@@ -2,17 +2,19 @@ import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDesign } from '../context/DesignContext.jsx';
 import { withDefaults } from '../lib/loadflow.js';
+import VersionHistoryCard from '../components/VersionHistoryCard.jsx';
 
 export default function DesignsPage() {
   const { design, savedList, saveDesign, loadDesign, newDesign, removeDesign } = useDesign();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const [note, setNote] = useState('');
   const fileRef = useRef(null);
   const { setDesign } = useDesign();
 
   async function onSave() {
     setBusy(true); setMsg('');
-    try { await saveDesign(); setMsg('Saved "' + design.name + '".'); }
+    try { const r = await saveDesign(note); setNote(''); setMsg(`Saved "${design.name}" as version ${r.version}.`); }
     catch (e) { setMsg('Save failed: ' + e.message); }
     finally { setBusy(false); }
   }
@@ -55,7 +57,8 @@ export default function DesignsPage() {
     <div>
       <div className="card">
         <h2>Current design</h2>
-        <p className="hint">Saving stores this design (its full network, curves and settings) to your account under its name. Saving again with the same name overwrites it.</p>
+        <p className="hint">Saving stores this design (its full network, curves and settings) to your account under its name. Saving again with the same name adds a new version — every earlier version stays in the history below.</p>
+        <label className="field" style={{ maxWidth: 520 }}><span>Version note (optional)</span><input value={note} maxLength={500} onChange={e => setNote(e.target.value)} placeholder="e.g. rebalanced P3 after the site visit" /></label>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button className="primary" onClick={onSave} disabled={busy}>Save "{design.name}"</button>
           <button className="ghost" onClick={() => newDesign()}>New blank design</button>{' '}
@@ -66,6 +69,8 @@ export default function DesignsPage() {
         </div>
         {msg && <div className="note" style={{ marginTop: 12 }}>{msg}</div>}
       </div>
+
+      <VersionHistoryCard />
 
       <div className="section-title">Saved designs</div>
       <div className="card">

@@ -2,13 +2,35 @@ import { createContext, useContext, useState, useCallback, useEffect } from 'rea
 import { defaultDesign, withDefaults } from '../lib/loadflow.js';
 import { api } from '../api.js';
 import { runInWorker } from '../lib/runInWorker.js';
+import { historyInit, historyApply, historyUndo, historyRedo } from '../lib/history.js';
 
 const DesignContext = createContext(null);
 
 export function DesignProvider({ children }) {
   // Every way a design enters the app goes through withDefaults (see loadflow.js), so pages can
   // rely on every field existing and old saved designs pick up new fields' off-by-default values.
-  const [design, setDesign] = useState(() => withDefaults(defaultDesign()));
+  // Undo / redo (P7.3): every setDesign goes through the history; load and new start afresh.
+  const [hist, setHist] = useState(() => historyInit(withDefaults(defaultDesign())));
+  const design = hist.design;
+  const setDesign = useCallback((updater) => setHist(h => historyApply(h, updater, Date.now())), []);
+  const resetDesign = useCallback((d) => setHist(historyInit(d)), []);
+  const undo = useCallback(() => setHist(historyUndo), []);
+  const redo = useCallback(() => setHist(historyRedo), []);
+  // Ctrl/⌘+Z undo, Shift+Ctrl/⌘+Z or Ctrl+Y redo — except while typing in a field, where the
+  // browser's own text undo is what's expected.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const t = e.target;
+      const editable = t && (t.isContentEditable || (t.tagName === 'INPUT' && !['checkbox', 'radio', 'range', 'button', 'file'].includes(t.type)) || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT');
+      if (editable) return;
+      const k = e.key.toLowerCase();
+      if (k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+      else if ((k === 'z' && e.shiftKey) || k === 'y') { e.preventDefault(); redo(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo, redo]);
   const [designId, setDesignId] = useState(null); // backend id of the currently loaded design, if any
   const [designMeta, setDesignMeta] = useState(null); // server-side status/ownership of it (P7.3/P7.4)
   const [savedList, setSavedList] = useState([]);
@@ -47,7 +69,7 @@ export function DesignProvider({ children }) {
 
   const loadDesign = useCallback(async (id) => {
     const d = await api.getDesign(id);
-    setDesign(withDefaults(d.design));
+    resetDesign(withDefaults(d.design));
     setDesignId(d.design.id);
     setDesignMeta(d.meta || null);
     setLastResults(null);
@@ -59,11 +81,11 @@ export function DesignProvider({ children }) {
     setLastFixIt(null);
     setLastScenarios(null);
     setLastMonteCarlo(null);
-  }, []);
+  }, [resetDesign]);
 
   // A blank design, or a built one (the new-design wizard, P5.8).
   const newDesign = useCallback((built) => {
-    setDesign(withDefaults(built && typeof built === 'object' && built.transformers ? built : defaultDesign()));
+    resetDesign(withDefaults(built && typeof built === 'object' && built.transformers ? built : defaultDesign()));
     setDesignId(null);
     setDesignMeta(null);
     setLastResults(null);
@@ -75,7 +97,7 @@ export function DesignProvider({ children }) {
     setLastFixIt(null);
     setLastScenarios(null);
     setLastMonteCarlo(null);
-  }, []);
+  }, [resetDesign]);
 
   const removeDesign = useCallback(async (id) => {
     await api.deleteDesign(id);
@@ -86,6 +108,7 @@ export function DesignProvider({ children }) {
   return (
     <DesignContext.Provider value={{
       design, setDesign, designId, designMeta, setDesignMeta, savedList, refreshSavedList,
+      undo, redo, canUndo: hist.past.length > 0, canRedo: hist.future.length > 0,
       saveDesign, loadDesign, newDesign, removeDesign,
       lastResults, setLastResults, lastHosting, setLastHosting, lastBessHosting, setLastBessHosting, lastDaily, setLastDaily,
       lastTapAdvice, setLastTapAdvice, lastReconductor, setLastReconductor, lastFixIt, setLastFixIt,
