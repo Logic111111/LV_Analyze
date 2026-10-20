@@ -15,6 +15,7 @@ export function DesignProvider({ children }) {
   const [lastBessHosting, setLastBessHosting] = useState(null); // most recent BESS system-hosting scan
   const [lastDaily, setLastDaily] = useState(null); // most recent 24-hour scan, used by the downloadable report
   const [lastTapAdvice, setLastTapAdvice] = useState(null); // most recent tap advisor run (P2.4), for the report
+  const [lastReconductor, setLastReconductor] = useState(null); // most recent reconductoring advisor run (P2.5)
 
   const refreshSavedList = useCallback(async () => {
     try { const d = await api.listDesigns(); setSavedList(d.designs); }
@@ -39,6 +40,7 @@ export function DesignProvider({ children }) {
     setLastBessHosting(null);
     setLastDaily(null);
     setLastTapAdvice(null);
+    setLastReconductor(null);
   }, []);
 
   const newDesign = useCallback(() => {
@@ -49,6 +51,7 @@ export function DesignProvider({ children }) {
     setLastBessHosting(null);
     setLastDaily(null);
     setLastTapAdvice(null);
+    setLastReconductor(null);
   }, []);
 
   const removeDesign = useCallback(async (id) => {
@@ -62,7 +65,7 @@ export function DesignProvider({ children }) {
       design, setDesign, designId, savedList, refreshSavedList,
       saveDesign, loadDesign, newDesign, removeDesign,
       lastResults, setLastResults, lastHosting, setLastHosting, lastBessHosting, setLastBessHosting, lastDaily, setLastDaily,
-      lastTapAdvice, setLastTapAdvice
+      lastTapAdvice, setLastTapAdvice, lastReconductor, setLastReconductor
     }}>
       {children}
     </DesignContext.Provider>

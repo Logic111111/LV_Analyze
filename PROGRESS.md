@@ -37,7 +37,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P2.2** Voltage-profile data — `distanceFromTx`, `voltageProfile`
 - [x] **P2.3** Fault level & protection check (`faults.js`, IEC 60909-style; fuse library empty by default; Protection panel + report section)
 - [x] **P2.4** Tap advisor (multi-year, ranking, unbalance diagnosis, off-load note, Apply/Preview)
-- [ ] **P2.5** Editable conductor library + reconductoring advisor
+- [x] **P2.5** Editable conductor library + reconductoring advisor
 - [ ] **P2.6** Fix-it ladder (combined solution advisor)
 - [ ] **P2.7** Standards profiles (`design.standards`; "Current app defaults" profile reproduces today exactly)
 
@@ -381,6 +381,25 @@ Goldens as specified: unbalanced → tap 2 with the unbalance diagnosis (31.7 V 
 19:00, year 5, against a 27.6 V band); balanced → tap 2, with taps 3/4 rejected. The UI is a card
 on Setup (worker task `tapAdvisor`), and the latest result goes into the report via
 `lastTapAdvice` and `buildReportHtml(…, extras)`.
+
+**P2.5 conductor library and reconductoring (2026-10-20).** Library entries may carry `label`,
+`R`, `X` (or `|Z|` for the built-ins), `Rn` or `neutralScale`, `Xn`, `I`, `costPerM` (LKR) and
+`notes`. `conductorIssues` lists missing electrical data; only complete entries are offered
+(`usableConductorCodes`). The built-ins' electrical values are locked in the UI. IEC 60228 class-2
+Al R20 maxima for 16–240 mm² (`IEC60228_AL_R20_OHM_PER_KM`) are a hint for R only.
+
+`reconductorAdvisor(design, { years, hours, maxCandidates })`. Decisions:
+- **Ranking count.** Rankings use voltage + thermal violations (reconductoring relieves both).
+  Each count is also reported separately.
+- **Cost ranking.** Within a tier of equal violations, candidates sort by capex only if every
+  candidate in the tier has a cost; otherwise by kWh, shown as "cost unknown". A tier is
+  all-or-nothing so the ordering stays transitive.
+- **Default years.** The engine defaults to `[0]`, which the brief's golden uses. The page defaults
+  to years 0 and 5.
+
+The golden is reproduced (P3 → 70ABC: 2 violations, 18.10 kWh, 214.84 V). With only the two
+built-ins, that is the Walkthrough Island's single option. **Waiting on data:** more conductor
+sizes and costs.
 
 ## Phase verification log
 

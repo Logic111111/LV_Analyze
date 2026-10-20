@@ -1,7 +1,8 @@
 import { useDesign } from '../context/DesignContext.jsx';
-import { conductorCodes, getConductor, condX, condRn, secondaryLNVoltage, txImpedance, nextTransformerId, transformerRatings, getTransformerType } from '../lib/loadflow.js';
+import { secondaryLNVoltage, txImpedance, nextTransformerId, transformerRatings, getTransformerType } from '../lib/loadflow.js';
 import CurveEditor from '../components/CurveEditor.jsx';
 import TapAdvisorCard from '../components/TapAdvisorCard.jsx';
+import ConductorLibraryEditor from '../components/ConductorLibraryEditor.jsx';
 
 export default function SetupPage() {
   const { design, setDesign } = useDesign();
@@ -220,19 +221,7 @@ export default function SetupPage() {
       </div>
 
       <div className="section-title">Conductor library</div>
-      <div className="card" style={{ padding: '8px 12px' }}>
-        <div className="tbl-wrap"><table>
-          <thead><tr><th>Type</th><th>R (Ω/km)</th><th>Self-induction (mH/km)</th><th>X (Ω/km, derived)</th><th>|Z| (Ω/km)</th><th>Rating (A)</th><th>Neutral scaling</th></tr></thead>
-          <tbody>
-            {conductorCodes(design).map(name => [name, getConductor(design, name)]).map(([name, c]) => (
-              <tr key={name}>
-                <td>{name}</td><td>{c.R}</td><td>{c.L_mH}</td><td>{condX(name, design).toFixed(3)}</td><td>{c.Z}</td><td>{c.I}</td>
-                <td>×{c.neutralScale.toFixed(2)} (R<sub>n</sub>={condRn(name, design).toFixed(3)} Ω/km)</td>
-              </tr>
-            ))}
-          </tbody>
-        </table></div>
-      </div>
+      <ConductorLibraryEditor />
 
       <div className="grid g4" style={{ marginTop: 18 }}>
         <div className="card">

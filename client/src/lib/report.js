@@ -1,4 +1,4 @@
-import { getTransformerType, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh, pvHostingBaseline, bessHostingBaseline, faultLevels, protectionCheck, C } from './loadflow.js';
+import { getTransformerType, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh, pvHostingBaseline, bessHostingBaseline, faultLevels, protectionCheck, C, describeReconductor } from './loadflow.js';
 import { hostingLimitText, vufText } from './format.js';
 
 function esc(v) {
@@ -274,6 +274,21 @@ function tapAdviceSectionBody(design, advice) {
   `;
 }
 
+// The last reconductoring advisor run (P2.5), top ten options.
+function reconductorSectionBody(r) {
+  if (!r) return '<p class="empty">The reconductoring advisor has not been run — open "Reconductor", run it, then regenerate this report.</p>';
+  if (!r.candidates.length) return '<p class="empty">No reconductoring option: no span uses a conductor with higher resistance than another in the library.</p>';
+  const money = v => (v == null ? 'cost unknown' : Math.round(v).toLocaleString('en-US') + ' LKR');
+  const rows = r.candidates.slice(0, 10).map((c, i) => [
+    i + 1, esc(describeReconductor(c.changes)), c.lengthM + ' m', ...r.years.map(y => String(c.violationsByYear[y])),
+    c.kwhYear0.toFixed(2), c.kwhSavedPerDay.toFixed(2), money(c.capex), c.lkrPerViolationRemoved == null ? '—' : money(c.lkrPerViolationRemoved)
+  ]);
+  return `
+    <p>Current design: ${r.years.map(y => `${r.baseline.violationsByYear[y]} violation(s) in year ${y}`).join(', ')}; ${r.baseline.kwhYear0.toFixed(2)} kWh/day loss (year 0). Ranked by voltage + thermal violations, then capital cost, then loss.${r.truncated ? ` Only ${r.candidates.length} of ${r.candidateCount} options were scanned.` : ''}</p>
+    ${table(['Rank', 'Restring', 'Length', ...r.years.map(y => 'Violations yr ' + y), 'Loss (kWh/day)', 'Saved (kWh/day)', 'Capex', 'Per violation removed'], rows)}
+  `;
+}
+
 // Builds a standalone, printable HTML report combining the design's setup, network and
 // (if available) the latest simulation snapshot, hosting-capacity scan and 24-hour scan.
 // `extras` carries the latest advisor results the pages have stored (tap advisor, …).
@@ -420,6 +435,7 @@ export function buildReportHtml(design, res, hosting, daily, bessHosting, extras
   ${section('Latest BESS hosting-capacity scan', bessHostingBody)}
   ${section('Fault levels and protection', faultSectionBody(design))}
   ${section('Tap advisor', tapAdviceSectionBody(design, extras.tapAdvice))}
+  ${section('Reconductoring advisor', reconductorSectionBody(extras.reconductor))}
 </body></html>`;
 }
 

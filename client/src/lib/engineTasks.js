@@ -11,7 +11,8 @@ import {
   computeHostingCapacity, computeSystemHostingCapacity, pvHostingBaseline,
   computeBessHostingCapacity, computeSystemBessHostingCapacity, bessHostingBaseline,
   computeFeederSplitCandidates, searchDualFeederSplit, scoreDualFeederCandidate, makeTx, nextTransformerId,
-  proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runDailyScan, protectionCheck, tapAdvisor
+  proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runDailyScan, protectionCheck, tapAdvisor,
+  reconductorAdvisor
 } from './loadflow.js';
 import { buildReportHtml } from './report.js';
 
@@ -56,6 +57,7 @@ export const ENGINE_TASKS = {
     protectionCheck(design, runDailyScan(design, 0, { onProgress: hooks.onProgress, stage: 'Scanning 24 h for the load check' })),
 
   tapAdvisor: ({ design, txId, horizon }, hooks) => tapAdvisor(design, txId, { horizon, onProgress: hooks.onProgress }),
+  reconductor: ({ design, years, maxCandidates }, hooks) => reconductorAdvisor(design, { years, maxCandidates, onProgress: hooks.onProgress }),
 
   report: ({ design, res, hosting, daily, bessHosting, extras }) => buildReportHtml(design, res, hosting, daily, bessHosting, extras)
 };
