@@ -15,18 +15,20 @@ import SingleLineDiagram from '../components/SingleLineDiagram.jsx';
 import SldDetails from '../components/SldDetails.jsx';
 import { SolveStatusWarning } from '../components/Convergence.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
+import { useT } from '../i18n/i18n.jsx';
 
 // Diagram page (P5.1): the single-line diagram, with the original drawing kept as "Simple view".
 // The hour slider and multipliers re-solve live (debounced) in the engine worker.
 const OVERLAYS = [
   ['voltage', 'Voltage status'], ['loading', 'Loading %'], ['flow', 'Power-flow direction'],
   ['vuf', 'VUF'], ['fault', 'Fault level'], ['protection', 'Protection status']
-];
+]; // labels are i18n keys
 const SOLVE_DEBOUNCE_MS = 250;
 
 export default function DiagramPage() {
   const { design, setDesign } = useDesign();
   const { theme } = useTheme();
+  const t = useT();
   const [view, setView] = useState('sld');
   const [year, setYear] = useState(0);
   // ?hour=<h>&pole=<id> (from the issues panel) open that hour and select that pole.
@@ -166,14 +168,14 @@ export default function DiagramPage() {
     <div>
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-          <h2 style={{ margin: 0 }}>Network diagram — {design.name}</h2>
+          <h2 style={{ margin: 0 }}>{t('Network diagram')} — {design.name}</h2>
           <div role="radiogroup" aria-label="Diagram view" style={{ display: 'flex', gap: 12 }}>
-            <label className="chk"><input type="radio" name="dgView" checked={view === 'sld'} onChange={() => setView('sld')} /> Single-line diagram</label>
-            <label className="chk"><input type="radio" name="dgView" checked={view === 'simple'} onChange={() => setView('simple')} /> Simple view</label>
+            <label className="chk"><input type="radio" name="dgView" checked={view === 'sld'} onChange={() => setView('sld')} /> {t('Single-line diagram')}</label>
+            <label className="chk"><input type="radio" name="dgView" checked={view === 'simple'} onChange={() => setView('simple')} /> {t('Simple view')}</label>
           </div>
         </div>
         <div className="grid g3" style={{ marginTop: 10 }}>
-          <div className="field"><span>Year</span><YearPicker value={year} onChange={setYear} /></div>
+          <div className="field"><span>{t('Year')}</span><YearPicker value={year} onChange={setYear} /></div>
           <label className="field"><span>Hour of day: <b>{String(hour).padStart(2, '0')}:00</b> (re-solves as you move it)</span>
             <input type="range" min={0} max={23} value={hour} onChange={e => setHour(Number(e.target.value))} aria-valuetext={`${hour}:00`} /></label>
           <label className="field"><span>Quick snapshot</span>
@@ -192,9 +194,9 @@ export default function DiagramPage() {
           <span className="val">{solarMult.toFixed(2)}×</span></div>
         {view === 'sld' && (
           <fieldset className="overlay-toggles" style={{ border: 0, padding: 0, margin: '6px 0 0' }}>
-            <legend className="hint" style={{ padding: 0, marginBottom: 4 }}>Overlays</legend>
+            <legend className="hint" style={{ padding: 0, marginBottom: 4 }}>{t('Overlays')}</legend>
             {OVERLAYS.map(([k, label]) => (
-              <label key={k} className="chk"><input type="checkbox" checked={overlays[k]} onChange={e => setOverlays(o => ({ ...o, [k]: e.target.checked }))} /> {label}</label>
+              <label key={k} className="chk"><input type="checkbox" checked={overlays[k]} onChange={e => setOverlays(o => ({ ...o, [k]: e.target.checked }))} /> {t(label)}</label>
             ))}
           </fieldset>
         )}
@@ -270,7 +272,7 @@ export default function DiagramPage() {
           )}
           {view === 'sld' && scene && (
             <div className="card" style={{ marginTop: 14 }}>
-              <h2>Export</h2>
+              <h2>{t('Export')}</h2>
               <p className="hint">SVG, PNG and print/PDF carry a title block with the design name, date, snapshot and the sign-off below. DXF (AutoCAD R12) has one layer per element type.</p>
               <div className="grid g3">
                 {[['prepared', 'Prepared by'], ['checked', 'Checked by'], ['approved', 'Approved by']].map(([k, label]) => (

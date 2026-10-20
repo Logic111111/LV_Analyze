@@ -9,6 +9,7 @@ import { useEngineTask } from '../hooks/useEngineTask.js';
 import { voltageProfile, faultLevels, PHASES } from '../lib/loadflow.js';
 import { phasorData, voltageHeatmap, loadingDuration, vufByPole, faultAlongFeeder } from '../lib/chartData.js';
 import { CHART_PALETTES, themedScales } from '../lib/chartTheme.js';
+import { useT } from '../i18n/i18n.jsx';
 
 // Engineering charts (P5.3), all from one 24 h scan (run in the worker, re-run when the inputs
 // change): voltage vs distance, the phasor diagram of a pole, a 24 h × pole-phase voltage heatmap,
@@ -20,6 +21,7 @@ const DASHES = [[], [6, 3], [2, 2], [8, 3, 2, 3], [4, 4]];
 export default function ChartsPage() {
   const { design } = useDesign();
   const { theme } = useTheme();
+  const t = useT();
   const P = CHART_PALETTES[theme] || CHART_PALETTES.light;
   const [year, setYear] = useState(0);
   const [loadMult, setLoadMult] = useState(1);
@@ -137,7 +139,7 @@ export default function ChartsPage() {
   return (
     <div>
       <div className="card">
-        <h2>Engineering charts</h2>
+        <h2>{t('Engineering charts')}</h2>
         <p className="hint">All charts come from one 24-hour scan of the design (re-run automatically when you change the inputs). The hour slider picks the snapshot used by the voltage profile, phasor diagram and VUF chart.</p>
         <div className="grid g3">
           <div className="field"><span>Year</span><YearPicker value={year} onChange={setYear} /></div>

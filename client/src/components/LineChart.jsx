@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { Chart } from 'chart.js/auto';
 
-export default function LineChart({ data, options, height = 90 }) {
+// `label` names the chart for screen readers (P5.10); the pages also print the key numbers.
+export default function LineChart({ data, options, height = 90, label = '24-hour chart' }) {
   const canvasRef = useRef(null);
   const chartRef = useRef(null);
 
@@ -11,5 +12,5 @@ export default function LineChart({ data, options, height = 90 }) {
     return () => { if (chartRef.current) chartRef.current.destroy(); };
   }, [data, options]);
 
-  return <canvas ref={canvasRef} height={height}></canvas>;
+  return <canvas ref={canvasRef} height={height} role="img" aria-label={label}></canvas>;
 }

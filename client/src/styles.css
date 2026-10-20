@@ -1,6 +1,8 @@
 :root{
   --bg:#F3F5FA; --panel:#FFFFFF; --panel-2:#F1F4F9; --line:#DCE3EE; --text:#17202E; --muted:#5B6B85;
-  --accent:#0D9488; --accent-2:#2563EB; --warn:#D97706; --bad:#DC2626; --good:#16A34A; --accent-ink:#FFFFFF;
+  /* Status colours double as text, so they meet WCAG AA 4.5:1 on white and on their own tinted
+     pill backgrounds (checked with axe-core, P5.10): teal-700, amber-800, red-700, green-800. */
+  --accent:#0F766E; --accent-2:#2563EB; --warn:#92400E; --bad:#B91C1C; --good:#166534; --accent-ink:#FFFFFF;
   --mono:'IBM Plex Mono','SFMono-Regular',Consolas,monospace; --disp:'Space Grotesk','Segoe UI',sans-serif; --body:'Inter','Segoe UI',sans-serif;
 }
 :root[data-theme='dark']{
@@ -122,6 +124,13 @@ tr:hover td{background:var(--panel-2)}
 .wizard-steps{display:flex;flex-wrap:wrap;gap:6px;list-style:none;padding:0;margin:8px 0 0}
 .wizard-steps button.on{background:var(--accent-2);color:var(--accent-ink);border-color:var(--accent-2)}
 a.btn-link{display:inline-block;text-decoration:none;color:var(--text);border:1px solid var(--line);border-radius:9px;padding:9px 14px;font-size:13px;font-weight:600}
+/* Accessibility & languages (P5.10). */
+.skip-link{position:absolute;left:8px;top:-60px;z-index:100;background:var(--accent-2);color:var(--accent-ink);padding:8px 12px;border-radius:8px;font-weight:600;text-decoration:none}
+.skip-link:focus{top:8px}
+main:focus{outline:none}
+.lang-select{width:auto;padding:5px 8px;font-size:12px}
+.draft-banner{flex-basis:100%;font-size:12px;color:var(--warn);border:1px dashed var(--warn);border-radius:8px;padding:6px 10px}
+nav.tabs a:focus-visible,.iconbtn:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .authwrap{max-width:380px;margin:80px auto;padding:0 20px}
 .error-banner{background:rgba(220,38,38,.1);border:1px solid var(--bad);color:var(--bad);padding:10px 14px;border-radius:8px;font-size:12.5px;margin-bottom:14px}

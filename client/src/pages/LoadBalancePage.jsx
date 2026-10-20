@@ -8,6 +8,7 @@ import { txCurrentSummary } from '../lib/format.js';
 import TaskProgress from '../components/TaskProgress.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
 import PhaseOptimiserCard from '../components/PhaseOptimiserCard.jsx';
+import { useT } from '../i18n/i18n.jsx';
 
 function testOptsFor(testMode) {
   if (testMode === 'solarPeak') return { hours: [12], solarMult: 1, periodLabel: 'at 12:00 (solar peak)' };
@@ -28,6 +29,7 @@ const KIND_LABEL = { load: 'load', pv: 'PV', bess: 'BESS' };
 
 export default function LoadBalancePage() {
   const { design, setDesign } = useDesign();
+  const t = useT();
 
   // ?tx=<id> (from the issues panel) preselects that transformer.
   const [searchParams] = useSearchParams();
@@ -68,7 +70,7 @@ export default function LoadBalancePage() {
   return (
     <div>
       <div className="card">
-        <h2>Load balance advisor</h2>
+        <h2>{t('Load balance advisor')}</h2>
         <p className="hint">Improves pole-level voltage within one transformer by rebalancing which phase (A/B/C) each single-phase load, PV and BESS connection sits on — no topology change, unlike Feeder Split. Concentrating load or generation onto one phase drives that phase's own peak condition further from nominal; spreading connections more evenly narrows the voltage spread and reduces neutral current.</p>
         <div className="grid g3">
           <label className="field"><span>Transformer</span>
@@ -164,7 +166,7 @@ export default function LoadBalancePage() {
             <h2 style={{ margin: 0 }}>Preview — rebalanced phases ({preview.label}, {preview.changed.length} move{preview.changed.length === 1 ? '' : 's'})</h2>
             <span>
               <button className="primary" onClick={applyBalance}>Apply this design</button>{' '}
-              <button className="mini" onClick={() => setPreview(null)}>Discard preview</button>
+              <button className="mini" onClick={() => setPreview(null)}>{t('Discard preview')}</button>
             </span>
           </div>
           <p className="hint">Shown at night-peak conditions (20:00, nominal load, no solar) — after applying, use the Diagram page for full hour-by-hour and scenario control.</p>

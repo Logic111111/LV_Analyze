@@ -6,6 +6,7 @@ import { useEngineTask } from '../hooks/useEngineTask.js';
 import {
   TAPS, BUILTIN_STANDARDS_PROFILES, CURRENT_DESIGN_SCENARIO, MAX_COMPARED_SCENARIOS, SCENARIO_ROWS, describePatch, applyScenario
 } from '../lib/loadflow.js';
+import { useT } from '../i18n/i18n.jsx';
 
 // Scenario manager (P5.4): named overrides of the design (year, multipliers, taps, standards
 // profile, and network changes kept from an advisor preview via "Keep as scenario"), compared up
@@ -15,6 +16,7 @@ const newId = () => 'sc' + Date.now().toString(36) + Math.random().toString(36).
 export default function ScenariosPage() {
   const { design, setDesign, setLastScenarios } = useDesign();
   const scenarios = design.scenarios || [];
+  const t = useT();
   const [selected, setSelected] = useState(['__current']);
   const [result, setResult] = useState(null);
   const [msg, setMsg] = useState('');
@@ -42,7 +44,7 @@ export default function ScenariosPage() {
   return (
     <div>
       <div className="card">
-        <h2>Scenarios</h2>
+        <h2>{t('Scenarios')}</h2>
         <p className="hint">A scenario is a named set of overrides on this design: study year, load and solar multipliers, transformer taps, a standards profile, and network changes kept from any advisor's preview (the "Keep as scenario" button under a before/after diagram). A scenario keeps its own copy of each item it changes, so later edits to those same items in the design are overridden while the scenario is applied.</p>
         <button className="ghost" onClick={() => add()}>New scenario</button>
         {msg && <p className="hint" role="status">{msg}</p>}

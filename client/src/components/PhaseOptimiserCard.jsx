@@ -2,6 +2,7 @@ import { useState } from 'react';
 import TaskProgress from './TaskProgress.jsx';
 import { ConvergenceWarning } from './Convergence.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
+import { useT } from '../i18n/i18n.jsx';
 
 // Phase balancing v2 (P4.1): the "Optimised" method. Runs optimisePhaseBalance in the engine
 // worker and shows the "moves vs benefit" table. Each row is the best arrangement found with at
@@ -19,6 +20,7 @@ function fmtObjective(v, objective) {
 }
 
 export default function PhaseOptimiserCard({ design, txId, testOpts, onPreview }) {
+  const t = useT();
   const [objective, setObjective] = useState('impedance');
   const [kMax, setKMax] = useState(9);
   const [restarts, setRestarts] = useState(0);
@@ -45,7 +47,7 @@ export default function PhaseOptimiserCard({ design, txId, testOpts, onPreview }
 
   return (
     <div className="card" style={{ marginTop: 14 }}>
-      <h2>Optimised phase balance</h2>
+      <h2>{t('Optimised phase balance')}</h2>
       <p className="hint">Searches from today's arrangement — single moves and pair swaps, steepest descent — and keeps the best arrangement for every move budget K, so you can see what each extra re-termination buys. The Quick proposal is included as a candidate, so Optimised is never worse at the same number of moves.</p>
       <div className="grid g3">
         <label className="field"><span>Objective</span>

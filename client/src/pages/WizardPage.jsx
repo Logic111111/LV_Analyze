@@ -3,14 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { useDesign } from '../context/DesignContext.jsx';
 import { withDefaults, defaultDesign, transformerRatings, usableConductorCodes, TAPS, runSnapshot } from '../lib/loadflow.js';
 import { initialWizard, generatePoles, buildWizardDesign, validateWizard } from '../lib/wizard.js';
+import { useT } from '../i18n/i18n.jsx';
 
 // Guided new-design wizard (P5.8): five steps with inline validation; nothing is created until
 // the last step. Steps are a list of buttons (keyboard-reachable), errors and warnings are written
 // out per step.
-const STEPS = ['Transformer', 'Feeders & poles', 'Customers', 'PV & EV', 'Review & run'];
+const STEPS = ['Transformer', 'Feeders & poles', 'Customers', 'PV & EV', 'Review & run']; // i18n keys
 
 export default function WizardPage() {
   const { newDesign } = useDesign();
+  const t = useT();
   const navigate = useNavigate();
   const lib = useMemo(() => withDefaults(defaultDesign()), []);
   const [w, setW] = useState(() => initialWizard(lib));
@@ -48,11 +50,11 @@ export default function WizardPage() {
   return (
     <div>
       <div className="card">
-        <h2>New design wizard</h2>
+        <h2>{t('New design wizard')}</h2>
         <ol className="wizard-steps" aria-label="Steps">
           {STEPS.map((s, i) => (
             <li key={s}><button type="button" className={'mini' + (i === step ? ' on' : '')} aria-current={i === step ? 'step' : undefined} onClick={() => setStep(i)}>
-              {i + 1}. {s}{stepIssues(i).some(x => x.level === 'error') ? ' ✖' : stepIssues(i).length ? ' ⚠' : ''}
+              {i + 1}. {t(s)}{stepIssues(i).some(x => x.level === 'error') ? ' ✖' : stepIssues(i).length ? ' ⚠' : ''}
             </button></li>
           ))}
         </ol>
@@ -151,7 +153,7 @@ export default function WizardPage() {
               <ul style={{ paddingLeft: 18, fontSize: 12 }}>{issues.map((x, k) => <li key={k} style={{ color: x.level === 'error' ? 'var(--bad)' : 'var(--warn)' }}><b>Step {x.step} {x.level === 'error' ? 'error' : 'check'}:</b> {x.text}</li>)}</ul>
             ) : <p className="hint">No problems found.</p>}
             <button className="ghost" onClick={runCheck} disabled={errors.length > 0 || !w.poles.length}>Quick check (20:00 and 12:00)</button>{' '}
-            <button className="primary" onClick={create} disabled={errors.length > 0 || !w.poles.length}>Create design</button>
+            <button className="primary" onClick={create} disabled={errors.length > 0 || !w.poles.length}>{t('Create design')}</button>
             {preview && (
               <p className="hint" role="status" style={{ marginTop: 10 }}>
                 20:00 — {preview.night.violations.filter(v => v.type.endsWith('voltage')).length} voltage violation(s), lowest {Math.min(...preview.night.poleResults.flatMap(p => [p.volt.A, p.volt.B, p.volt.C])).toFixed(1)} V, transformer {preview.night.transformers[0].txPct.toFixed(0)} %{!preview.night.converged ? ' (not converged)' : ''}.
@@ -162,8 +164,8 @@ export default function WizardPage() {
           </>
         )}
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-          <button className="mini" onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0}>← Back</button>
-          <button className="mini" onClick={() => { if (step === 1 && !w.poles.length) generate(); setStep(s => Math.min(STEPS.length - 1, s + 1)); }} disabled={step === STEPS.length - 1}>Next →</button>
+          <button className="mini" onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0}>{t('← Back')}</button>
+          <button className="mini" onClick={() => { if (step === 1 && !w.poles.length) generate(); setStep(s => Math.min(STEPS.length - 1, s + 1)); }} disabled={step === STEPS.length - 1}>{t('Next →')}</button>
         </div>
       </div>
     </div>

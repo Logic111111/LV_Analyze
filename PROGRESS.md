@@ -68,7 +68,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P5.7** Map-based network editor (react-leaflet, configurable tiles, haversine "measured vs entered")
 - [x] **P5.8** Guided new-design wizard
 - [x] **P5.9** Report upgrade (new sections, print stylesheet, sign-off block, optional logo)
-- [ ] **P5.10** Internationalisation & accessibility (`t()`, en default, Sinhala/Tamil machine drafts)
+- [x] **P5.10** Internationalisation & accessibility (`t()`, en default, Sinhala/Tamil machine drafts)
 
 ## Phase 6 — Data and economics
 
@@ -798,6 +798,31 @@ within 1e-9.
 - **UI.** A "Report options" card on Run & Reports holds the logo upload and sign-off fields.
 - **Browser check.** The downloaded report contains the TOC, SVG, sign-off and print CSS; the
   print rendering was checked visually.
+
+**P5.10 i18n and accessibility (2026-10-21).**
+- **i18n.**
+  - `src/i18n/i18n.jsx` provides `I18nProvider`, `useT`, `useI18n`, `translate`, `LANGUAGES`.
+    Dictionaries are `en.json` / `si.json` / `ta.json`.
+  - Keys are the English text, so unextracted or missing strings fall back to English.
+  - The language switch sits in the top bar and is stored in localStorage `fi-lang`; it also sets
+    `<html lang>`.
+  - Sinhala and Tamil are **machine drafts** (`_meta.status`). A banner says so in both the
+    language and English. They are listed under "waiting on data" for native-speaker review.
+- **Extracted so far (78 keys):** navigation, top bar, issues panel, task progress, SLD toolbar
+  and overlays, wizard steps and buttons, page headings, common buttons.
+  - **Gap:** long explanatory hints and engineering table text are still English-only. The
+    mechanism is in place, so extraction can continue page by page without code changes.
+  - Tests guard this: key parity, placeholders preserved, and every literal `t('…')` in the source
+    present in `en.json`.
+- **Accessibility audit.** axe-core 4.10 (WCAG 2.1 A + AA) on all 19 tabs, light and dark:
+  **0 violations**, down from 23 (contrast and missing labels). Fixes:
+  - Light-theme `--accent` / `--good` / `--warn` / `--bad` darkened to teal-700 / green-800 /
+    amber-800 / red-700, so they pass 4.5:1 as text and on their tinted pills.
+  - aria-labels on inline-edit controls.
+  - A skip link (first focus stop), a labelled main navigation, `main#main`, focus-visible
+    outlines, and named chart canvases.
+  - Scope: the audit covers each page's initial state. Result panels added since (SLD, explain
+    drawer, dialogs) were built keyboard-first and checked by hand.
 
 ## Phase verification log
 

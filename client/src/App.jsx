@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { DesignProvider } from './context/DesignContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
+import { I18nProvider } from './i18n/i18n.jsx';
 import TopNav from './components/TopNav.jsx';
 import IssuesPanel from './components/IssuesPanel.jsx';
 
@@ -39,7 +40,7 @@ function ProtectedShell() {
   return (
     <DesignProvider>
       <TopNav />
-      <main>
+      <main id="main" tabIndex={-1}>
         <Suspense fallback={<div className="card" role="status">Loading…</div>}>
         <Routes>
           <Route path="setup" element={<SetupPage />} />
@@ -81,6 +82,7 @@ function PublicOnly({ children }) {
 export default function App() {
   return (
     <ThemeProvider>
+      <I18nProvider>
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<PublicOnly><LoginPage /></PublicOnly>} />
@@ -89,6 +91,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/app/setup" replace />} />
         </Routes>
       </AuthProvider>
+      </I18nProvider>
     </ThemeProvider>
   );
 }

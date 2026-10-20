@@ -113,10 +113,10 @@ export default function ReportsPage() {
           </label>
         </div>
         <div className="slider-row"><span style={{ width: 140, color: 'var(--muted)', fontSize: 12 }}>Load multiplier</span>
-          <input type="range" min={0} max={2} step={0.05} value={loadMult} onChange={e => setLoadMult(Number(e.target.value))} />
+          <input type="range" aria-label="Load multiplier" min={0} max={2} step={0.05} value={loadMult} onChange={e => setLoadMult(Number(e.target.value))} />
           <span className="val">{loadMult.toFixed(2)}×</span></div>
         <div className="slider-row"><span style={{ width: 140, color: 'var(--muted)', fontSize: 12 }}>Solar multiplier</span>
-          <input type="range" min={0} max={1.5} step={0.05} value={solarMult} onChange={e => setSolarMult(Number(e.target.value))} />
+          <input type="range" aria-label="Solar multiplier" min={0} max={1.5} step={0.05} value={solarMult} onChange={e => setSolarMult(Number(e.target.value))} />
           <span className="val">{solarMult.toFixed(2)}×</span></div>
         <button className="primary" onClick={run} disabled={busy}>Run load flow</button>
         {busy && <span className="loading" style={{ marginLeft: 12 }}><span className="spinner"></span> solving…</span>}

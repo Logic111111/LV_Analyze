@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SLD_PALETTES, SLD_FONT } from '../lib/sld/svg.js';
 import { elementBounds } from '../lib/sld/scene.js';
+import { useT } from '../i18n/i18n.jsx';
 
 // Single-line diagram view (P5.1): renders a scene from lib/sld/scene.js as live SVG.
 //   - Every element is a keyboard-focusable button (Tab, then Enter/Space selects it) with an
@@ -29,6 +30,7 @@ function Prim({ p, pal }) {
 
 export default function SingleLineDiagram({ scene, theme = 'light', selectedId, onSelect, onDropMove, onDragOver, maxHeight = '72vh', label = 'Single-line diagram' }) {
   const pal = SLD_PALETTES[theme] || SLD_PALETTES.light;
+  const t = useT();
   const frameRef = useRef(null);
   const svgRef = useRef(null);
   const [scale, setScale] = useState(1);
@@ -103,9 +105,9 @@ export default function SingleLineDiagram({ scene, theme = 'light', selectedId, 
   return (
     <div>
       <div className="sld-toolbar" role="toolbar" aria-label="Diagram zoom">
-        <button type="button" className="mini" onClick={() => setScale(s => Math.min(4, s * 1.25))} aria-label="Zoom in">＋</button>
-        <button type="button" className="mini" onClick={() => setScale(s => Math.max(0.2, s / 1.25))} aria-label="Zoom out">−</button>
-        <button type="button" className="mini" onClick={fit}>Fit</button>
+        <button type="button" className="mini" onClick={() => setScale(s => Math.min(4, s * 1.25))} aria-label={t('Zoom in')}>＋</button>
+        <button type="button" className="mini" onClick={() => setScale(s => Math.max(0.2, s / 1.25))} aria-label={t('Zoom out')}>−</button>
+        <button type="button" className="mini" onClick={fit}>{t('Fit')}</button>
         <button type="button" className="mini" onClick={() => setScale(1)}>100 %</button>
         <span className="hint" style={{ margin: 0 }}>{Math.round(scale * 100)} % · Ctrl/⌘ + wheel to zoom · drag the background to pan{onDropMove ? ' · drag a drop to another phase to rephase it' : ''}</span>
       </div>

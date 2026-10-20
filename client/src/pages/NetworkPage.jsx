@@ -121,19 +121,19 @@ export default function NetworkPage() {
               <tr key={p.id}>
                 <td>{p.id}</td><td>{p.feeder}</td>
                 <td>
-                  <select value={p.parent} onChange={e => setPoleField(p.id, 'parent', e.target.value)}>
+                  <select aria-label={`Parent of ${p.id}`} value={p.parent} onChange={e => setPoleField(p.id, 'parent', e.target.value)}>
                     {design.transformers.map(t => <option key={t.id} value={t.id}>{t.name || t.id} ({t.id})</option>)}
                     {poleIds.filter(id => id !== p.id).map(id => <option key={id} value={id}>{id}</option>)}
                   </select>
                 </td>
-                <td><input type="number" style={{ width: 70 }} value={p.spanM} onChange={e => setPoleField(p.id, 'spanM', e.target.value)} /></td>
+                <td><input type="number" style={{ width: 70 }} aria-label={`Span into ${p.id} (m)`} value={p.spanM} onChange={e => setPoleField(p.id, 'spanM', e.target.value)} /></td>
                 <td>
-                  <select value={p.cond} onChange={e => setPoleField(p.id, 'cond', e.target.value)}>
+                  <select aria-label={`Conductor into ${p.id}`} value={p.cond} onChange={e => setPoleField(p.id, 'cond', e.target.value)}>
                     {conductorCodes(design).map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </td>
-                <td><input type="checkbox" checked={!!p.grounded} onChange={e => toggleGrounded(p.id, e.target.checked)} /></td>
-                <td><input type="number" style={{ width: 70 }} step={0.5} min={0.01} disabled={!p.grounded} value={p.groundOhms ?? 20} onChange={e => setPoleField(p.id, 'groundOhms', e.target.value)} /></td>
+                <td><input type="checkbox" aria-label={`Earth electrode at ${p.id}`} checked={!!p.grounded} onChange={e => toggleGrounded(p.id, e.target.checked)} /></td>
+                <td><input type="number" style={{ width: 70 }} step={0.5} min={0.01} disabled={!p.grounded} aria-label={`Earth resistance at ${p.id} (Ω)`} value={p.groundOhms ?? 20} onChange={e => setPoleField(p.id, 'groundOhms', e.target.value)} /></td>
                 <td>{isTransformerId(design, p.parent) ? <span className="pill ok">feeder root</span> : ''}</td>
                 <td><button className="mini" onClick={() => removePole(p.id)}>remove</button></td>
               </tr>
@@ -142,14 +142,14 @@ export default function NetworkPage() {
         </table></div>
         <p className="hint" style={{ marginTop: 10 }}>To break a feeder at a pole and feed everything downstream from a different (or new) transformer, change that pole's Parent above — add the new transformer first on the Setup page. A pole marked <b>Grounded</b> has an earth electrode of resistance <b>Rg</b> bonding its neutral to true earth — a second, parallel return path alongside the metallic neutral conductor, which reduces the "neutral point displacement" an unbalanced load otherwise causes on the phases with no load of their own. Matches real MEN (multiple earthed neutral) practice, e.g. grounding the last pole of a feeder.</p>
         <div className="addrow">
-          <input type="text" placeholder="pole id e.g. P5" value={np.id} onChange={e => setNp({ ...np, id: e.target.value })} />
-          <input type="text" placeholder="feeder e.g. F1" value={np.feeder} onChange={e => setNp({ ...np, feeder: e.target.value })} />
-          <select value={np.parent} onChange={e => setNp({ ...np, parent: e.target.value })}>
+          <input type="text" aria-label="pole id e.g. P5" placeholder="pole id e.g. P5" value={np.id} onChange={e => setNp({ ...np, id: e.target.value })} />
+          <input type="text" aria-label="feeder e.g. F1" placeholder="feeder e.g. F1" value={np.feeder} onChange={e => setNp({ ...np, feeder: e.target.value })} />
+          <select aria-label="New pole: fed from" value={np.parent} onChange={e => setNp({ ...np, parent: e.target.value })}>
             {design.transformers.map(t => <option key={t.id} value={t.id}>{t.name || t.id} ({t.id})</option>)}
             {poleIds.map(id => <option key={id} value={id}>{id}</option>)}
           </select>
-          <input type="number" placeholder="span (m)" value={np.spanM} onChange={e => setNp({ ...np, spanM: e.target.value })} />
-          <select value={np.cond} onChange={e => setNp({ ...np, cond: e.target.value })}>
+          <input type="number" aria-label="span (m)" placeholder="span (m)" value={np.spanM} onChange={e => setNp({ ...np, spanM: e.target.value })} />
+          <select aria-label="New pole: conductor" value={np.cond} onChange={e => setNp({ ...np, cond: e.target.value })}>
             {conductorCodes(design).map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           <button className="primary" onClick={addPole}>+ Add pole</button>
@@ -173,14 +173,14 @@ export default function NetworkPage() {
           </tbody>
         </table></div>
         <div className="addrow">
-          <select value={nop.poleA} onChange={e => setNop({ ...nop, poleA: e.target.value })}>
+          <select aria-label="Open point: pole A" value={nop.poleA} onChange={e => setNop({ ...nop, poleA: e.target.value })}>
             {poleIds.map(id => <option key={id} value={id}>{id}</option>)}
           </select>
-          <select value={nop.poleB} onChange={e => setNop({ ...nop, poleB: e.target.value })}>
+          <select aria-label="Open point: pole B" value={nop.poleB} onChange={e => setNop({ ...nop, poleB: e.target.value })}>
             {poleIds.map(id => <option key={id} value={id}>{id}</option>)}
           </select>
-          <input type="number" placeholder="tie length (m)" value={nop.spanM} onChange={e => setNop({ ...nop, spanM: e.target.value })} />
-          <select value={nop.cond} onChange={e => setNop({ ...nop, cond: e.target.value })}>
+          <input type="number" aria-label="tie length (m)" placeholder="tie length (m)" value={nop.spanM} onChange={e => setNop({ ...nop, spanM: e.target.value })} />
+          <select aria-label="Open point: conductor" value={nop.cond} onChange={e => setNop({ ...nop, cond: e.target.value })}>
             {conductorCodes(design).map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           <button className="primary" onClick={addOpenPoint}>+ Add open point</button>
@@ -203,33 +203,33 @@ export default function NetworkPage() {
           </tbody>
         </table></div>
         <div className="addrow">
-          <select value={nl.pole} onChange={e => setNl({ ...nl, pole: e.target.value })}>
+          <select aria-label="New connection: pole" value={nl.pole} onChange={e => setNl({ ...nl, pole: e.target.value })}>
             {poleIds.map(id => <option key={id} value={id}>{id}</option>)}
           </select>
-          <select value={nl.type} onChange={e => setNl({ ...nl, type: e.target.value })}>
+          <select aria-label="New connection: type" value={nl.type} onChange={e => setNl({ ...nl, type: e.target.value })}>
             <option value="general">General</option><option value="ev">EV</option><option value="evcs">EVCS</option><option value="shop">Commercial Shop</option>
           </select>
-          <select value={nl.phase} onChange={e => setNl({ ...nl, phase: e.target.value })}>
+          <select aria-label="New connection: phase" value={nl.phase} onChange={e => setNl({ ...nl, phase: e.target.value })}>
             <option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="ABC">3-phase (ABC)</option>
           </select>
-          <input type="number" placeholder="kVA (blank = ADMD)" step={0.1} value={nl.kva} onChange={e => setNl({ ...nl, kva: e.target.value })} />
+          <input type="number" aria-label="kVA (blank = ADMD)" placeholder="kVA (blank = ADMD)" step={0.1} value={nl.kva} onChange={e => setNl({ ...nl, kva: e.target.value })} />
           <button className="primary" onClick={addLoad}>+ Add connection</button>
         </div>
 
         <p className="hint" style={{ marginTop: 14, marginBottom: 6 }}>Bulk add — add several customers of the same category at once, e.g. "10 general connections on P3", instead of one at a time.</p>
         <div className="addrow">
-          <select value={bulk.pole} onChange={e => setBulk({ ...bulk, pole: e.target.value })}>
+          <select aria-label="Bulk add: pole" value={bulk.pole} onChange={e => setBulk({ ...bulk, pole: e.target.value })}>
             {poleIds.map(id => <option key={id} value={id}>{id}</option>)}
           </select>
-          <select value={bulk.type} onChange={e => setBulk({ ...bulk, type: e.target.value })}>
+          <select aria-label="Bulk add: type" value={bulk.type} onChange={e => setBulk({ ...bulk, type: e.target.value })}>
             <option value="general">General</option><option value="ev">EV</option><option value="evcs">EVCS</option><option value="shop">Commercial Shop</option>
           </select>
-          <input type="number" placeholder="quantity" min={1} step={1} value={bulk.qty} onChange={e => setBulk({ ...bulk, qty: e.target.value })} />
-          <select value={bulk.phase} onChange={e => setBulk({ ...bulk, phase: e.target.value })}>
+          <input type="number" aria-label="quantity" placeholder="quantity" min={1} step={1} value={bulk.qty} onChange={e => setBulk({ ...bulk, qty: e.target.value })} />
+          <select aria-label="Bulk add: phase" value={bulk.phase} onChange={e => setBulk({ ...bulk, phase: e.target.value })}>
             <option value="distribute">Distribute evenly A/B/C</option>
             <option value="A">All on A</option><option value="B">All on B</option><option value="C">All on C</option><option value="ABC">All 3-phase (ABC)</option>
           </select>
-          <input type="number" placeholder="kVA each (blank = ADMD)" step={0.1} value={bulk.kva} onChange={e => setBulk({ ...bulk, kva: e.target.value })} />
+          <input type="number" aria-label="kVA each (blank = ADMD)" placeholder="kVA each (blank = ADMD)" step={0.1} value={bulk.kva} onChange={e => setBulk({ ...bulk, kva: e.target.value })} />
           <button className="primary" onClick={addBulk}>+ Add {bulk.qty || 1} connections</button>
         </div>
       </div>
@@ -252,13 +252,13 @@ export default function NetworkPage() {
           </tbody>
         </table></div>
         <div className="addrow">
-          <select value={npv.pole} onChange={e => setNpv({ ...npv, pole: e.target.value })}>
+          <select aria-label="New PV: pole" value={npv.pole} onChange={e => setNpv({ ...npv, pole: e.target.value })}>
             {poleIds.map(id => <option key={id} value={id}>{id}</option>)}
           </select>
-          <select value={npv.phase} onChange={e => setNpv({ ...npv, phase: e.target.value })}>
+          <select aria-label="New PV: phase" value={npv.phase} onChange={e => setNpv({ ...npv, phase: e.target.value })}>
             <option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="ABC">3-phase (ABC)</option>
           </select>
-          <input type="number" step={0.1} value={npv.kva} onChange={e => setNpv({ ...npv, kva: e.target.value })} />
+          <input type="number" step={0.1} aria-label="New PV: kVA" value={npv.kva} onChange={e => setNpv({ ...npv, kva: e.target.value })} />
           <button className="primary" onClick={addPv}>+ Add PV</button>
         </div>
       </div>
@@ -287,13 +287,13 @@ export default function NetworkPage() {
           </tbody>
         </table></div>
         <div className="addrow">
-          <select value={nbess.pole} onChange={e => setNbess({ ...nbess, pole: e.target.value })}>
+          <select aria-label="New BESS: pole" value={nbess.pole} onChange={e => setNbess({ ...nbess, pole: e.target.value })}>
             {poleIds.map(id => <option key={id} value={id}>{id}</option>)}
           </select>
-          <select value={nbess.phase} onChange={e => setNbess({ ...nbess, phase: e.target.value })}>
+          <select aria-label="New BESS: phase" value={nbess.phase} onChange={e => setNbess({ ...nbess, phase: e.target.value })}>
             <option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="ABC">3-phase (ABC)</option>
           </select>
-          <input type="number" step={0.1} value={nbess.kva} onChange={e => setNbess({ ...nbess, kva: e.target.value })} />
+          <input type="number" step={0.1} aria-label="New BESS: kVA" value={nbess.kva} onChange={e => setNbess({ ...nbess, kva: e.target.value })} />
           <button className="primary" onClick={addBess}>+ Add BESS</button>
         </div>
       </div>

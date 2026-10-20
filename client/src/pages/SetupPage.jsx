@@ -60,7 +60,7 @@ export default function SetupPage() {
           return (
             <div className="card" key={tx.id}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                <input type="text" style={{ fontWeight: 600 }} value={tx.name} onChange={e => updateTx(tx.id, { name: e.target.value || tx.id })} />
+                <input type="text" aria-label={`Name of transformer ${tx.id}`} style={{ fontWeight: 600 }} value={tx.name} onChange={e => updateTx(tx.id, { name: e.target.value || tx.id })} />
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span className="pill ok" style={{ fontSize: 10 }}>{tx.id}</span>
                   {design.transformers.length > 1 && <button className="mini" onClick={() => removeTransformer(tx.id)}>remove</button>}
@@ -124,7 +124,7 @@ export default function SetupPage() {
                 <td>{k} kVA</td>
                 <td>
                   <input
-                    type="number" step={5} min={0} style={{ width: 90 }}
+                    type="number" step={5} min={0} style={{ width: 90 }} aria-label={`No-load loss of the ${k} kVA transformer (W)`}
                     value={design.txNoLoadW?.[k] ?? getTransformerType(design, k).noLoadW}
                     onChange={e => set({ txNoLoadW: { ...design.txNoLoadW, [k]: num(e.target.value) } })}
                   />

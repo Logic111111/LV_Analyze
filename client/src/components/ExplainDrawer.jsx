@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { rect, polar } from '../lib/loadflow.js';
+import { useT } from '../i18n/i18n.jsx';
 
 // "Explain this number" drawer (P5.6): renders a trace from engine/explain.js — each step's
 // formula, the values substituted and the result — like the hand-calculation workbook. A modal
@@ -11,6 +12,7 @@ function fmtValue(v, unit) {
 }
 
 export default function ExplainDrawer({ trace, onClose }) {
+  const t = useT();
   const closeRef = useRef(null);
   const back = useRef(null);
   // Kept in a ref so a parent's inline onClose doesn't re-run the focus effect on every render.
@@ -32,7 +34,7 @@ export default function ExplainDrawer({ trace, onClose }) {
       <div className="explain-drawer" role="dialog" aria-modal="true" aria-labelledby="explain-title" onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
           <h2 id="explain-title" style={{ margin: 0 }}>{trace.title}</h2>
-          <button ref={closeRef} type="button" className="mini" onClick={onClose}>Close</button>
+          <button ref={closeRef} type="button" className="mini" onClick={onClose}>{t('Close')}</button>
         </div>
         <div className="tbl-wrap" style={{ marginTop: 10, maxHeight: 'none' }}><table>
           <thead><tr><th scope="col">Step</th>{!isHosting && <th scope="col">Formula</th>}<th scope="col">{isHosting ? 'Size' : 'Substituted'}</th><th scope="col">{isHosting ? 'Outcome' : 'Value'}</th>{hasInPhase && <th scope="col">In-phase part (V)</th>}</tr></thead>

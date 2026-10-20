@@ -3,6 +3,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useDesign } from '../context/DesignContext.jsx';
 import { measuredSpans, acceptMeasuredSpans, hasCoords, haversineM, usableConductorCodes } from '../lib/loadflow.js';
+import { useT } from '../i18n/i18n.jsx';
 
 // Map-based network editor (P5.7). Leaflet's own API (BSD-2) in a small React wrapper:
 // react-leaflet, which the brief names, is under the Hippocratic License 2.1 (not OSI-approved,
@@ -44,6 +45,7 @@ function isDescendant(design, ancestor, id) {
 
 export default function MapPage() {
   const { design, setDesign } = useDesign();
+  const t = useT();
   const mapEl = useRef(null);
   const mapRef = useRef(null);
   const layersRef = useRef(null);
@@ -174,7 +176,7 @@ export default function MapPage() {
   return (
     <div>
       <div className="card">
-        <h2>Map</h2>
+        <h2>{t('Map')}</h2>
         <p className="hint">Optional positions for the transformer and poles. Positions never change a result: span lengths stay as entered, and the measured (great-circle) length is only applied when you accept it below. Everything here can also be done in the Network table.</p>
         <div role="radiogroup" aria-label="Map mode" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           {MODES.map(([k, label]) => <label key={k} className="chk"><input type="radio" name="mapMode" checked={mode === k} onChange={() => setMode(k)} /> {label}</label>)}
