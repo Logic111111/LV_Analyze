@@ -12,7 +12,7 @@ import {
   computeBessHostingCapacity, computeSystemBessHostingCapacity, bessHostingBaseline,
   computeFeederSplitCandidates, searchDualFeederSplit, scoreDualFeederCandidate, makeTx, nextTransformerId,
   proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runDailyScan, protectionCheck, tapAdvisor,
-  reconductorAdvisor
+  reconductorAdvisor, fixItLadder
 } from './loadflow.js';
 import { buildReportHtml } from './report.js';
 
@@ -58,6 +58,7 @@ export const ENGINE_TASKS = {
 
   tapAdvisor: ({ design, txId, horizon }, hooks) => tapAdvisor(design, txId, { horizon, onProgress: hooks.onProgress }),
   reconductor: ({ design, years, maxCandidates }, hooks) => reconductorAdvisor(design, { years, maxCandidates, onProgress: hooks.onProgress }),
+  fixItLadder: ({ design, years, order, stopAtFirst }, hooks) => fixItLadder(design, { years, order, stopAtFirst, onProgress: hooks.onProgress }),
 
   report: ({ design, res, hosting, daily, bessHosting, extras }) => buildReportHtml(design, res, hosting, daily, bessHosting, extras)
 };

@@ -289,6 +289,26 @@ function reconductorSectionBody(r) {
   `;
 }
 
+// The last fix-it ladder run (P2.6).
+function fixItSectionBody(r) {
+  if (!r) return '<p class="empty">The fix-it ladder has not been run — open "Fix-it Ladder", run it, then regenerate this report.</p>';
+  if (r.alreadyCompliant) return `<p>The design had no voltage violation in years ${r.years.join(' and ')} — nothing to fix.</p>`;
+  const rows = [
+    ['—', 'Current design', ...r.years.map(y => String(r.baseline.violationsByYear[y])), r.baseline.kwhYear0.toFixed(2), '—', ''],
+    ...r.steps.map((s, i) => [
+      i + 1, `${esc(s.label)}${s.actions.length ? `<br><span style="color:var(--muted);font-size:11px">${esc(s.actions.join('; '))}</span>` : ''}`,
+      ...r.years.map(y => (s.metrics ? String(s.metrics.violationsByYear[y]) : '—')),
+      s.metrics ? s.metrics.kwhYear0.toFixed(2) : '—',
+      s.metrics ? ((r.baseline.kwhYear0 - s.metrics.kwhYear0) * 365).toFixed(0) : '—',
+      !s.design ? 'Nothing to change' : s.solves ? '<b>Fixes it</b>' : 'Not enough'
+    ])
+  ];
+  return `
+    <p>${r.solvedBy ? `Fixed by: <b>${esc(r.steps.find(s => s.step === r.solvedBy).label)}</b>.` : 'No step fixed every violation.'} Checked years ${r.years.join(' and ')}, full day. kWh/yr = year-0 daily figure × 365. Energy cost of losses not yet set (Economics, P6.1).</p>
+    ${table(['#', 'Remedy', ...r.years.map(y => 'Violations yr ' + y), 'Loss (kWh/day)', 'Saved (kWh/yr)', 'Result'], rows)}
+  `;
+}
+
 // Builds a standalone, printable HTML report combining the design's setup, network and
 // (if available) the latest simulation snapshot, hosting-capacity scan and 24-hour scan.
 // `extras` carries the latest advisor results the pages have stored (tap advisor, …).
@@ -436,6 +456,7 @@ export function buildReportHtml(design, res, hosting, daily, bessHosting, extras
   ${section('Fault levels and protection', faultSectionBody(design))}
   ${section('Tap advisor', tapAdviceSectionBody(design, extras.tapAdvice))}
   ${section('Reconductoring advisor', reconductorSectionBody(extras.reconductor))}
+  ${section('Fix-it ladder', fixItSectionBody(extras.fixIt))}
 </body></html>`;
 }
 

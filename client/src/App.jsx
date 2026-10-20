@@ -17,6 +17,7 @@ import FeederSplitPage from './pages/FeederSplitPage.jsx';
 import LoadBalancePage from './pages/LoadBalancePage.jsx';
 import ProtectionPage from './pages/ProtectionPage.jsx';
 import ReconductorPage from './pages/ReconductorPage.jsx';
+import FixItPage from './pages/FixItPage.jsx';
 import InsightsPage from './pages/InsightsPage.jsx';
 import DesignsPage from './pages/DesignsPage.jsx';
 import AboutPage from './pages/AboutPage.jsx';
@@ -42,6 +43,7 @@ function ProtectedShell() {
           <Route path="load-balance" element={<LoadBalancePage />} />
           <Route path="protection" element={<ProtectionPage />} />
           <Route path="reconductor" element={<ReconductorPage />} />
+          <Route path="fix-it" element={<FixItPage />} />
           <Route path="insights" element={<InsightsPage />} />
           <Route path="designs" element={<DesignsPage />} />
           <Route path="about" element={<AboutPage />} />

@@ -38,7 +38,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P2.3** Fault level & protection check (`faults.js`, IEC 60909-style; fuse library empty by default; Protection panel + report section)
 - [x] **P2.4** Tap advisor (multi-year, ranking, unbalance diagnosis, off-load note, Apply/Preview)
 - [x] **P2.5** Editable conductor library + reconductoring advisor
-- [ ] **P2.6** Fix-it ladder (combined solution advisor)
+- [x] **P2.6** Fix-it ladder (combined solution advisor)
 - [ ] **P2.7** Standards profiles (`design.standards`; "Current app defaults" profile reproduces today exactly)
 
 ## Phase 3 — Advanced modelling (all off by default)
@@ -400,6 +400,25 @@ Al R20 maxima for 16–240 mm² (`IEC60228_AL_R20_OHM_PER_KM`) are a hint for R 
 The golden is reproduced (P3 → 70ABC: 2 violations, 18.10 kWh, 214.84 V). With only the two
 built-ins, that is the Walkthrough Island's single option. **Waiting on data:** more conductor
 sizes and costs.
+
+**P2.6 fix-it ladder (2026-10-20).** `fixItLadder(design, { years, order, stopAtFirst })`. The
+default order is `LADDER_STEPS`. Success means 0 voltage violations (pole-phase-hours) in every
+checked year.
+
+How each step is built:
+- **balance:** `proposePhaseBalance` per transformer, applied in sequence.
+- **tap:** the tap advisor's recommendation per transformer.
+- **reconductor:** the reconductor advisor's top-ranked option.
+- **split:** the feeder (tree) with the most baseline violations, split by the top
+  `computeFeederSplitCandidates` option. The new transformer copies the type of the one feeding it
+  (rating, tap, HV, X/R, earth), is sited at the cut, and any connector uses the
+  lowest-resistance usable conductor.
+- **combinations:** chain their two parts, so the second runs on the result of the first.
+
+A step with nothing to change reports a note and no design. The golden is as specified (stops at
+balance, 9 moves, 0/0, 19.16 → 13.29). Running every step on the fixture also shows split (14.56
+kWh) and balance + reconductor (12.86 kWh) fix it, while tap and reconductor alone don't.
+LKR/yr waits for P6.1. kWh/yr = daily × 365.
 
 ## Phase verification log
 

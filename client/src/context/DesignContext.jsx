@@ -16,6 +16,7 @@ export function DesignProvider({ children }) {
   const [lastDaily, setLastDaily] = useState(null); // most recent 24-hour scan, used by the downloadable report
   const [lastTapAdvice, setLastTapAdvice] = useState(null); // most recent tap advisor run (P2.4), for the report
   const [lastReconductor, setLastReconductor] = useState(null); // most recent reconductoring advisor run (P2.5)
+  const [lastFixIt, setLastFixIt] = useState(null); // most recent fix-it ladder run (P2.6)
 
   const refreshSavedList = useCallback(async () => {
     try { const d = await api.listDesigns(); setSavedList(d.designs); }
@@ -41,6 +42,7 @@ export function DesignProvider({ children }) {
     setLastDaily(null);
     setLastTapAdvice(null);
     setLastReconductor(null);
+    setLastFixIt(null);
   }, []);
 
   const newDesign = useCallback(() => {
@@ -52,6 +54,7 @@ export function DesignProvider({ children }) {
     setLastDaily(null);
     setLastTapAdvice(null);
     setLastReconductor(null);
+    setLastFixIt(null);
   }, []);
 
   const removeDesign = useCallback(async (id) => {
@@ -65,7 +68,7 @@ export function DesignProvider({ children }) {
       design, setDesign, designId, savedList, refreshSavedList,
       saveDesign, loadDesign, newDesign, removeDesign,
       lastResults, setLastResults, lastHosting, setLastHosting, lastBessHosting, setLastBessHosting, lastDaily, setLastDaily,
-      lastTapAdvice, setLastTapAdvice, lastReconductor, setLastReconductor
+      lastTapAdvice, setLastTapAdvice, lastReconductor, setLastReconductor, lastFixIt, setLastFixIt
     }}>
       {children}
     </DesignContext.Provider>

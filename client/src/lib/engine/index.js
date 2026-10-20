@@ -19,6 +19,7 @@
 //   advisors/phaseBalance.js load balance advisor
 //   advisors/tapAdvisor.js  off-load tap advisor
 //   advisors/reconductor.js reconductoring advisor
+//   advisors/fixItLadder.js combined fix-it ladder
 export * from './complex.js';
 export * from './sequence.js';
 export * from './model.js';
@@ -33,3 +34,4 @@ export * from './advisors/feederSplit.js';
 export * from './advisors/phaseBalance.js';
 export * from './advisors/tapAdvisor.js';
 export * from './advisors/reconductor.js';
+export * from './advisors/fixItLadder.js';
