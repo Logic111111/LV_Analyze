@@ -131,7 +131,40 @@ and catches drift long before it would show in the 2–3 decimal goldens. It is 
 `npm run gen:reference`, which must never be run to "fix" a failing test — only after a
 deliberate, documented result change.
 
-No golden value has changed.
+### Deliberate golden changes
+
+**P1.3 fix 1 — hosting reported untested sizes (2026-10-20).** The old binary search rounded its
+best *tested* size to the nearest 0.05 kVA, so it could report the step above anything it had
+tested. On the balanced fixture, several of those reported sizes **fail** a full load flow (e.g.
+4.70 kVA at P2B produces a violation at the solar shoulder; so does 40.05 kVA at P1C with nothing
+else committed). The brief's prescribed `Math.floor(best*20 + 1e-9)/20` alone would also have
+dropped every capped 5.00 to 4.95, because the bisection never tests the cap itself (it stops at
+4.9902). So `searchMaxKva` (engine/hosting.js), shared by PV and BESS, (1) tests the cap first
+and reports it if it passes, (2) otherwise floors the best passing size (the brief's formula),
+and (3) tries the next 0.05 step once, keeping it only if it passes. Every reported size has now
+passed a full load flow or lies below one that has (monotonic feasibility, as the binary search
+already assumed). Values that changed (all others in the table, including P3B 2.70, the capped
+5.00s, BESS 45.00 and the P3B loss score 17.05, are unchanged):
+
+| Golden | Was | Now |
+|---|---|---|
+| `computeHostingCapacity(balanced)` P2B | 4.70 | 4.65 |
+| … total | 42.40 | 42.35 |
+| `computeSystemHostingCapacity(balanced)` total | 111.75 | 111.65 |
+| … P1C independent/achievable | 40.05 / 40.05 | 40.00 / 40.00 |
+| … P2C | 22.25 / 5.10 | 22.20 / 5.10 |
+| … P2A | 21.50 / 9.10 | 21.50 / 9.05 |
+| … P3C | 13.85 / 1.00 | 13.80 / 1.05 |
+| … P3A | 13.30 / 0.30 | 13.25 / 0.35 |
+| … P1B | 9.35 / 9.35 | 9.30 / 9.30 |
+| … P2B | 4.70 / 4.70 | 4.65 / 4.65 |
+| `computeSystemBessHostingCapacity(balanced)` total | 69.80 | 69.95 |
+| … daily loss with BESS | 25.46 kWh | 25.47 kWh |
+
+(The queue order is unchanged. Some downstream achievable amounts *rise* — P3C, P3A — because
+the corrected, smaller upstream commitments leave more headroom.) The new values are asserted in
+`golden.hosting.test.js` with the old ones alongside as comments. The non-hosting goldens and the
+1e-9 reference lock are untouched by this fix.
 
 ---
 

@@ -3,7 +3,7 @@
 import { PHASES } from './complex.js';
 import { runSnapshot } from './solver.js';
 import { rangeHours, bessMultiplierAt } from './loads.js';
-import { UNCAPPED_CEILING_KVA } from './hosting.js';
+import { UNCAPPED_CEILING_KVA, searchMaxKva } from './hosting.js';
 import { systemLossW, dailyEnergyLossKwh } from './scan.js';
 /** @import { Design, BessConnection, Violation } from './types.js' */
 /** @import { HostingRow } from './hosting.js' */
@@ -45,19 +45,14 @@ function bessRelevantViolations(design, hour, violations) {
 // in the direction it can affect at each hour — see bessRelevantViolations).
 /** @param {Design} design @param {string} pole @param {import('./types.js').Phase} phase @param {number} hi @param {BessConnection[]} committed @returns {number} kVA */
 function findMaxBess(design, pole, phase, hi, committed) {
-  let lo = 0, best = 0;
   const testHours = bessTestHours(design);
-  const iters = Math.max(7, Math.ceil(Math.log2(Math.max(hi, 0.01) / 0.02)) + 1);
-  for (let iter = 0; iter < iters; iter++) {
-    const mid = (lo + hi) / 2;
-    let feasible = true;
+  return searchMaxKva(kva => {
     for (const h of testHours) {
-      const res = runSnapshot(design, { year: 0, hour: h, loadMult: 1, solarMult: 1, extraBess: [...committed, { pole, phase, kva: mid }] });
-      if (bessRelevantViolations(design, h, res.violations).length > 0) { feasible = false; break; }
+      const res = runSnapshot(design, { year: 0, hour: h, loadMult: 1, solarMult: 1, extraBess: [...committed, { pole, phase, kva }] });
+      if (bessRelevantViolations(design, h, res.violations).length > 0) return false;
     }
-    if (feasible) { best = mid; lo = mid; } else { hi = mid; }
-  }
-  return Math.round(best * 20) / 20;
+    return true;
+  }, hi);
 }
 
 /** @param {Design} design @param {number} [capOverride] @returns {HostingRow[]} */
