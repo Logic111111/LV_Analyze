@@ -129,9 +129,33 @@ so the auth cookie gets the `Secure` flag.
 - Design payload size is capped (both by `express.json({limit})` and an explicit JSON-length
   check) to stop a malicious or buggy client from writing huge rows.
 
+## Tests and CI
+
+The load-flow engine has a golden-value test suite (Vitest, running in plain Node — no browser):
+
+```bash
+cd client
+npm test        # golden tests + full-precision reference lock
+npm run lint    # ESLint (also enforces that the engine stays dependency-free)
+```
+
+- **Golden tests** (`client/src/lib/__tests__/golden.*.test.js`) pin the engine to the
+  "Walkthrough Island" hand-calculation workbook: pole voltages and currents, losses, violations,
+  24-hour scans, tap sweeps, feeder split, load balance and PV/BESS hosting capacity.
+- **Reference lock** (`reference.test.js`) asserts the engine's raw output for 29 cases to 1e-9,
+  so even sub-display-precision drift from a refactor is caught. `npm run gen:reference` rewrites
+  it — only after a deliberate, documented change in results, never to make a failing test pass.
+- **CI** (`.github/workflows/ci.yml`) runs lint, tests and the client build, plus a
+  `node --check` syntax pass over the server, on every push and pull request.
+
+`PROGRESS.md` at the repo root tracks the upgrade programme item by item.
+
 ## Extending
 
 - `client/src/lib/loadflow.js` and `diagram.js` are dependency-free — you can reuse or unit-test
-  them outside React (e.g. `node --experimental-vm-modules` or any test runner) with no mocking.
+  them outside React with no mocking (the test suite above does exactly that).
+- Every way a design enters the app (server load, JSON import, new design) passes through
+  `withDefaults(design)` in `loadflow.js`. A new design field gets its default there, so older
+  saved designs keep loading with identical results.
 - Each React page under `client/src/pages/` mirrors one tab of the original single-file
   prototype, so behaviour should already be familiar.
