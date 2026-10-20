@@ -3,7 +3,7 @@ import { useDesign } from '../context/DesignContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import {
   feederTrees, poleById, transformerOfPole, nextTransformerId, conductorCodes, transformerRatings,
-  buildSplitCandidate, runSnapshot, feederConnectedTotals, DAILY_HOURS
+  buildSplitCandidate, runSnapshotAt, feederConnectedTotals, DAILY_HOURS
 } from '../lib/loadflow.js';
 import { buildDiagramSVG } from '../lib/diagram.js';
 import { ConvergenceWarning } from '../components/Convergence.jsx';
@@ -188,7 +188,7 @@ export default function FeederSplitPage() {
     setQuickResult(null);
   }
 
-  const previewSnapshot = preview ? runSnapshot(preview.design, { year: 0, hour: 20, loadMult: 1, solarMult: 1 }) : null;
+  const previewSnapshot = preview ? runSnapshotAt(preview.design, { year: 0, hour: 20, loadMult: 1, solarMult: 1 }) : null;
   const previewSvg = previewSnapshot ? buildDiagramSVG(preview.design, previewSnapshot, theme) : null;
   const previewNewTxId = preview ? preview.design.transformers[preview.design.transformers.length - 1].id : null;
   const previewFeeders = preview

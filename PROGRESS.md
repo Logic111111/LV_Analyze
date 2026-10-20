@@ -44,7 +44,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 ## Phase 3 — Advanced modelling (all off by default)
 
 - [x] **P3.1** Smart-inverter PV (volt-var / volt-watt / export limit; IEEE 1547-2018 Cat B seed curves, labelled)
-- [ ] **P3.2** BESS with state of charge (`schedule` default; `socSchedule` / `solarFollowing`)
+- [x] **P3.2** BESS with state of charge (`schedule` default; `socSchedule` / `solarFollowing`)
 - [ ] **P3.3** Transformer thermal ageing (IEC 60076-7)
 - [ ] **P3.4** HV voltage profile (`hvProfile`, default all 1.0)
 - [ ] **P3.5** Coupled line model (4×4 matrices, behind a flag)
@@ -445,6 +445,23 @@ Decisions:
 
 **Waiting on data:** the local grid code's inverter settings. The Cat B seed is marked as a
 placeholder in the UI.
+
+**P3.2 BESS SOC (2026-10-20).** `engine/bessDispatch.js` (`simulateBessDay`, `bessParams`,
+`socBessUnits`), with new per-unit BESS fields `mode`, `kWh`, `socInitial` / `socMin` / `socMax`
+(0.5 / 0 / 1) and `etaCharge` / `etaDischarge` (√RTE). `netS` takes a `bessDispatch` map. The
+SOC-aware day simulation feeds:
+- `runHours` (and so every scan and advisor), simulating from 00:00 to the last hour asked for;
+- `runSnapshotAt`, used by every page snapshot;
+- the hosting baselines, which hold the base-day dispatch fixed while candidates are tried.
+
+Decisions:
+- **Solar-following charging.** It decides from a solve of that hour with the following units
+  idle (transformer exporting), or from local PV exceeding local load (nameplate × curves, the
+  same quantities `netS` uses). Charging is at rated power, limited by SOC headroom.
+- **SOC limits default to 0–1.** No reserve is assumed.
+- **kWh is never assumed.** A SOC-mode unit without it is idle and flagged `dataMissing`.
+- **The fixed schedule keeps the historical discharge-side RTE derate.** The SOC modes instead
+  apply the efficiencies to stored energy.
 
 ## Phase verification log
 

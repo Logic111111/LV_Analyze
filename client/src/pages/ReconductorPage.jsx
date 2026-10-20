@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
-import { applyReconductor, describeReconductor, runSnapshot, usableConductorCodes } from '../lib/loadflow.js';
+import { applyReconductor, describeReconductor, runSnapshotAt, usableConductorCodes } from '../lib/loadflow.js';
 import { buildDiagramSVG } from '../lib/diagram.js';
 import TaskProgress from '../components/TaskProgress.jsx';
 import { ConvergenceWarning } from '../components/Convergence.jsx';
@@ -40,7 +40,7 @@ export default function ReconductorPage() {
 
   const previewView = preview ? (() => {
     const d = applyReconductor(design, preview.changes);
-    const res = runSnapshot(d, { year: 0, hour: 20, loadMult: 1, solarMult: 1 });
+    const res = runSnapshotAt(d, { year: 0, hour: 20, loadMult: 1, solarMult: 1 });
     return { res, svg: buildDiagramSVG(d, res, theme) };
   })() : null;
 

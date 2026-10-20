@@ -257,6 +257,27 @@ function DailyResults({ rows, title }) {
       <div className="card"><LineChart data={chart2Data} options={chart2Opts} />
         <p className="hint" style={{ marginTop: 10 }}>Statutory band: {vLow.toFixed(1)} – {vHigh.toFixed(1)} V phase-neutral (dashed lines). Hover a point for the pole/phase holding that hour's extreme.</p></div>
 
+      {rows[0].bess && rows[0].bess.length > 0 && (
+        <>
+          <div className="section-title">Battery state of charge</div>
+          <div className="card">
+            <LineChart data={{
+              labels,
+              datasets: rows[0].bess.map((b, i) => ({
+                label: `${b.id} SOC % (${b.mode})`, data: rows.map(r => r.bess[i].socEnd * 100),
+                borderColor: seriesColors[i % seriesColors.length], tension: 0.2, pointRadius: 2, borderDash: TX_DASH_PATTERNS[i % TX_DASH_PATTERNS.length]
+              }))
+            }} options={{ responsive: true, scales: { y: { min: 0, max: 100, title: { display: true, text: 'SOC at end of hour (%)', color: axisColor }, grid: { color: gridColor }, ticks: { color: axisColor } }, x: { grid: { color: gridColor }, ticks: { color: axisColor } } }, plugins: { legend: { labels: { color: legendColor } } } }} />
+            <div className="tbl-wrap" style={{ marginTop: 10 }}><table>
+              <thead><tr><th>Hour</th>{rows[0].bess.map(b => <th key={b.id}>{b.id}: kW (+ discharge) · SOC</th>)}</tr></thead>
+              <tbody>{rows.map(r => (
+                <tr key={r.hour}><td>{String(r.hour).padStart(2, '0')}:00</td>{r.bess.map(b => <td key={b.id}>{b.dataMissing ? 'kWh missing' : `${b.pKw.toFixed(2)} · ${(b.socEnd * 100).toFixed(0)} %`}</td>)}</tr>
+              ))}</tbody>
+            </table></div>
+          </div>
+        </>
+      )}
+
       <div className="section-title">Hour-by-hour summary</div>
       <div className="card"><div className="tbl-wrap"><table>
         <thead><tr><th>Hour</th>{txIds.map(id => <th key={id}>{txName(id)}</th>)}<th>Min V (pole/phase)</th><th>Max V (pole/phase)</th><th>Max VUF (pole)</th><th>Violations</th></tr></thead>

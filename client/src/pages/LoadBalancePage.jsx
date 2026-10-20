@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
-import { applyPhaseBalance, runSnapshot, DAILY_HOURS } from '../lib/loadflow.js';
+import { applyPhaseBalance, runSnapshotAt, DAILY_HOURS } from '../lib/loadflow.js';
 import { buildDiagramSVG } from '../lib/diagram.js';
 import { ConvergenceWarning } from '../components/Convergence.jsx';
 import { txCurrentSummary } from '../lib/format.js';
@@ -55,7 +55,7 @@ export default function LoadBalancePage() {
     setProposal(null);
   }
 
-  const previewSnapshot = preview ? runSnapshot(preview.design, { year: 0, hour: 20, loadMult: 1, solarMult: 1 }) : null;
+  const previewSnapshot = preview ? runSnapshotAt(preview.design, { year: 0, hour: 20, loadMult: 1, solarMult: 1 }) : null;
   const previewSvg = previewSnapshot ? buildDiagramSVG(preview.design, previewSnapshot, theme) : null;
 
   return (

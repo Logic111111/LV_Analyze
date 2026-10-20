@@ -166,10 +166,10 @@ export default function SetupPage() {
 
         <div className="card">
           <h2>BESS charge / discharge assumptions</h2>
-          <p className="hint">A BESS connection is modelled as a fixed-power schedule: it draws its rated kVA from the grid as a load during the charge window, and injects its rated kVA at unity power factor (like PV export) during the discharge window — no state-of-charge or kWh capacity is tracked. Windows snap to whole clock hours since the load flow solves one snapshot per hour, so 18:30–22:30 is approximated as whole hours below (same rounding the app already uses for ADMD's night peak).</p>
+          <p className="hint">By default a BESS connection is a fixed-power schedule: it draws its rated kVA from the grid during the charge window and injects it at unity power factor during the discharge window, with no state-of-charge tracking. Individual units can instead use a state-of-charge mode (Network page, needs the battery's kWh), which uses these windows but respects its SOC limits. Windows snap to whole clock hours since the load flow solves one snapshot per hour, so 18:30–22:30 is approximated as whole hours below (same rounding the app already uses for ADMD's night peak).</p>
           <label className="field"><span>Round-trip efficiency</span>
             <input type="number" value={design.bessRte} step={0.01} min={0.5} max={1} onChange={e => set({ bessRte: num(e.target.value) })} /></label>
-          <p className="hint" style={{ marginTop: -4 }}>Default 0.90 for Lithium Iron (LFP). With no state-of-charge tracking, the round-trip loss is applied as a derate on discharge output only — charge draw from the grid stays at the connection's full rated kVA.</p>
+          <p className="hint" style={{ marginTop: -4 }}>Default 0.90 for Lithium Iron (LFP). In the fixed schedule the round-trip loss is applied as a derate on discharge output only; the state-of-charge modes split it as √RTE on charge and √RTE on discharge (unless set per unit).</p>
           <div className="grid g2">
             <label className="field"><span>Charge window start (grid-charging)</span>
               <select value={design.bessChargeStartHour} onChange={e => set({ bessChargeStartHour: num(e.target.value) })}>

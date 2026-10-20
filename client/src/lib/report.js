@@ -150,6 +150,8 @@ function dailyScenarioBody(design, scenario, notRunMsg) {
     </div>
     ${anyNonConverged ? '<p class="warn">One or more hours did not fully converge — treat those hours\' figures with caution.</p>' : ''}
     <h3>Hour-by-hour summary</h3>${table(['Hour', ...txIds.map(id => txName(id)), 'Min V (pole/phase)', 'Max V (pole/phase)', 'Violations'], hourRows)}
+    ${daily[0].bess && daily[0].bess.length ? `<h3>Battery state of charge</h3>${table(['Hour', ...daily[0].bess.map(b => `${esc(b.id)} kW (+ discharge) · SOC`)],
+      daily.map(r => [String(r.hour).padStart(2, '0') + ':00', ...r.bess.map(b => (b.dataMissing ? 'kWh missing' : `${b.pKw.toFixed(2)} · ${(b.socEnd * 100).toFixed(0)} %`))]))}` : ''}
     <h3>Transformer LV bus voltage (post-transformer drop, pre-feeder drop)</h3>${txBusTable}
     <h3>Violations — all 24 hours</h3>${violationsTable}
   `;

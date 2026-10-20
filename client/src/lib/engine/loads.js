@@ -41,7 +41,7 @@ export function bessMultiplierAt(design, hour) {
 // order, netS adds injections up in exactly the same sequence as before, so results are
 // bit-identical. Loads of a type the engine doesn't model are left out, as the old per-type
 // filters left them out.
-/** @typedef {{ loads: { general: import('./types.js').Connection[], ev: import('./types.js').Connection[], shop: import('./types.js').Connection[], evcs: import('./types.js').Connection[] }, pv: PvConnection[], bess: PvConnection[] }} PoleConnections */
+/** @typedef {{ loads: { general: import('./types.js').Connection[], ev: import('./types.js').Connection[], shop: import('./types.js').Connection[], evcs: import('./types.js').Connection[] }, pv: PvConnection[], bess: import('./types.js').BessConnection[] }} PoleConnections */
 /** @typedef {Map<string, PoleConnections>} ConnectionIndex */
 const LOAD_TYPES = ['general', 'ev', 'shop', 'evcs'];
 /** @type {PoleConnections} */
@@ -74,9 +74,11 @@ export function connectionIndex(design) {
  * @param {number} loadMult @param {number} solarMult
  * @param {PvConnection[]} extraPV @param {PvConnection[]} [extraBess]
  * @param {ConnectionIndex} [index] Prebuilt connectionIndex(design); built here if omitted.
+ * @param {Record<string, number> | null} [bessDispatch] Grid power of SOC-mode BESS units this hour,
+ *   kW (+ discharging, − charging), from simulateBessDay; a SOC-mode unit missing here is idle.
  * @returns {{ loadS: import('./types.js').PhaseMap<Complex>, otherS: import('./types.js').PhaseMap<Complex>, smart: { id?: string, phase: import('./types.js').Phase, kva: number, pAvail: number, mode: string }[] }} kVA
  */
-export function netS(design, poleId, year, hour, loadMult, solarMult, extraPV, extraBess = [], index = undefined) {
+export function netS(design, poleId, year, hour, loadMult, solarMult, extraPV, extraBess = [], index = undefined, bessDispatch = null) {
   const conns = (index || connectionIndex(design)).get(poleId) || NO_CONNECTIONS;
   const loadS = { A: C.zero(), B: C.zero(), C: C.zero() };
   const otherS = { A: C.zero(), B: C.zero(), C: C.zero() };
@@ -133,6 +135,14 @@ export function netS(design, poleId, year, hour, loadMult, solarMult, extraPV, e
   const rte = design.bessRte ?? 1;
   if (design.includeBess) {
     conns.bess.forEach(b => {
+      // SOC-aware units (P3.2) inject exactly what the day simulation dispatched — no RTE derate
+      // here: their efficiencies are applied to the stored energy instead.
+      if (b.mode === 'socSchedule' || b.mode === 'solarFollowing') {
+        const p = bessDispatch && Number.isFinite(bessDispatch[b.id]) ? bessDispatch[b.id] : 0;
+        if (p > 0) addTo(otherS, b.phase, p, 1.0, -1);
+        else if (p < 0) addTo(otherS, b.phase, -p, 1.0, +1);
+        return;
+      }
       const mult = bessMultiplierAt(design, hour);
       if (mult > 0) addTo(otherS, b.phase, Number(b.kva) * mult * rte, 1.0, -1);
       else if (mult < 0) addTo(otherS, b.phase, Number(b.kva) * Math.abs(mult), 1.0, +1);

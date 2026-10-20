@@ -87,6 +87,7 @@ export default function NetworkPage() {
     setDesign(d => ({ ...d, bess: [...d.bess, { id: 'BE' + Date.now(), pole: nbess.pole, phase: nbess.phase, kva: Number(nbess.kva) || 5 }] }));
   }
   function removeBess(id) { setDesign(d => ({ ...d, bess: d.bess.filter(b => b.id !== id) })); }
+  function setBessField(id, field, value) { setDesign(d => ({ ...d, bess: d.bess.map(b => (b.id === id ? { ...b, [field]: value } : b)) })); }
   function addOpenPoint() {
     if (!nop.poleA || !nop.poleB) return;
     if (nop.poleA === nop.poleB) { alert('Pick two different poles.'); return; }
@@ -264,13 +265,22 @@ export default function NetworkPage() {
 
       <div className="section-title">Battery storage (BESS)</div>
       <div className="card">
-        <p className="hint">Charges from the grid during the charge window and discharges at unity power factor during the discharge window (configured on the Setup page). Each connection's kVA is its rated charge/discharge power.</p>
+        <p className="hint">Each connection's kVA is its rated charge/discharge power. <b>Fixed schedule</b> (the default) charges from the grid in the charge window and discharges in the discharge window (Setup page) with no energy limit. The <b>state-of-charge</b> modes need the battery's usable energy (kWh, from its datasheet): <i>SOC schedule</i> uses the same windows but stops at the SOC limits; <i>solar-following</i> charges when its transformer exports or local PV exceeds local load, and discharges in the evening window. Efficiencies left blank default to √(round-trip efficiency) each.</p>
         <div className="tbl-wrap"><table>
-          <thead><tr><th>Pole</th><th>Phase</th><th>kVA</th><th></th></tr></thead>
+          <thead><tr><th>Pole</th><th>Phase</th><th>kVA</th><th>Mode</th><th>kWh</th><th>SOC start</th><th>SOC min</th><th>SOC max</th><th>η charge</th><th>η discharge</th><th></th></tr></thead>
           <tbody>
             {design.bess.map(b => (
               <tr key={b.id}>
                 <td>{b.pole}</td><td className={b.phase !== 'ABC' ? 'phase' + b.phase : ''}>{b.phase}</td><td>{b.kva}</td>
+                <td><select aria-label={`Mode for ${b.id}`} value={b.mode || 'schedule'} onChange={e => setBessField(b.id, 'mode', e.target.value)}>
+                  <option value="schedule">Fixed schedule</option><option value="socSchedule">SOC schedule</option><option value="solarFollowing">Solar-following</option>
+                </select></td>
+                {['kWh', 'socInitial', 'socMin', 'socMax', 'etaCharge', 'etaDischarge'].map(f => (
+                  <td key={f}><input type="number" style={{ width: 72 }} step={f === 'kWh' ? 1 : 0.05} min={0} aria-label={`${f} for ${b.id}`}
+                    disabled={(b.mode || 'schedule') === 'schedule'}
+                    placeholder={f === 'kWh' ? (b.mode && b.mode !== 'schedule' ? 'required' : '') : f === 'socInitial' ? '0.5' : f === 'socMin' ? '0' : f === 'socMax' ? '1' : '√RTE'}
+                    value={b[f] ?? ''} onChange={e => setBessField(b.id, f, e.target.value === '' ? null : Number(e.target.value))} /></td>
+                ))}
                 <td><button className="mini" onClick={() => removeBess(b.id)}>remove</button></td>
               </tr>
             ))}

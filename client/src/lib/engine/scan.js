@@ -4,6 +4,7 @@
 import { PHASES } from './complex.js';
 import { runSnapshot, warmStartFrom, topologyOf } from './solver.js';
 import { connectionIndex } from './loads.js';
+import { simulateBessDay, socBessUnits } from './bessDispatch.js';
 /** @import { Design, SnapshotResult, BessConnection } from './types.js' */
 
 /* ============================================================
@@ -23,6 +24,17 @@ import { connectionIndex } from './loads.js';
  */
 export function runHours(design, hours, base, opts = {}) {
   const warmStart = opts.warmStart !== false;
+  // With SOC-aware BESS (P3.2) an hour depends on every hour before it, so the day is simulated
+  // from midnight up to the last hour asked for and the requested hours are picked out. (No
+  // SOC-aware unit — the default — means hours are independent, exactly as before.)
+  if (socBessUnits(design).length && !('bessDispatch' in base && base.bessDispatch)) {
+    const lastHour = Math.max(...hours);
+    const day = simulateBessDay(design, base.year, { loadMult: base.loadMult, solarMult: base.solarMult, extraBess: base.extraBess, lastHour, warmStart });
+    return hours.map((h, i) => {
+      if (opts.onProgress) opts.onProgress({ stage: opts.stage || 'Solving hours', done: i + 1, total: hours.length });
+      return day[h];
+    });
+  }
   const ctx = { index: connectionIndex(design), topo: topologyOf(design) };
   /** @type {SnapshotResult | null} */
   let prev = null;
@@ -135,4 +147,15 @@ export const DAILY_HOURS = [...Array(24).keys()];
 /** @param {Design} design @param {number[]} [hours] @param {number} [solarMult] @param {{ warmStart?: boolean, stage?: string } & import('./types.js').ProgressHooks} [opts] */
 export function scanAndSummarize(design, hours = DAILY_HOURS, solarMult = 1, opts = {}) {
   return summarizeScan(runHours(design, hours, { year: 0, loadMult: 1, solarMult }, opts));
+}
+
+/**
+ * One snapshot that respects SOC-aware BESS: when the design has any, the day is simulated up to
+ * `opts.hour` so the batteries' state of charge at that hour is right; otherwise it is exactly
+ * runSnapshot. For pages that solve a single hour (Run & Reports, Diagram).
+ * @param {Design} design @param {import('./types.js').SnapshotOptions} opts
+ */
+export function runSnapshotAt(design, opts) {
+  if (!socBessUnits(design).length) return runSnapshot(design, opts);
+  return runHours(design, [opts.hour], { year: opts.year, loadMult: opts.loadMult ?? 1, solarMult: opts.solarMult ?? 1, extraBess: opts.extraBess || [] })[0];
 }

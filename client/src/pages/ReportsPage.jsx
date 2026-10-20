@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
-import { runSnapshot, getTransformerType, transformerOfPole, isTransformerId, systemLossW } from '../lib/loadflow.js';
+import { runSnapshotAt, getTransformerType, transformerOfPole, isTransformerId, systemLossW } from '../lib/loadflow.js';
 import { downloadHtml, reportFileName } from '../lib/report.js';
 import TaskProgress from '../components/TaskProgress.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
@@ -43,7 +43,7 @@ export default function ReportsPage() {
   function run() {
     setBusy(true);
     setTimeout(() => {
-      const res = runSnapshot(design, { year, hour, loadMult, solarMult });
+      const res = runSnapshotAt(design, { year, hour, loadMult, solarMult });
       setLastResults(res);
       setBusy(false);
     }, 10);

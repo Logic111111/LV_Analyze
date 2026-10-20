@@ -3,6 +3,7 @@
 import { PHASES } from './complex.js';
 import { runSnapshot, warmStartFrom, topologyOf } from './solver.js';
 import { connectionIndex } from './loads.js';
+import { simulateBessDay } from './bessDispatch.js';
 /** @import { Design, PvConnection, Violation } from './types.js' */
 /**
  * What stopped a hosting search: the ceiling itself passed ('cap'), a new or worsened violation
@@ -104,6 +105,8 @@ export function violationKey(v) { return `${v.pole}|${v.phase}|${v.type}`; }
  * @property {number[]} nonConvergedHours Test hours where the design itself didn't converge.
  * @property {Map<number, import('./solver.js').InitialV | null>} startByHour Each hour's baseline
  *   solution, used to warm-start the search's first evaluation at that hour.
+ * @property {Map<number, Record<string, number>> | null} dispatchByHour SOC-mode BESS dispatch of the
+ *   base day at each test hour (null without such units) — held fixed while candidates are tried.
  * @property {{ index: import('./loads.js').ConnectionIndex, topo: ReturnType<typeof topologyOf> }} ctx
  *   The design's connection index and topology, built once and shared by every search evaluation
  *   (candidates and committed additions arrive as extraPV/extraBess, never in the design itself).
@@ -124,15 +127,17 @@ export function hostingBaseline(design, hours, relevant = (_h, vs) => vs) {
   const nonConvergedHours = [];
   const startByHour = new Map();
   const ctx = { index: connectionIndex(design), topo: topologyOf(design) };
+  const day = simulateBessDay(design, 0, { lastHour: Math.max(...hours) });
+  const dispatchByHour = day ? new Map(hours.map(h => [h, Object.fromEntries(day[h].bess.map(b => [b.id, b.pKw]))])) : null;
   hours.forEach(hour => {
-    const res = runSnapshot(design, { year: 0, hour, loadMult: 1, solarMult: 1 }, ctx);
+    const res = runSnapshot(design, { year: 0, hour, loadMult: 1, solarMult: 1, bessDispatch: dispatchByHour ? dispatchByHour.get(hour) : null }, ctx);
     if (!res.converged) nonConvergedHours.push(hour);
     startByHour.set(hour, warmStartFrom(res));
     const vs = relevant(hour, res.violations);
     byHour.set(hour, new Map(vs.map(v => [violationKey(v), v])));
     vs.forEach(v => violations.push({ hour, ...v }));
   });
-  return { byHour, violations, nonConvergedHours, startByHour, ctx };
+  return { byHour, violations, nonConvergedHours, startByHour, ctx, dispatchByHour };
 }
 
 /**
@@ -171,7 +176,7 @@ function findMaxPV(design, pole, phase, hi, committed, baseline) {
   const warm = new Map(baseline.startByHour);
   return searchWithLimit(kva => {
     for (const h of HOSTING_TEST_HOURS) {
-      const res = runSnapshot(design, { year: 0, hour: h, loadMult: 1, solarMult: 1, extraPV: [...committed, { pole, phase, kva }] }, { ...baseline.ctx, initialV: warm.get(h) || null });
+      const res = runSnapshot(design, { year: 0, hour: h, loadMult: 1, solarMult: 1, extraPV: [...committed, { pole, phase, kva }], bessDispatch: baseline.dispatchByHour ? baseline.dispatchByHour.get(h) : null }, { ...baseline.ctx, initialV: warm.get(h) || null });
       if (!res.converged) return { reason: 'nonConvergence', detail: { hour: h } };
       warm.set(h, warmStartFrom(res));
       const v = newOrWorsenedViolation(res.violations, baseline.byHour.get(h));

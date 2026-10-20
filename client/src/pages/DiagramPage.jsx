@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
-import { runSnapshot } from '../lib/loadflow.js';
+import { runSnapshotAt } from '../lib/loadflow.js';
 import { buildDiagramSVG } from '../lib/diagram.js';
 import YearPicker from '../components/YearPicker.jsx';
 import { ConvergenceWarning } from '../components/Convergence.jsx';
@@ -22,7 +22,7 @@ export default function DiagramPage() {
   }
   function draw() {
     setBusy(true);
-    setTimeout(() => { setRes(runSnapshot(design, { year, hour, loadMult, solarMult })); setBusy(false); }, 10);
+    setTimeout(() => { setRes(runSnapshotAt(design, { year, hour, loadMult, solarMult })); setBusy(false); }, 10);
   }
 
   const svg = res ? buildDiagramSVG(design, res, theme) : null;

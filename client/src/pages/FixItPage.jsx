@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
-import { LADDER_STEPS, LADDER_STEP_LABELS, runSnapshot } from '../lib/loadflow.js';
+import { LADDER_STEPS, LADDER_STEP_LABELS, runSnapshotAt } from '../lib/loadflow.js';
 import { buildDiagramSVG } from '../lib/diagram.js';
 import TaskProgress from '../components/TaskProgress.jsx';
 import { ConvergenceWarning } from '../components/Convergence.jsx';
@@ -52,7 +52,7 @@ export default function FixItPage() {
   }
 
   const previewView = preview ? (() => {
-    const res = runSnapshot(preview.design, { year: 0, hour: 20, loadMult: 1, solarMult: 1 });
+    const res = runSnapshotAt(preview.design, { year: 0, hour: 20, loadMult: 1, solarMult: 1 });
     return { res, svg: buildDiagramSVG(preview.design, res, theme) };
   })() : null;
   const kwhDay = (v) => v.toFixed(2);

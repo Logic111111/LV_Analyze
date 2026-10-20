@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
-import { runSnapshot } from '../lib/loadflow.js';
+import { runSnapshotAt } from '../lib/loadflow.js';
 import { buildDiagramSVG } from '../lib/diagram.js';
 import TaskProgress from './TaskProgress.jsx';
 import { ConvergenceWarning } from './Convergence.jsx';
@@ -45,7 +45,7 @@ export default function TapAdvisorCard() {
   const preview = result && previewTap != null ? (() => {
     const t = result.byTap.find(x => x.tap === previewTap);
     const d = { ...design, transformers: design.transformers.map(x => (x.id === result.txId ? { ...x, tap: previewTap } : x)) };
-    const res = runSnapshot(d, { year: t.minV.year, hour: t.minV.hour, loadMult: 1, solarMult: 1 });
+    const res = runSnapshotAt(d, { year: t.minV.year, hour: t.minV.hour, loadMult: 1, solarMult: 1 });
     return { t, res, svg: buildDiagramSVG(d, res, theme) };
   })() : null;
 

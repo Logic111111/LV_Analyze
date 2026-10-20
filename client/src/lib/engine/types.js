@@ -51,14 +51,29 @@
  */
 
 /**
- * Rooftop PV (unity pf) or a BESS unit (fixed charge/discharge schedule), rated kVA.
+ * Rooftop PV, rated kVA (unity pf unless a smart-inverter mode applies — P3.1).
  * @typedef {object} PvConnection
  * @property {string} [id]
  * @property {string} pole
  * @property {ConnectionPhase} phase
  * @property {number | string} kva
+ * @property {string} [inverterMode] Per-unit override of design.inverter.mode.
  */
-/** @typedef {PvConnection} BessConnection */
+/**
+ * A BESS unit. Rated power is `kva`; the SOC fields are used only by the SOC-aware modes (P3.2).
+ * @typedef {object} BessConnection
+ * @property {string} [id]
+ * @property {string} pole
+ * @property {ConnectionPhase} phase
+ * @property {number | string} kva
+ * @property {'schedule' | 'socSchedule' | 'solarFollowing'} [mode]  Default 'schedule'.
+ * @property {number | null} [kWh]       Usable energy capacity (required by the SOC modes).
+ * @property {number} [socInitial]       State of charge at 00:00, 0–1 (default 0.5).
+ * @property {number} [socMin]           Default 0.
+ * @property {number} [socMax]           Default 1.
+ * @property {number} [etaCharge]        Default √RTE.
+ * @property {number} [etaDischarge]     Default √RTE.
+ */
 
 /**
  * Normally-open tie between two feeders — carries no current; a siting reference only.
@@ -155,6 +170,7 @@
  * @property {number} [solarMult]
  * @property {PvConnection[]} [extraPV]    Candidate PV additions (hosting searches).
  * @property {BessConnection[]} [extraBess] Candidate BESS additions.
+ * @property {Record<string, number> | null} [bessDispatch] SOC-mode BESS grid power this hour, kW (+ discharge).
  */
 
 /**

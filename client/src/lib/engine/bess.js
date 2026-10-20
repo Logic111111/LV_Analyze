@@ -58,7 +58,7 @@ function findMaxBess(design, pole, phase, hi, committed, baseline) {
   const warm = new Map(baseline.startByHour); // warm starts, as in the PV search (hosting.js)
   return searchWithLimit(kva => {
     for (const h of testHours) {
-      const res = runSnapshot(design, { year: 0, hour: h, loadMult: 1, solarMult: 1, extraBess: [...committed, { pole, phase, kva }] }, { ...baseline.ctx, initialV: warm.get(h) || null });
+      const res = runSnapshot(design, { year: 0, hour: h, loadMult: 1, solarMult: 1, extraBess: [...committed, { pole, phase, kva }], bessDispatch: baseline.dispatchByHour ? baseline.dispatchByHour.get(h) : null }, { ...baseline.ctx, initialV: warm.get(h) || null });
       if (!res.converged) return { reason: 'nonConvergence', detail: { hour: h } };
       warm.set(h, warmStartFrom(res));
       const v = newOrWorsenedViolation(bessRelevantViolations(design, h, res.violations), baseline.byHour.get(h));
