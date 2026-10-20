@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useDesign } from '../context/DesignContext.jsx';
 import { withDefaults } from '../lib/loadflow.js';
 
@@ -57,7 +58,8 @@ export default function DesignsPage() {
         <p className="hint">Saving stores this design (its full network, curves and settings) to your account under its name. Saving again with the same name overwrites it.</p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button className="primary" onClick={onSave} disabled={busy}>Save "{design.name}"</button>
-          <button className="ghost" onClick={newDesign}>New blank design</button>
+          <button className="ghost" onClick={() => newDesign()}>New blank design</button>{' '}
+          <Link className="ghost btn-link" to="/app/wizard">New design wizard…</Link>
           <button className="ghost" onClick={onExport}>Export JSON</button>
           <button className="ghost" onClick={onImportClick}>Import JSON</button>
           <input type="file" ref={fileRef} accept="application/json" style={{ display: 'none' }} onChange={onImportFile} />

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useDesign } from '../context/DesignContext.jsx';
 import { secondaryLNVoltage, txImpedance, nextTransformerId, transformerRatings, getTransformerType } from '../lib/loadflow.js';
 import CurveEditor from '../components/CurveEditor.jsx';
@@ -45,6 +45,7 @@ export default function SetupPage() {
   return (
     <div>
       <div className="card" style={{ padding: '12px 18px', marginBottom: 14 }}>
+        <p className="hint" style={{ marginTop: 0 }}>Starting from scratch? The <Link to="/app/wizard">new design wizard</Link> builds a network step by step.</p>
         <label className="field" style={{ marginBottom: 0 }}><span>Design name (this network)</span>
           <input type="text" value={design.name} onChange={e => set({ name: e.target.value || 'Untitled Island' })} />
         </label>

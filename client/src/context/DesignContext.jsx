@@ -45,8 +45,9 @@ export function DesignProvider({ children }) {
     setLastFixIt(null);
   }, []);
 
-  const newDesign = useCallback(() => {
-    setDesign(withDefaults(defaultDesign()));
+  // A blank design, or a built one (the new-design wizard, P5.8).
+  const newDesign = useCallback((built) => {
+    setDesign(withDefaults(built && typeof built === 'object' && built.transformers ? built : defaultDesign()));
     setDesignId(null);
     setLastResults(null);
     setLastHosting(null);

@@ -26,6 +26,7 @@ const MonteCarloPage = lazy(() => import('./pages/MonteCarloPage.jsx'));
 const ChartsPage = lazy(() => import('./pages/ChartsPage.jsx'));
 const ScenariosPage = lazy(() => import('./pages/ScenariosPage.jsx'));
 const MapPage = lazy(() => import('./pages/MapPage.jsx'));
+const WizardPage = lazy(() => import('./pages/WizardPage.jsx'));
 const InsightsPage = lazy(() => import('./pages/InsightsPage.jsx'));
 const DesignsPage = lazy(() => import('./pages/DesignsPage.jsx'));
 const AboutPage = lazy(() => import('./pages/AboutPage.jsx'));
@@ -45,6 +46,7 @@ function ProtectedShell() {
           <Route path="network" element={<NetworkPage />} />
           <Route path="diagram" element={<DiagramPage />} />
           <Route path="map" element={<MapPage />} />
+          <Route path="wizard" element={<WizardPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="daily" element={<DailyPage />} />
           <Route path="charts" element={<ChartsPage />} />

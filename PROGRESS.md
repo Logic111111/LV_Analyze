@@ -66,7 +66,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P5.5** Issues panel
 - [x] **P5.6** "Explain this number" drawer
 - [x] **P5.7** Map-based network editor (react-leaflet, configurable tiles, haversine "measured vs entered")
-- [ ] **P5.8** Guided new-design wizard
+- [x] **P5.8** Guided new-design wizard
 - [ ] **P5.9** Report upgrade (new sections, print stylesheet, sign-off block, optional logo)
 - [ ] **P5.10** Internationalisation & accessibility (`t()`, en default, Sinhala/Tamil machine drafts)
 
@@ -762,6 +762,23 @@ within 1e-9.
   with the Map page.
 - **Browser check.** Tiles are mocked. Place TX and P1, use measured, add P4: all pass, with no
   horizontal scroll at 390 px.
+
+**P5.8 wizard (2026-10-21).**
+- **Code and route.** `lib/wizard.js` (`generatePoles`, `generateCustomers`, `buildWizardDesign`,
+  `validateWizard`, `initialWizard`, unit tested) and `pages/WizardPage.jsx` (`/app/wizard`).
+  Linked from Designs ("New design wizard…") and Setup.
+- **Steps.**
+  1. Transformer: library ratings, tap, HV, X/R, Rg.
+  2. Feeders: each is a radial chain, then an editable pole table.
+  3. Customers: per pole, rotated A→B→C or on one phase; ADMD when kVA is blank.
+  4. PV and EV: user-entered counts and sizes; with no size, no units are created.
+  5. Review: a quick check at 20:00 and 12:00, then Create.
+- **Inline validation.**
+  - Errors block Create: a rating not in the library, a span ≤ 0, a conductor with missing data,
+    a PV or EV count without a size.
+  - Warnings: spans over 60 m, no customers, connected ADMD above the transformer rating, more
+    PV/EV than customers.
+- **Context.** `newDesign(built)` now accepts a built design; it still goes through `withDefaults`.
 
 ## Phase verification log
 
