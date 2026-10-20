@@ -11,7 +11,7 @@ import {
   computeHostingCapacity, computeSystemHostingCapacity, pvHostingBaseline,
   computeBessHostingCapacity, computeSystemBessHostingCapacity, bessHostingBaseline,
   computeFeederSplitCandidates, searchDualFeederSplit, scoreDualFeederCandidate, makeTx, nextTransformerId,
-  proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runDailyScan, protectionCheck
+  proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runDailyScan, protectionCheck, tapAdvisor
 } from './loadflow.js';
 import { buildReportHtml } from './report.js';
 
@@ -55,7 +55,9 @@ export const ENGINE_TASKS = {
   protection: ({ design }, hooks) =>
     protectionCheck(design, runDailyScan(design, 0, { onProgress: hooks.onProgress, stage: 'Scanning 24 h for the load check' })),
 
-  report: ({ design, res, hosting, daily, bessHosting }) => buildReportHtml(design, res, hosting, daily, bessHosting)
+  tapAdvisor: ({ design, txId, horizon }, hooks) => tapAdvisor(design, txId, { horizon, onProgress: hooks.onProgress }),
+
+  report: ({ design, res, hosting, daily, bessHosting, extras }) => buildReportHtml(design, res, hosting, daily, bessHosting, extras)
 };
 
 // Progress messages are throttled: a hosting search can report thousands of steps, and each

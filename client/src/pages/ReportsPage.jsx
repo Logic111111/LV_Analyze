@@ -20,7 +20,7 @@ function groupByTx(design, items, txOf) {
 function txOfViolation(design, v) { return isTransformerId(design, v.pole) ? v.pole : transformerOfPole(design, v.pole); }
 
 export default function ReportsPage() {
-  const { design, lastResults, setLastResults, lastHosting, lastBessHosting, lastDaily } = useDesign();
+  const { design, lastResults, setLastResults, lastHosting, lastBessHosting, lastDaily, lastTapAdvice } = useDesign();
   const [year, setYear] = useState(0);
   const [hour, setHour] = useState(20);
   const [loadMult, setLoadMult] = useState(1);
@@ -30,7 +30,8 @@ export default function ReportsPage() {
   // built in the engine worker; only the download itself happens here.
   const reportTask = useEngineTask();
   async function downloadComprehensiveReport() {
-    const r = await reportTask.run('report', { design, res: lastResults, hosting: lastHosting, daily: lastDaily, bessHosting: lastBessHosting }, 'Building the report');
+    const extras = { tapAdvice: lastTapAdvice };
+    const r = await reportTask.run('report', { design, res: lastResults, hosting: lastHosting, daily: lastDaily, bessHosting: lastBessHosting, extras }, 'Building the report');
     if (r.ok) downloadHtml(r.result, reportFileName(design));
   }
 

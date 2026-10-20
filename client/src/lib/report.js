@@ -257,9 +257,27 @@ function faultSectionBody(design) {
   `;
 }
 
+// The last tap advisor run (P2.4), if any.
+function tapAdviceSectionBody(design, advice) {
+  if (!advice) return '<p class="empty">The tap advisor has not been run — open Setup → Tap advisor, compare tap positions, then regenerate this report.</p>';
+  const hh = h => String(h).padStart(2, '0') + ':00';
+  const w = x => `${x.value.toFixed(1)} V (${esc(x.pole)} ${esc(x.phase)}, ${hh(x.hour)}, yr ${x.year})`;
+  const rows = advice.byTap.map(t => [
+    t.tap + (t.tap === advice.currentTap ? ' (current)' : ''), t.hvWindingV + ' V', t.noLoadV.toFixed(1) + ' V',
+    ...advice.years.map(y => String(t.violationsByYear[y])), w(t.minV), w(t.maxV), t.marginV.toFixed(2) + ' V', t.kwhYear0.toFixed(2),
+    t.tap === advice.recommendedTap ? '<b>Recommended</b>' : t.totalViolations > advice.ranked[0].totalViolations ? 'Rejected' : 'Acceptable'
+  ]);
+  return `
+    <p>Transformer ${esc(advice.txId)}; band ${advice.vLow.toFixed(1)}–${advice.vHigh.toFixed(1)} V; full day for years ${advice.years.join(' and ')}. ${esc(advice.note)}</p>
+    ${advice.diagnosis ? `<p class="warn"><b>No tap clears every violation.</b> ${esc(advice.diagnosis.message)}</p>` : ''}
+    ${table(['Tap', 'HV winding', 'No-load LV', ...advice.years.map(y => 'Violations yr ' + y), 'Lowest V', 'Highest V', 'Worst margin', 'Loss (kWh/day)', 'Status'], rows)}
+  `;
+}
+
 // Builds a standalone, printable HTML report combining the design's setup, network and
 // (if available) the latest simulation snapshot, hosting-capacity scan and 24-hour scan.
-export function buildReportHtml(design, res, hosting, daily, bessHosting) {
+// `extras` carries the latest advisor results the pages have stored (tap advisor, …).
+export function buildReportHtml(design, res, hosting, daily, bessHosting, extras = {}) {
   const now = new Date().toLocaleString();
 
   const txRows = design.transformers.map(t => [
@@ -401,6 +419,7 @@ export function buildReportHtml(design, res, hosting, daily, bessHosting) {
   ${section('Latest solar hosting-capacity scan', hostingBody)}
   ${section('Latest BESS hosting-capacity scan', bessHostingBody)}
   ${section('Fault levels and protection', faultSectionBody(design))}
+  ${section('Tap advisor', tapAdviceSectionBody(design, extras.tapAdvice))}
 </body></html>`;
 }
 

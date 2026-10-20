@@ -14,6 +14,7 @@ export function DesignProvider({ children }) {
   const [lastHosting, setLastHosting] = useState(null);
   const [lastBessHosting, setLastBessHosting] = useState(null); // most recent BESS system-hosting scan
   const [lastDaily, setLastDaily] = useState(null); // most recent 24-hour scan, used by the downloadable report
+  const [lastTapAdvice, setLastTapAdvice] = useState(null); // most recent tap advisor run (P2.4), for the report
 
   const refreshSavedList = useCallback(async () => {
     try { const d = await api.listDesigns(); setSavedList(d.designs); }
@@ -37,6 +38,7 @@ export function DesignProvider({ children }) {
     setLastHosting(null);
     setLastBessHosting(null);
     setLastDaily(null);
+    setLastTapAdvice(null);
   }, []);
 
   const newDesign = useCallback(() => {
@@ -46,6 +48,7 @@ export function DesignProvider({ children }) {
     setLastHosting(null);
     setLastBessHosting(null);
     setLastDaily(null);
+    setLastTapAdvice(null);
   }, []);
 
   const removeDesign = useCallback(async (id) => {
@@ -58,7 +61,8 @@ export function DesignProvider({ children }) {
     <DesignContext.Provider value={{
       design, setDesign, designId, savedList, refreshSavedList,
       saveDesign, loadDesign, newDesign, removeDesign,
-      lastResults, setLastResults, lastHosting, setLastHosting, lastBessHosting, setLastBessHosting, lastDaily, setLastDaily
+      lastResults, setLastResults, lastHosting, setLastHosting, lastBessHosting, setLastBessHosting, lastDaily, setLastDaily,
+      lastTapAdvice, setLastTapAdvice
     }}>
       {children}
     </DesignContext.Provider>

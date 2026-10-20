@@ -1,6 +1,7 @@
 import { useDesign } from '../context/DesignContext.jsx';
 import { conductorCodes, getConductor, condX, condRn, secondaryLNVoltage, txImpedance, nextTransformerId, transformerRatings, getTransformerType } from '../lib/loadflow.js';
 import CurveEditor from '../components/CurveEditor.jsx';
+import TapAdvisorCard from '../components/TapAdvisorCard.jsx';
 
 export default function SetupPage() {
   const { design, setDesign } = useDesign();
@@ -76,6 +77,8 @@ export default function SetupPage() {
           <button className="primary" onClick={addTransformer}>+ Add transformer</button>
         </div>
       </div>
+
+      <div style={{ marginTop: 18 }}><TapAdvisorCard /></div>
 
       <div className="section-title">Transformer no-load loss by rating</div>
       <div className="card" style={{ padding: '8px 12px' }}>

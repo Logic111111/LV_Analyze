@@ -17,6 +17,7 @@
 //   bess.js                 BESS hosting capacity
 //   advisors/feederSplit.js feeder split advisor
 //   advisors/phaseBalance.js load balance advisor
+//   advisors/tapAdvisor.js  off-load tap advisor
 export * from './complex.js';
 export * from './sequence.js';
 export * from './model.js';
@@ -29,3 +30,4 @@ export * from './hosting.js';
 export * from './bess.js';
 export * from './advisors/feederSplit.js';
 export * from './advisors/phaseBalance.js';
+export * from './advisors/tapAdvisor.js';

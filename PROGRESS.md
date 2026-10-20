@@ -36,7 +36,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P2.1** Symmetrical components & VUF (phasors kept in results; per pole/hour + worst over 24 h; `'unbalance'` violation only when `design.standards.vufAsViolation`)
 - [x] **P2.2** Voltage-profile data — `distanceFromTx`, `voltageProfile`
 - [x] **P2.3** Fault level & protection check (`faults.js`, IEC 60909-style; fuse library empty by default; Protection panel + report section)
-- [ ] **P2.4** Tap advisor (multi-year, ranking, unbalance diagnosis, off-load note, Apply/Preview)
+- [x] **P2.4** Tap advisor (multi-year, ranking, unbalance diagnosis, off-load note, Apply/Preview)
 - [ ] **P2.5** Editable conductor library + reconductoring advisor
 - [ ] **P2.6** Fix-it ladder (combined solution advisor)
 - [ ] **P2.7** Standards profiles (`design.standards`; "Current app defaults" profile reproduces today exactly)
@@ -367,6 +367,20 @@ Decisions:
 
 UI: a new Protection tab (fault-level table, fuse library editor, head and section fuse positions,
 and the check run through the worker), a fault-settings card on Setup, and a report section.
+
+**P2.4 tap advisor (2026-10-20).** `tapAdvisor(design, txId, { horizon | years, hours })`. Only the
+chosen transformer's poles are judged.
+- **Margin:** the minimum over pole, phase, hour and year of the distance to the nearer limit
+  (negative means outside the band).
+- **Violation count:** pole-phase-hours outside the band, per year.
+- **Diagnosis order:** first the worst single-hour spread between the highest and lowest phase
+  voltage, compared with the band width (unbalance: balance first). Then the overall
+  min-to-max range (a fixed tap can't cover both ends). Then tap-step granularity.
+
+Goldens as specified: unbalanced → tap 2 with the unbalance diagnosis (31.7 V spread at
+19:00, year 5, against a 27.6 V band); balanced → tap 2, with taps 3/4 rejected. The UI is a card
+on Setup (worker task `tapAdvisor`), and the latest result goes into the report via
+`lastTapAdvice` and `buildReportHtml(…, extras)`.
 
 ## Phase verification log
 
