@@ -87,14 +87,18 @@ export function dailyEnergyLossKwh(design, extraBess = [], opts = {}) {
 // runSnapshot regardless.
 /** @param {SnapshotResult[]} snapshots */
 export function summarizeScan(snapshots) {
-  let voltageViolationCount = 0, thermalViolationCount = 0, txOverloadViolationCount = 0, lossKwh = 0;
+  let voltageViolationCount = 0, thermalViolationCount = 0, txOverloadViolationCount = 0, unbalanceViolationCount = 0, lossKwh = 0;
+  /** @type {{ value: number, pole: string, hour: number, year: number } | null} */
+  let worstVuf = null;
   const txStats = {};
   snapshots.forEach(res => {
     res.violations.forEach(v => {
       if (v.type === 'undervoltage' || v.type === 'overvoltage') voltageViolationCount++;
       else if (v.type === 'thermal') thermalViolationCount++;
       else if (v.type === 'transformer overload') txOverloadViolationCount++;
+      else if (v.type === 'unbalance') unbalanceViolationCount++;
     });
+    if (res.worstVuf && (!worstVuf || res.worstVuf.value > worstVuf.value)) worstVuf = { ...res.worstVuf, hour: res.hour, year: res.year };
     lossKwh += systemLossW(res).totalLossW / 1000;
     res.transformers.forEach(t => {
       let s = txStats[t.id];
@@ -115,7 +119,7 @@ export function summarizeScan(snapshots) {
   //     understate the worst phase by a factor of two or more, so it must never stand alone.
   const transformers = Object.values(txStats).map(s => ({ ...s, peakCurrentA: s.peakKva * 1000 / (Math.sqrt(3) * 415) }));
   const converged = snapshots.every(res => res.converged);
-  return { voltageViolationCount, thermalViolationCount, txOverloadViolationCount, lossKwh, converged, transformers };
+  return { voltageViolationCount, thermalViolationCount, txOverloadViolationCount, unbalanceViolationCount, worstVuf, lossKwh, converged, transformers };
 }
 
 // The default "test conditions" for a split search — every hour of the day, nominal solar. The

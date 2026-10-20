@@ -33,7 +33,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 
 ## Phase 2 — Engineering analyses
 
-- [ ] **P2.1** Symmetrical components & VUF (phasors kept in results; per pole/hour + worst over 24 h; `'unbalance'` violation only when `design.standards.vufAsViolation`)
+- [x] **P2.1** Symmetrical components & VUF (phasors kept in results; per pole/hour + worst over 24 h; `'unbalance'` violation only when `design.standards.vufAsViolation`)
 - [ ] **P2.2** Voltage-profile data — `distanceFromTx`, `voltageProfile`
 - [ ] **P2.3** Fault level & protection check (`faults.js`, IEC 60909-style; fuse library empty by default; Protection panel + report section)
 - [ ] **P2.4** Tap advisor (multi-year, ranking, unbalance diagnosis, off-load note, Apply/Preview)
@@ -324,6 +324,20 @@ On the worker now:
 Single snapshots (~4 ms: Reports, Diagram, previews) stay on the main thread. Leaving a page cancels
 its running task. Load balancing v2 and Monte Carlo will use the same mechanism when they arrive
 (P4.1, P4.4).
+
+**P2.1 VUF (2026-10-20).** `engine/sequence.js` (`sequenceComponents`, `vufPct`). The results
+gain:
+- `poleResults[].vufPct` and `transformers[].busVufPct`;
+- `worstVuf` and `vufLimitPct` per snapshot;
+- in `summarizeScan`, `worstVuf` (with hour and year) and `unbalanceViolationCount`.
+
+`design.standards = { vufLimitPct: 2, vufAsViolation: false }`. `withDefaults` now fills setting
+groups field by field (`DESIGN_SETTING_GROUPS`), so later standards fields reach older designs.
+
+Finding: on Walkthrough Island at 20:00, P3's VUF is 1.70 % (balanced: 0.74 %). That's below
+EN 50160's 2 %, even though P3's phase-to-neutral voltages span 212.9–239.2 V. Most of that spread
+is neutral shift, which is zero sequence and correctly excluded from VUF. So the phase-to-neutral
+band check, not VUF, is what bites on this feeder. No golden changed.
 
 ## Phase verification log
 

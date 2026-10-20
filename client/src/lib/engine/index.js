@@ -5,6 +5,7 @@
 //
 // Module map:
 //   complex.js              complex arithmetic, dense complex linear solve
+//   sequence.js             symmetrical components, voltage unbalance factor
 //   model.js                constants & libraries, defaultDesign/withDefaults, network helpers,
 //                           transformer electrical model
 //   loads.js                per-pole injections (curves, growth, ZIP, PV, BESS schedule)
@@ -15,6 +16,7 @@
 //   advisors/feederSplit.js feeder split advisor
 //   advisors/phaseBalance.js load balance advisor
 export * from './complex.js';
+export * from './sequence.js';
 export * from './model.js';
 export * from './loads.js';
 export * from './solver.js';

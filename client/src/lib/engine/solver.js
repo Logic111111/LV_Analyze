@@ -4,6 +4,7 @@
 import { C, PHASES, PHASE_ANGLE, factorComplexSystem, solveFactoredSystem } from './complex.js';
 import { conductorParams, getTransformerType, secondaryLNVoltage, txImpedance } from './model.js';
 import { netS, zipMultiplier, connectionIndex } from './loads.js';
+import { vufPct } from './sequence.js';
 /** @import { Design, Transformer, SnapshotOptions, SnapshotResult, Violation, Complex } from './types.js' */
 
 /* ============================================================
@@ -271,7 +272,7 @@ function solveTxSubtree(design, tx, opts) {
     const flowKW = Sspan.re / 1000, flowKVAR = Sspan.im / 1000;
     return {
       id, feeder: p.feeder, parent: p.parent, cond: p.cond, spanM: p.spanM,
-      volt, vph: { A: { ...V[id].A }, B: { ...V[id].B }, C: { ...V[id].C } },
+      volt, vph: { A: { ...V[id].A }, B: { ...V[id].B }, C: { ...V[id].C } }, vufPct: vufPct(V[id]),
       cur, In, rating, condPct: { A: cur.A / rating * 100, B: cur.B / rating * 100, C: cur.C / rating * 100 },
       flowKW, flowKVAR
     };
@@ -331,7 +332,7 @@ function solveTxSubtree(design, tx, opts) {
     converged, iterUsed, lastDelta, poleResults, totalLossW, lossByPole, groundLossW, groundLossByPole,
     summary: {
       id: tx.id, name: tx.name, txKVA, txPct, flowDirection, netKW, netKVAR, busVoltPct,
-      busVph: { A: { ...Vbus.A }, B: { ...Vbus.B }, C: { ...Vbus.C } }, phaseCurrentA, txZ, txLossW, txNoLoadW, V0
+      busVph: { A: { ...Vbus.A }, B: { ...Vbus.B }, C: { ...Vbus.C } }, busVufPct: vufPct(Vbus), phaseCurrentA, txZ, txLossW, txNoLoadW, V0
     }
   };
 }
@@ -410,8 +411,20 @@ export function runSnapshot(design, opts, ctx = {}) {
     if (t.txPct > 100 && t.flowDirection === 'import') violations.push({ pole: t.id, phase: '-', type: 'transformer overload', value: t.txPct });
   });
 
+  // Voltage unbalance (P2.1): always reported per pole (vufPct) and as the snapshot's worst; only
+  // raised as an 'unbalance' violation when the design's standards ask for it — off by default, so
+  // hosting, feeder-split and every other ranking is unchanged unless the user opts in.
+  const standards = /** @type {Partial<import('./types.js').Standards>} */ (design.standards || {});
+  const vufLimitPct = Number.isFinite(Number(standards.vufLimitPct)) ? Number(standards.vufLimitPct) : 2;
+  /** @type {{ pole: string, value: number } | null} */
+  let worstVuf = null;
+  poleResults.forEach(pr => {
+    if (!worstVuf || pr.vufPct > worstVuf.value) worstVuf = { pole: pr.id, value: pr.vufPct };
+    if (standards.vufAsViolation && pr.vufPct > vufLimitPct) violations.push({ pole: pr.id, phase: '-', type: 'unbalance', value: pr.vufPct });
+  });
+
   return {
     converged, iterUsed, lastDelta, poleResults, totalLossW, lossByPole, groundLossW, groundLossByPole, transformers,
-    violations, vLimLow, vLimHigh, year, hour, loadMult, solarMult
+    violations, vLimLow, vLimHigh, vufLimitPct, worstVuf, year, hour, loadMult, solarMult
   };
 }

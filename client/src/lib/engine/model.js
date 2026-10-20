@@ -109,6 +109,9 @@ export function defaultDesign() {
     loadModel: 'constant', zipZ: 0.2, zipI: 0.2, zipP: 0.6,
     txNoLoadW: Object.fromEntries(Object.entries(TRANSFORMERS).map(([k, t]) => [k, t.noLoadW])),
     vnom: 230, vdev: 6, maxpv: 5, maxbess: 5, bessRte: 0.90,
+    // Standards the results are judged against (grows in P2.3 / P2.7). VUF limit 2 % is the
+    // EN 50160 LV value (95 % of 10-min means over a week); counting it as a violation is opt-in.
+    standards: { vufLimitPct: 2, vufAsViolation: false },
     includeGeneral: true, includeEV: true, includeSolar: true, includeShop: true, includeBess: true, includeEVCS: true,
     bessChargeStartHour: 10, bessChargeEndHour: 14, bessDischargeStartHour: 19, bessDischargeEndHour: 23,
     loadCurve: [...DEFAULT_LOAD_CURVE], evCurve: [...DEFAULT_EV_CURVE], solarCurve: [...DEFAULT_SOLAR_CURVE], shopCurve: [...DEFAULT_SHOP_CURVE], evcsCurve: [...DEFAULT_EVCS_CURVE],
@@ -167,13 +170,24 @@ export function normalizeDesign(design) {
 // and the input is never mutated. Idempotent: withDefaults(withDefaults(d)) deep-equals
 // withDefaults(d). New fields added by later features get their (off-by-default) value here.
 const DESIGN_COLLECTIONS = ['poles', 'loads', 'pv', 'bess', 'openPoints'];
+// Settings groups whose individual fields are filled one by one, so a design saved after a group
+// existed but before one of its fields did still gets that field's default.
+const DESIGN_SETTING_GROUPS = ['standards'];
 /** @param {any} design A saved, imported or partial design. @returns {Design} */
+/** @param {any} value @param {Record<string, any>} defaults */
+function fillMissing(value, defaults) {
+  const out = { ...(value && typeof value === 'object' ? value : {}) };
+  Object.keys(defaults).forEach(k => { if (out[k] === undefined) out[k] = defaults[k]; });
+  return out;
+}
+
 export function withDefaults(design) {
   const base = normalizeDesign(design || {});
   const defaults = defaultDesign();
   const out = { ...base };
   Object.keys(defaults).forEach(k => {
     if (DESIGN_COLLECTIONS.includes(k)) { if (!Array.isArray(out[k])) out[k] = []; }
+    else if (DESIGN_SETTING_GROUPS.includes(k)) out[k] = fillMissing(out[k], defaults[k]);
     else if (out[k] === undefined) out[k] = defaults[k];
   });
   out.transformers = out.transformers.map(t => ({

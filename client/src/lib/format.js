@@ -22,3 +22,7 @@ export function txCurrentSummary(transformers) {
   if (!transformers || !transformers.length) return '—';
   return transformers.map(t => `${t.name || t.id} ${t.txMaxPhaseCurrentA.toFixed(0)} A (bal.-eq. ${t.peakCurrentA.toFixed(0)} A)`).join(' / ');
 }
+
+// Voltage unbalance factor text, e.g. "1.70 %". Older stored results (from before P2.1) have no
+// VUF field — shown as "—" rather than a misleading 0.
+export function vufText(v) { return Number.isFinite(v) ? v.toFixed(2) + ' %' : '—'; }

@@ -5,6 +5,7 @@ import YearPicker from '../components/YearPicker.jsx';
 import LineChart from '../components/LineChart.jsx';
 import TaskProgress from '../components/TaskProgress.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
+import { vufText } from '../lib/format.js';
 
 // Chart.js needs literal colour strings (not CSS var()), so the two themes' chart palettes are
 // kept here in step with the --* custom properties in styles.css.
@@ -146,6 +147,9 @@ function DailyResults({ rows, title }) {
   const hoursWithViolations = new Set(allViolations.map(v => v.hour)).size;
   const worstOver = allViolations.filter(v => v.type === 'overvoltage').sort((a, b) => b.value - a.value)[0];
   const worstUnder = allViolations.filter(v => v.type === 'undervoltage').sort((a, b) => a.value - b.value)[0];
+  // Worst voltage unbalance over the day (results from before P2.1 carry no VUF — skipped).
+  const worstVuf = rows.reduce((w, r) => (r.worstVuf && (!w || r.worstVuf.value > w.value) ? { ...r.worstVuf, hour: r.hour } : w), null);
+  const vufLimit = rows[0].vufLimitPct;
 
   const chart1Data = {
     labels,
@@ -232,6 +236,9 @@ function DailyResults({ rows, title }) {
         <div className={'stat ' + (hoursExporting ? 'warn' : 'ok')}><div className="v">{hoursExporting}/24</div><div className="l">Hours exporting to grid</div></div>
         <div className={'stat ' + (worstOver ? 'bad' : 'ok')}><div className="v">{worstOver ? worstOver.value.toFixed(1) + ' V' : '—'}</div><div className="l">Peak overvoltage{worstOver ? ` (h${worstOver.hour}, ${worstOver.pole}/${worstOver.phase})` : ''}</div></div>
         <div className={'stat ' + (worstUnder ? 'bad' : 'ok')}><div className="v">{worstUnder ? worstUnder.value.toFixed(1) + ' V' : '—'}</div><div className="l">Worst undervoltage{worstUnder ? ` (h${worstUnder.hour}, ${worstUnder.pole}/${worstUnder.phase})` : ''}</div></div>
+        {worstVuf && (
+          <div className={'stat ' + (worstVuf.value > vufLimit ? 'warn' : 'ok')}><div className="v">{vufText(worstVuf.value)}</div><div className="l">Worst voltage unbalance (VUF) over the day (h{worstVuf.hour}, {worstVuf.pole}; limit {vufLimit} %)</div></div>
+        )}
       </div>
 
       <div className="section-title">Transformer loading &amp; grid direction</div>
@@ -252,7 +259,7 @@ function DailyResults({ rows, title }) {
 
       <div className="section-title">Hour-by-hour summary</div>
       <div className="card"><div className="tbl-wrap"><table>
-        <thead><tr><th>Hour</th>{txIds.map(id => <th key={id}>{txName(id)}</th>)}<th>Min V (pole/phase)</th><th>Max V (pole/phase)</th><th>Violations</th></tr></thead>
+        <thead><tr><th>Hour</th>{txIds.map(id => <th key={id}>{txName(id)}</th>)}<th>Min V (pole/phase)</th><th>Max V (pole/phase)</th><th>Max VUF (pole)</th><th>Violations</th></tr></thead>
         <tbody>
           {rows.map((r, i) => {
             const vcount = r.violations.length;
@@ -266,6 +273,7 @@ function DailyResults({ rows, title }) {
                 })}
                 <td>{minVInfo[i].value.toFixed(1)} <span style={{ color: 'var(--muted)' }}>({minVInfo[i].pole}/{minVInfo[i].phase})</span></td>
                 <td>{maxVInfo[i].value.toFixed(1)} <span style={{ color: 'var(--muted)' }}>({maxVInfo[i].pole}/{maxVInfo[i].phase})</span></td>
+                <td>{r.worstVuf ? <>{vufText(r.worstVuf.value)} <span style={{ color: 'var(--muted)' }}>({r.worstVuf.pole})</span></> : '—'}</td>
                 <td><span className={'pill ' + (vcount ? 'bad' : 'ok')}>{vcount}</span></td>
               </tr>
             );

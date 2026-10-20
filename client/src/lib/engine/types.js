@@ -126,8 +126,16 @@
  * @property {number[]} solarCurve
  * @property {number[]} shopCurve
  * @property {number[]} evcsCurve
+ * @property {Standards} [standards]
  * @property {Record<string, ConductorType>} [conductorLibrary]
  * @property {Record<string, TransformerType>} [transformerLibrary]
+ */
+
+/**
+ * The standards results are judged against (more fields arrive with P2.3 / P2.7).
+ * @typedef {object} Standards
+ * @property {number} vufLimitPct     Voltage unbalance factor limit, % (EN 50160 LV: 2 %).
+ * @property {boolean} vufAsViolation Raise an 'unbalance' violation above the limit (default off).
  */
 
 /**
@@ -145,8 +153,8 @@
  * @typedef {object} Violation
  * @property {string} pole   Pole id, or the transformer id for 'transformer overload'.
  * @property {Phase | '-'} phase
- * @property {'undervoltage' | 'overvoltage' | 'thermal' | 'transformer overload'} type
- * @property {number} value  V for voltage types, % for thermal/overload.
+ * @property {'undervoltage' | 'overvoltage' | 'thermal' | 'transformer overload' | 'unbalance'} type
+ * @property {number} value  V for voltage types, % for thermal/overload, VUF % for unbalance.
  */
 
 /**
@@ -159,6 +167,7 @@
  * @property {number} spanM
  * @property {PhaseMap<number>} volt    |V| phase-to-local-neutral, V.
  * @property {PhaseMap<Complex>} vph    The same voltages as complex phasors (source phase A at 0°).
+ * @property {number} vufPct            Voltage unbalance factor |V2|/|V1|, %.
  * @property {PhaseMap<number>} cur     |I| per phase in the span, A.
  * @property {number} In                |I| in the span's neutral, A.
  * @property {number} rating            Conductor rating, A.
@@ -178,6 +187,7 @@
  * @property {number} netKVAR
  * @property {PhaseMap<number>} busVoltPct LV bus |V| per phase, V (historical name).
  * @property {PhaseMap<Complex>} busVph LV bus voltage phasors.
+ * @property {number} busVufPct LV bus voltage unbalance factor, %.
  * @property {PhaseMap<number>} phaseCurrentA |I| per phase through the transformer, A.
  * @property {{ r: number, x: number, z: number }} txZ
  * @property {number} txLossW   Copper loss, W.
@@ -199,6 +209,8 @@
  * @property {Violation[]} violations
  * @property {number} vLimLow
  * @property {number} vLimHigh
+ * @property {number} vufLimitPct
+ * @property {{ pole: string, value: number } | null} worstVuf Highest pole VUF in this snapshot.
  * @property {number} year
  * @property {number} hour
  * @property {number} loadMult

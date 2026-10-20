@@ -1,5 +1,5 @@
 import { getTransformerType, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh, pvHostingBaseline, bessHostingBaseline } from './loadflow.js';
-import { hostingLimitText } from './format.js';
+import { hostingLimitText, vufText } from './format.js';
 
 function esc(v) {
   return String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -56,7 +56,7 @@ function snapshotSectionBody(design, res) {
   );
   const poleVoltTable = perTxTable(
     design, res.poleResults, p => transformerOfPole(design, p.id),
-    ['Pole', 'Feeder', 'V-A', 'V-B', 'V-C'], p => [esc(p.id), esc(p.feeder), p.volt.A.toFixed(1), p.volt.B.toFixed(1), p.volt.C.toFixed(1)]
+    ['Pole', 'Feeder', 'V-A', 'V-B', 'V-C', 'VUF'], p => [esc(p.id), esc(p.feeder), p.volt.A.toFixed(1), p.volt.B.toFixed(1), p.volt.C.toFixed(1), vufText(p.vufPct)]
   );
   const currentTable = perTxTable(
     design, res.poleResults, p => transformerOfPole(design, p.id),
@@ -82,6 +82,7 @@ function snapshotSectionBody(design, res) {
       <div><span>Line (conductor) losses</span><b>${(res.totalLossW / 1000).toFixed(2)} kW</b></div>
       <div><span>Total transformer losses (copper + no-load)</span><b>${(totalTxLossW / 1000).toFixed(3)} kW</b></div>
       <div><span>Total system losses</span><b>${(totalSystemLossW / 1000).toFixed(2)} kW</b></div>
+      ${res.worstVuf ? `<div><span>Worst voltage unbalance (VUF, limit ${res.vufLimitPct} %)</span><b>${vufText(res.worstVuf.value)} at ${esc(res.worstVuf.pole)}</b></div>` : ''}
     </div>
     ${!res.converged ? `<p class="warn">Load flow did not fully converge after ${res.iterUsed} iterations (final mismatch ${res.lastDelta.toFixed(3)} V) — results may be inaccurate.</p>` : ''}
     <h3>Per-transformer summary</h3>${table(['Transformer', 'Direction', 'Net kW', 'Loading', 'LV bus V (A/B/C)', 'Copper loss (kW)', 'No-load loss (kW)'], txRows)}
@@ -102,6 +103,7 @@ function dailyScenarioBody(design, scenario, notRunMsg) {
   const allViolations = [];
   daily.forEach(r => r.violations.forEach(v => allViolations.push({ hour: r.hour, ...v })));
   const anyNonConverged = daily.some(r => !r.converged);
+  const worstVuf = daily.reduce((w, r) => (r.worstVuf && (!w || r.worstVuf.value > w.value) ? { ...r.worstVuf, hour: r.hour } : w), null);
   const hoursExporting = daily.filter(r => r.transformers.some(t => t.flowDirection === 'export')).length;
   const hoursWithViolations = new Set(allViolations.map(v => v.hour)).size;
   const worstOver = allViolations.filter(v => v.type === 'overvoltage').sort((a, b) => b.value - a.value)[0];
@@ -140,6 +142,7 @@ function dailyScenarioBody(design, scenario, notRunMsg) {
       <div><span>Load / solar multiplier</span><b>${(loadMult * 100).toFixed(0)}% / ${(solarMult * 100).toFixed(0)}%</b></div>
       <div><span>Hours with a violation</span><b>${hoursWithViolations}/24</b></div>
       <div><span>Hours exporting to grid</span><b>${hoursExporting}/24</b></div>
+      ${worstVuf ? `<div><span>Worst voltage unbalance (VUF)</span><b>${vufText(worstVuf.value)} (h${worstVuf.hour}, ${esc(worstVuf.pole)})</b></div>` : ''}
       <div><span>Peak overvoltage</span><b>${worstOver ? worstOver.value.toFixed(1) + ` V (h${worstOver.hour}, ${worstOver.pole}/${worstOver.phase})` : '—'}</b></div>
       <div><span>Worst undervoltage</span><b>${worstUnder ? worstUnder.value.toFixed(1) + ` V (h${worstUnder.hour}, ${worstUnder.pole}/${worstUnder.phase})` : '—'}</b></div>
     </div>

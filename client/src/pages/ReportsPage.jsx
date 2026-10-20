@@ -4,6 +4,7 @@ import { runSnapshot, getTransformerType, transformerOfPole, isTransformerId, sy
 import { downloadHtml, reportFileName } from '../lib/report.js';
 import TaskProgress from '../components/TaskProgress.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
+import { vufText } from '../lib/format.js';
 import YearPicker from '../components/YearPicker.jsx';
 
 function pillClassFor(level) { return level === 2 ? 'bad' : level === 1 ? 'warn' : 'ok'; }
@@ -119,6 +120,12 @@ function Report({ res, design }) {
       <div className="grid g4" style={{ marginTop: 10 }}>
         <div className="stat"><div className="v">{(txLossW / 1000).toFixed(3)} kW</div><div className="l">Transformer losses (all units, copper + no-load)</div></div>
         {hasGroundLoss && <div className="stat"><div className="v">{(groundLossW / 1000).toFixed(3)} kW</div><div className="l">Ground-electrode losses (grounded poles/star point)</div></div>}
+        {res.worstVuf && (
+          <div className={'stat ' + (res.worstVuf.value > res.vufLimitPct ? 'warn' : 'ok')}>
+            <div className="v">{vufText(res.worstVuf.value)}</div>
+            <div className="l">Worst voltage unbalance (VUF, at {res.worstVuf.pole}; limit {res.vufLimitPct} %{design.standards?.vufAsViolation ? ', counted as a violation' : ', reported only'})</div>
+          </div>
+        )}
       </div>
 
       {anyExporting && (
@@ -145,6 +152,7 @@ function Report({ res, design }) {
             </div>
             <div className="grid g3" style={{ marginTop: 14 }}>
               <div className="stat"><div className="v"><span className="phaseA">{t.busVoltPct.A.toFixed(1)}</span>/<span className="phaseB">{t.busVoltPct.B.toFixed(1)}</span>/<span className="phaseC">{t.busVoltPct.C.toFixed(1)}</span> V</div><div className="l">LV bus voltage A/B/C (post-transformer drop)</div></div>
+              <div className="stat"><div className="v">{vufText(t.busVufPct)}</div><div className="l">LV bus voltage unbalance (VUF)</div></div>
             </div>
           </div>
         );
@@ -155,7 +163,7 @@ function Report({ res, design }) {
         <div className="card" key={gi}>
           {g.tx && <p style={{ fontWeight: 600, marginTop: 0 }}>{g.tx.name || g.tx.id}</p>}
           <div className="tbl-wrap"><table>
-            <thead><tr><th>Pole</th><th>Feeder</th><th className="phaseA">V-A</th><th className="phaseB">V-B</th><th className="phaseC">V-C</th><th>Status</th></tr></thead>
+            <thead><tr><th>Pole</th><th>Feeder</th><th className="phaseA">V-A</th><th className="phaseB">V-B</th><th className="phaseC">V-C</th><th title="Voltage unbalance factor |V2|/|V1|">VUF</th><th>Status</th></tr></thead>
             <tbody>
               {g.items.map(p => {
                 const stat = (v) => v < res.vLimLow ? 2 : v > res.vLimHigh ? 2 : (v < res.vLimLow * 1.01 || v > res.vLimHigh * 0.99) ? 1 : 0;
@@ -164,13 +172,14 @@ function Report({ res, design }) {
                   <tr key={p.id}>
                     <td>{p.id}</td><td>{p.feeder}</td>
                     <td className="phaseA">{p.volt.A.toFixed(1)}</td><td className="phaseB">{p.volt.B.toFixed(1)}</td><td className="phaseC">{p.volt.C.toFixed(1)}</td>
+                    <td style={p.vufPct > res.vufLimitPct ? { color: 'var(--warn)', fontWeight: 700 } : undefined}>{vufText(p.vufPct)}</td>
                     <td><span className={'pill ' + pillClassFor(worst)}>{worst === 2 ? 'VIOLATION' : worst === 1 ? 'WATCH' : 'OK'}</span></td>
                   </tr>
                 );
               })}
             </tbody>
           </table></div>
-          <p className="hint" style={{ marginTop: 8 }}>Statutory band: {res.vLimLow.toFixed(1)} – {res.vLimHigh.toFixed(1)} V phase-neutral.</p>
+          <p className="hint" style={{ marginTop: 8 }}>Statutory band: {res.vLimLow.toFixed(1)} – {res.vLimHigh.toFixed(1)} V phase-neutral. VUF = negative- ÷ positive-sequence voltage (limit {res.vufLimitPct} %, EN 50160); values above the limit are shown bold.</p>
         </div>
       ))}
 

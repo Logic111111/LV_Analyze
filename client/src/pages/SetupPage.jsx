@@ -152,6 +152,10 @@ export default function SetupPage() {
             <input type="number" value={design.vnom} step={1} onChange={e => set({ vnom: num(e.target.value) })} /></label>
           <label className="field"><span>Allowed deviation (%)</span>
             <input type="number" value={design.vdev} step={0.5} onChange={e => set({ vdev: num(e.target.value) })} /></label>
+          <label className="field"><span>Voltage unbalance factor limit (%)</span>
+            <input type="number" value={design.standards.vufLimitPct} step={0.1} min={0} onChange={e => set({ standards: { ...design.standards, vufLimitPct: num(e.target.value) } })} /></label>
+          <label className="chk"><input type="checkbox" checked={!!design.standards.vufAsViolation} onChange={e => set({ standards: { ...design.standards, vufAsViolation: e.target.checked } })} /> Count VUF above the limit as a violation</label>
+          <p className="hint" style={{ marginTop: -4 }}>VUF = |negative-sequence| ÷ |positive-sequence| voltage. EN 50160's LV limit is 2 %. It is always reported; when counted as a violation it also affects hosting capacity and the advisors (off by default).</p>
           <label className="field"><span>Max single-phase PV per connection (kW)</span>
             <input type="number" value={design.maxpv} step={0.5} onChange={e => set({ maxpv: num(e.target.value) })} /></label>
           <label className="field"><span>Max single-phase BESS per connection (kW)</span>
