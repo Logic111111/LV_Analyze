@@ -195,39 +195,9 @@ the corrected, smaller upstream commitments leave more headroom.) The new values
   `eslint-plugin-react` support for ESLint 10 is the deciding factor; kept on 9 for now. Revisit
   when convenient — it doesn't affect the app.
 
-## Phase verification log
+## Item notes
 
-**Phase 1 (2026-10-20).**
-- **Checks.** `npm run lint` (0 problems), `npm run typecheck` (0 errors), `npm test` (173 tests in
-  15 files), `npm run build` (the worker is bundled as its own 41 kB chunk), and in `server/`,
-  `npm test` (4 node:test tests) plus `node --check` on every file. All pass on Node 22.
-- **Browser click-through** (headless Edge, `/api` mocked, run against both the Vite dev server
-  and `vite preview` of the production build, 12/12 checks each):
-  - PV hosting via the worker shows the new goldens (42.35 kVA; P2B 4.65 "limited by overvoltage
-    at P3 B, 11:00"; simultaneous 111.65 kVA).
-  - The 50-pole feeder shows determinate progress ("Testing each pole and phase — 22 of 150").
-  - The worst animation-frame gap during a search was 17 ms (the UI never blocked).
-  - Cancel stops the run and re-enables the button.
-  - The dual-feeder search (64 joint candidates), 24 h scan, report download and load-balance
-    proposal all complete through the worker.
-  - The progress UI fits 390 px in the dark theme with no horizontal scroll, and there were no
-    console errors.
-
-**Phase 0 (2026-10-20).** `npm ci`, `npm run lint` (0 errors, 0 warnings), `npm test` (8 files,
-92 tests), `npm run build`, and `node --check` on all 6 server files, all passing locally on
-Node 22. UI click-through: Vite dev server driven by headless Edge (Playwright), with `/api`
-mocked so an **old-format** Walkthrough Island (flat `txRating`, no `transformers[]`, BESS, open
-points or grounding) arrives through the real `DesignContext.loadDesign` path. The running Docker
-stack and the database were not touched. Results:
-- Load and JSON import of the old format both work, with no sample BESS/open-point rows injected.
-- Setup shows the migrated TX (100 kVA, tap 2, 10 800 V, X/R 3, Rg 7.5 Ω).
-- Run & Reports at 20:00 shows P3 212.9 / 239.2 / 235.6 V and 1 voltage violation (golden).
-- Load Balance shows 9 moves and 3 → 0 violations over 24 h (golden).
-- Feeder Split ranks P3, P2, P1 (golden).
-- Diagram, 24h Profile, both hosting pages, AI Insights and About all open; the dark theme works.
-- At 390 px width, Run & Reports has no horizontal overflow.
-- The only console error is a 404 for `/favicon.ico`: the app has no favicon, which predates this
-  work. Icons come with the P7.8 PWA manifest.
+What each completed item did, and the decisions taken along the way.
 
 **P1.1 engine split (2026-10-20).** `loadflow.js` was sliced into `engine/*.js` by line range,
 not retyped. A script asserted that every non-blank source line landed in exactly one module (the only
@@ -357,11 +327,51 @@ its running task. Load balancing v2 and Monte Carlo will use the same mechanism 
 
 ## Phase verification log
 
+**Phase 1 (2026-10-20).**
+- **Checks.** `npm run lint` (0 problems), `npm run typecheck` (0 errors), `npm test` (173 tests in
+  15 files), `npm run build` (the worker is bundled as its own 41 kB chunk), and in `server/`,
+  `npm test` (4 node:test tests) plus `node --check` on every file. All pass on Node 22.
+- **Browser click-through** (headless Edge, `/api` mocked, run against both the Vite dev server
+  and `vite preview` of the production build, 12/12 checks each):
+  - PV hosting via the worker shows the new goldens (42.35 kVA; P2B 4.65 "limited by overvoltage
+    at P3 B, 11:00"; simultaneous 111.65 kVA).
+  - The 50-pole feeder shows determinate progress ("Testing each pole and phase — 22 of 150").
+  - The worst animation-frame gap during a search was 17 ms (the UI never blocked).
+  - Cancel stops the run and re-enables the button.
+  - The dual-feeder search (64 joint candidates), 24 h scan, report download and load-balance
+    proposal all complete through the worker.
+  - The progress UI fits 390 px in the dark theme with no horizontal scroll, and there were no
+    console errors.
+
+**Phase 0 (2026-10-20).** `npm ci`, `npm run lint` (0 errors, 0 warnings), `npm test` (8 files,
+92 tests), `npm run build`, and `node --check` on all 6 server files, all passing locally on
+Node 22. UI click-through: Vite dev server driven by headless Edge (Playwright), with `/api`
+mocked so an **old-format** Walkthrough Island (flat `txRating`, no `transformers[]`, BESS, open
+points or grounding) arrives through the real `DesignContext.loadDesign` path. The running Docker
+stack and the database were not touched. Results:
+- Load and JSON import of the old format both work, with no sample BESS/open-point rows injected.
+- Setup shows the migrated TX (100 kVA, tap 2, 10 800 V, X/R 3, Rg 7.5 Ω).
+- Run & Reports at 20:00 shows P3 212.9 / 239.2 / 235.6 V and 1 voltage violation (golden).
+- Load Balance shows 9 moves and 3 → 0 violations over 24 h (golden).
+- Feeder Split ranks P3, P2, P1 (golden).
+- Diagram, 24h Profile, both hosting pages, AI Insights and About all open; the dark theme works.
+- At 390 px width, Run & Reports has no horizontal overflow.
+- The only console error is a 404 for `/favicon.ico`: the app has no favicon, which predates this
+  work. Icons come with the P7.8 PWA manifest.
+
+## Open questions for the user
 
 1. Docker images run Node 20, which is end-of-life. OK to move both Dockerfiles to `node:22-alpine`
    (would happen alongside P7.1, when both images are rebuilt anyway)?
 2. `walkthrough/` (containing `walkthrough-island.json`) is untracked. It matches the test fixture
    exactly (checked). Should it be committed (e.g. as `docs/walkthrough/`), or left out of git?
+3. **Hosting goldens changed (P1.3 fix 1).** Several hosting values in the brief's golden table
+   (e.g. balanced P2B 4.70 kVA, system P1C 40.05 kVA) fail a full load flow. The corrected values
+   are in "Golden-value notes" above. Please confirm you accept the new values; I've updated the
+   golden tests and kept the old ones alongside as comments.
+4. **Hosting baseline (P1.3 fix 2).** Candidates are compared against the *original* design's
+   violations, even inside the simultaneous queue (the conservative reading). Comparing against
+   "original + already-committed additions" would let tolerance accumulate. OK to keep it this way?
 
 ## Performance log
 
