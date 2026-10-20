@@ -4,6 +4,7 @@ import CurveEditor from '../components/CurveEditor.jsx';
 import TapAdvisorCard from '../components/TapAdvisorCard.jsx';
 import ConductorLibraryEditor from '../components/ConductorLibraryEditor.jsx';
 import StandardsCard from '../components/StandardsCard.jsx';
+import InverterCard from '../components/InverterCard.jsx';
 
 export default function SetupPage() {
   const { design, setDesign } = useDesign();
@@ -193,6 +194,8 @@ export default function SetupPage() {
           </div>
         </div>
       </div>
+
+      <div style={{ marginTop: 18 }}><InverterCard /></div>
 
       <div className="section-title">Fault level &amp; protection settings</div>
       <div className="card">

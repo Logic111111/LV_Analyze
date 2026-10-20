@@ -14,6 +14,7 @@
 //   profile.js              distance from the transformer, voltage-vs-distance profiles
 //   faults.js               fault levels (IEC 60909-style), fuse protection check
 //   standards.js            standards profiles (voltage band, VUF, loading limits, disconnection time)
+//   inverter.js             smart-inverter PV (volt-var, volt-watt, export limit)
 //   hosting.js              PV hosting capacity
 //   bess.js                 BESS hosting capacity
 //   advisors/feederSplit.js feeder split advisor
@@ -30,6 +31,7 @@ export * from './scan.js';
 export * from './profile.js';
 export * from './faults.js';
 export * from './standards.js';
+export * from './inverter.js';
 export * from './hosting.js';
 export * from './bess.js';
 export * from './advisors/feederSplit.js';

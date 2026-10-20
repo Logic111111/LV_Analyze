@@ -6,6 +6,7 @@ import { conductorParams, getTransformerType, secondaryLNVoltage, txImpedance } 
 import { netS, zipMultiplier, connectionIndex } from './loads.js';
 import { vufPct } from './sequence.js';
 import { standardsOf } from './standards.js';
+import { inverterSettings, inverterOutput } from './inverter.js';
 /** @import { Design, Transformer, SnapshotOptions, SnapshotResult, Violation, Complex } from './types.js' */
 
 /* ============================================================
@@ -139,14 +140,21 @@ function solveTxSubtree(design, tx, opts) {
   // snapshot here rather than on every iteration; only the ZIP multiplier (which does depend on
   // the iterate's |V|) is applied inside the loop.
   const injections = {}; order.forEach(id => { injections[id] = netS(design, id, year, hour, loadMult, solarMult, extraPV, extraBess, index); });
+  const invSettings = inverterSettings(design);
   for (let iter = 0; iter < MAX_ITER; iter++) {
     iterUsed = iter + 1;
     const Iself = {};
     order.forEach(id => {
-      const { loadS, otherS } = injections[id]; const Ip = {};
+      const { loadS, otherS, smart } = injections[id]; const Ip = {};
       PHASES.forEach(ph => {
         const zip = zipMultiplier(design, C.abs(V[id][ph]));
-        const S = C.add(C.mulS(loadS[ph], zip), otherS[ph]);
+        let S = C.add(C.mulS(loadS[ph], zip), otherS[ph]);
+        // Smart-inverter PV on this phase answers to this iterate's voltage (generation = −P − jQ
+        // in the load convention used here).
+        if (smart.length) {
+          const vPu = C.abs(V[id][ph]) / design.vnom;
+          smart.forEach(u => { if (u.phase === ph) { const o = inverterOutput(u, vPu, invSettings); S = C.add(S, { re: -o.p, im: -o.q }); } });
+        }
         Ip[ph] = C.conj(C.div(S, V[id][ph]));
       });
       Iself[id] = Ip;
@@ -274,6 +282,11 @@ function solveTxSubtree(design, tx, opts) {
     return {
       id, feeder: p.feeder, parent: p.parent, cond: p.cond, spanM: p.spanM,
       volt, vph: { A: { ...V[id].A }, B: { ...V[id].B }, C: { ...V[id].C } }, vufPct: vufPct(V[id]),
+      inverters: injections[id].smart.map(u => {
+        const vPu = C.abs(V[id][u.phase]) / design.vnom;
+        const o = inverterOutput(u, vPu, invSettings);
+        return { id: u.id, phase: u.phase, mode: u.mode, vPu, pAvailKw: u.pAvail, pKw: o.p, qKvar: o.q, curtailedKw: Math.max(u.pAvail - o.p, 0) };
+      }),
       cur, In, rating, condPct: { A: cur.A / rating * 100, B: cur.B / rating * 100, C: cur.C / rating * 100 },
       flowKW, flowKVAR
     };

@@ -43,7 +43,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 
 ## Phase 3 — Advanced modelling (all off by default)
 
-- [ ] **P3.1** Smart-inverter PV (volt-var / volt-watt / export limit; IEEE 1547-2018 Cat B seed curves, labelled)
+- [x] **P3.1** Smart-inverter PV (volt-var / volt-watt / export limit; IEEE 1547-2018 Cat B seed curves, labelled)
 - [ ] **P3.2** BESS with state of charge (`schedule` default; `socSchedule` / `solarFollowing`)
 - [ ] **P3.3** Transformer thermal ageing (IEC 60076-7)
 - [ ] **P3.4** HV voltage profile (`hvProfile`, default all 1.0)
@@ -430,6 +430,21 @@ User profiles are stored in the browser (`localStorage`); the limits applied are
 design. Shared organisation profiles are deferred to P7.4. The disconnection time moved from the
 fault card to the Standards card. Under the defaults, results are bit-identical (the 1e-9 lock
 passes).
+
+**P3.1 smart inverters (2026-10-20).** `engine/inverter.js` plus `design.inverter` (`mode`,
+`voltVarCurve`, `voltWattCurve`, `exportLimitKw`), with an optional `pv.inverterMode` override.
+In `netS`, unity units with no export limit stay constant injections (bit-identical). Every other
+unit is a "smart" injection evaluated each iteration at its own phase voltage, and a 3-phase unit
+is three single-phase thirds.
+
+Decisions:
+- **Reactive priority** within the rating (IEEE 1547-2018 default for volt-var).
+- **Export limit** caps each PV unit's P. There's no customer-load netting, because a PV system
+  isn't linked to a particular load connection in the model.
+- **Hosting candidates** behave under the design's inverter mode.
+
+**Waiting on data:** the local grid code's inverter settings. The Cat B seed is marked as a
+placeholder in the UI.
 
 ## Phase verification log
 

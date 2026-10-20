@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
 import { feederRoots, poleById, isTransformerId, transformerOfPole, PHASES, conductorCodes } from '../lib/loadflow.js';
+import { INVERTER_MODE_LABELS } from '../components/InverterCard.jsx';
 
 export default function NetworkPage() {
   const { design, setDesign } = useDesign();
@@ -235,11 +236,15 @@ export default function NetworkPage() {
       <div className="section-title">Rooftop solar PV</div>
       <div className="card">
         <div className="tbl-wrap"><table>
-          <thead><tr><th>Pole</th><th>Phase</th><th>kVA</th><th></th></tr></thead>
+          <thead><tr><th>Pole</th><th>Phase</th><th>kVA</th><th>Inverter</th><th></th></tr></thead>
           <tbody>
             {design.pv.map(p => (
               <tr key={p.id}>
                 <td>{p.pole}</td><td className={p.phase !== 'ABC' ? 'phase' + p.phase : ''}>{p.phase}</td><td>{p.kva}</td>
+                <td><select aria-label={`Inverter mode for ${p.id}`} value={p.inverterMode || ''} onChange={e => setDesign(d => ({ ...d, pv: d.pv.map(x => (x.id === p.id ? { ...x, inverterMode: e.target.value || undefined } : x)) }))}>
+                  <option value="">Design setting ({INVERTER_MODE_LABELS[design.inverter.mode]})</option>
+                  {Object.entries(INVERTER_MODE_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                </select></td>
                 <td><button className="mini" onClick={() => removePv(p.id)}>remove</button></td>
               </tr>
             ))}

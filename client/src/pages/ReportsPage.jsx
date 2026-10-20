@@ -206,6 +206,21 @@ function Report({ res, design }) {
         </div>
       ))}
 
+      {res.poleResults.some(p => p.inverters && p.inverters.length) && (
+        <>
+          <div className="section-title">Smart-inverter PV output</div>
+          <div className="card"><div className="tbl-wrap"><table>
+            <thead><tr><th>Pole</th><th>Unit</th><th>Phase</th><th>Mode</th><th>V (pu)</th><th>Available (kW)</th><th>P (kW)</th><th>Q (kVAR)</th><th>Curtailed (kW)</th></tr></thead>
+            <tbody>
+              {res.poleResults.flatMap(p => (p.inverters || []).map((u, i) => (
+                <tr key={p.id + i}><td>{p.id}</td><td>{u.id || 'candidate'}</td><td className={'phase' + u.phase}>{u.phase}</td><td>{u.mode}</td><td>{u.vPu.toFixed(3)}</td><td>{u.pAvailKw.toFixed(2)}</td><td>{u.pKw.toFixed(2)}</td><td>{u.qKvar.toFixed(2)}</td><td>{u.curtailedKw.toFixed(2)}</td></tr>
+              )))}
+            </tbody>
+          </table></div>
+          <p className="hint" style={{ marginTop: 8 }}>Q positive = injecting (raises voltage), negative = absorbing. Curtailment is the sunlight-limited power the inverter did not deliver because of volt-watt, the apparent-power limit or the export limit.</p></div>
+        </>
+      )}
+
       {res.violations.length > 0 && (
         <>
           <div className="section-title">Violations detail</div>

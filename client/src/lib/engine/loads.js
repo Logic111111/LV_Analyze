@@ -2,6 +2,7 @@
 // Per-pole complex power injections for one hour: demand (ADMD/curves/growth, optional ZIP
 // voltage dependence), rooftop PV, and the BESS charge/discharge schedule.
 import { C, PHASES } from './complex.js';
+import { inverterSettings, unitMode } from './inverter.js';
 /** @import { Design, Connection, PvConnection, Complex, ConnectionPhase } from './types.js' */
 
 /* ============================================================
@@ -73,7 +74,7 @@ export function connectionIndex(design) {
  * @param {number} loadMult @param {number} solarMult
  * @param {PvConnection[]} extraPV @param {PvConnection[]} [extraBess]
  * @param {ConnectionIndex} [index] Prebuilt connectionIndex(design); built here if omitted.
- * @returns {{ loadS: import('./types.js').PhaseMap<Complex>, otherS: import('./types.js').PhaseMap<Complex> }} kVA
+ * @returns {{ loadS: import('./types.js').PhaseMap<Complex>, otherS: import('./types.js').PhaseMap<Complex>, smart: { id?: string, phase: import('./types.js').Phase, kva: number, pAvail: number, mode: string }[] }} kVA
  */
 export function netS(design, poleId, year, hour, loadMult, solarMult, extraPV, extraBess = [], index = undefined) {
   const conns = (index || connectionIndex(design)).get(poleId) || NO_CONNECTIONS;
@@ -105,14 +106,25 @@ export function netS(design, poleId, year, hour, loadMult, solarMult, extraPV, e
       addTo(loadS, l.phase, loadKvaAt(design, l, year, hour) * loadMult, design.pf, +1);
     });
   }
+  // PV: a unity-pf unit with no export limit (the default, and the historical behaviour) is a
+  // constant injection in otherS exactly as before. A unit in a smart mode, or under an export
+  // limit, is returned in `smart` instead: its P and Q depend on the local voltage and are set
+  // inside the solver iteration (see inverter.js). A 3-phase unit becomes three single-phase
+  // thirds, each answering to its own phase voltage.
+  const inv = inverterSettings(design);
+  /** @type {{ id?: string, phase: import('./types.js').Phase, kva: number, pAvail: number, mode: string }[]} */
+  const smart = [];
+  const addPv = (/** @type {any} */ p, /** @type {number} */ pAvail) => {
+    const mode = unitMode(p, inv);
+    if (mode === 'unity' && inv.exportLimitKw === null) { addTo(otherS, p.phase, pAvail, 1.0, -1); return; }
+    const kva = Number(p.kva);
+    if (p.phase === 'ABC') PHASES.forEach(ph => smart.push({ id: p.id, phase: ph, kva: kva / 3, pAvail: pAvail / 3, mode }));
+    else smart.push({ id: p.id, phase: p.phase, kva, pAvail, mode });
+  };
   if (design.includeSolar) {
-    conns.pv.forEach(p => {
-      addTo(otherS, p.phase, pvKvaAt(design, p, hour) * solarMult, 1.0, -1);
-    });
+    conns.pv.forEach(p => addPv(p, pvKvaAt(design, p, hour) * solarMult));
   }
-  extraPV.filter(p => p.pole === poleId).forEach(p => {
-    addTo(otherS, p.phase, Number(p.kva) * solarMult, 1.0, -1);
-  });
+  extraPV.filter(p => p.pole === poleId).forEach(p => addPv(p, Number(p.kva) * solarMult));
   // Round-trip efficiency is modelled as a derate on the discharge (export) side only — charge
   // draw from the grid stays at the connection's full rated kVA (that's genuinely what gets
   // pulled from the network), while discharge output is scaled down by bessRte. With no
@@ -131,7 +143,7 @@ export function netS(design, poleId, year, hour, loadMult, solarMult, extraPV, e
     if (mult > 0) addTo(otherS, b.phase, Number(b.kva) * mult * rte, 1.0, -1);
     else if (mult < 0) addTo(otherS, b.phase, Number(b.kva) * Math.abs(mult), 1.0, +1);
   });
-  return { loadS, otherS };
+  return { loadS, otherS, smart };
 }
 
 // ZIP voltage-dependence multiplier: P(V) = P0·[aZ·(V/V0)² + aI·(V/V0) + aP], and the same ratio

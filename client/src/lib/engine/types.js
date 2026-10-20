@@ -127,6 +127,7 @@
  * @property {number[]} shopCurve
  * @property {number[]} evcsCurve
  * @property {Standards} [standards]
+ * @property {import('./inverter.js').InverterSettings} [inverter]
  * @property {import('./faults.js').FaultSettings} [fault]
  * @property {import('./faults.js').FuseType[]} [fuseLibrary]
  * @property {{ feederFuses: Record<string, string>, poleFuses: Record<string, string> }} [protection]
@@ -174,6 +175,8 @@
  * @property {number} spanM
  * @property {PhaseMap<number>} volt    |V| phase-to-local-neutral, V.
  * @property {PhaseMap<Complex>} vph    The same voltages as complex phasors (source phase A at 0°).
+ * @property {{ id?: string, phase: Phase, mode: string, vPu: number, pAvailKw: number, pKw: number, qKvar: number, curtailedKw: number }[]} [inverters]
+ *   Smart-inverter PV units at this pole (empty in unity mode): final output and curtailment.
  * @property {number} vufPct            Voltage unbalance factor |V2|/|V1|, %.
  * @property {PhaseMap<number>} cur     |I| per phase in the span, A.
  * @property {number} In                |I| in the span's neutral, A.

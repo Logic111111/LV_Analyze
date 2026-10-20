@@ -1,4 +1,4 @@
-import { getTransformerType, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh, pvHostingBaseline, bessHostingBaseline, faultLevels, protectionCheck, C, describeReconductor, standardsOf } from './loadflow.js';
+import { getTransformerType, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh, pvHostingBaseline, bessHostingBaseline, faultLevels, protectionCheck, C, describeReconductor, standardsOf, inverterSettings } from './loadflow.js';
 import { hostingLimitText, vufText } from './format.js';
 
 function esc(v) {
@@ -89,6 +89,8 @@ function snapshotSectionBody(design, res) {
     <h3>Violations</h3>${violationsTable}
     <h3>Pole voltages (V, phase-neutral)</h3>${poleVoltTable}
     <h3>Span currents &amp; loading</h3>${currentTable}
+    ${res.poleResults.some(p => p.inverters && p.inverters.length) ? `<h3>Smart-inverter PV output</h3>${table(['Pole', 'Unit', 'Phase', 'Mode', 'V (pu)', 'Available (kW)', 'P (kW)', 'Q (kVAR)', 'Curtailed (kW)'],
+      res.poleResults.flatMap(p => (p.inverters || []).map(u => [esc(p.id), esc(u.id || 'candidate'), u.phase, esc(u.mode), u.vPu.toFixed(3), u.pAvailKw.toFixed(2), u.pKw.toFixed(2), u.qKvar.toFixed(2), u.curtailedKw.toFixed(2)])))}` : ''}
   `;
 }
 
@@ -329,6 +331,7 @@ export function buildReportHtml(design, res, hosting, daily, bessHosting, extras
       <div><span>Nominal phase-neutral voltage</span><b>${design.vnom} V</b></div>
       <div><span>Allowed deviation</span><b>±${design.vdev}%</b></div>
       <div><span>Standards profile</span><b>${esc(standardsOf(design).profileName)}</b></div>
+      <div><span>Smart-inverter PV</span><b>${esc(inverterSettings(design).mode)}${inverterSettings(design).exportLimitKw !== null ? `, export limit ${inverterSettings(design).exportLimitKw} kW` : ''}</b></div>
       <div><span>Loading limits (cable / transformer)</span><b>${standardsOf(design).cableLoadingLimitPct}% / ${standardsOf(design).txLoadingLimitPct}%</b></div>
       <div><span>VUF limit</span><b>${standardsOf(design).vufLimitPct}% (${standardsOf(design).vufAsViolation ? 'counted as a violation' : 'reported only'})</b></div>
       <div><span>Max single-phase PV per connection</span><b>${design.maxpv} kW</b></div>
