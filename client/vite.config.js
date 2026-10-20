@@ -13,5 +13,12 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  // Vitest. The engine is plain dependency-free JS, so its tests run in a bare Node environment —
+  // no jsdom — which is also what proves it still runs outside the browser.
+  test: {
+    include: ['src/**/__tests__/**/*.test.js'],
+    environment: 'node',
+    testTimeout: 60000
   }
 });
