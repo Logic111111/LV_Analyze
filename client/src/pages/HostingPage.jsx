@@ -4,6 +4,7 @@ import BaselineBanner from '../components/BaselineBanner.jsx';
 import TaskProgress from '../components/TaskProgress.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
 import { HostingLimitCell, HostingNonConvergenceWarning } from '../components/Convergence.jsx';
+import ExplainDrawer from '../components/ExplainDrawer.jsx';
 
 export default function HostingPage() {
   const { design, setLastHosting } = useDesign();
@@ -15,6 +16,12 @@ export default function HostingPage() {
   const sys = useEngineTask();
   const quick = useEngineTask();
   const [estimate, setEstimate] = useState(null);
+  const explainTask = useEngineTask();
+  const [explain, setExplain] = useState(null);
+  async function runExplain(r) {
+    const t = await explainTask.run('explainHosting', { design, pole: r.pole, phase: r.phase }, `Tracing the search at ${r.pole} ${r.phase}`);
+    if (t.ok) setExplain(t.result);
+  }
 
   // Linear first estimate (P4.2): seconds faster than the search, voltage limits only, one hour.
   async function runEstimate() {
@@ -79,15 +86,18 @@ export default function HostingPage() {
               <p className="hint">Ranked best-to-worst. Values are the extra single-phase PV (kVA) that can be added at that pole/phase before a voltage or thermal limit is reached, capped at {design.maxpv} kW. Each row is tested independently, so the total below is an upper bound, not a guaranteed simultaneous addition.</p>
               <p><strong>Total additional PV headroom: {results.reduce((sum, r) => sum + r.kva, 0).toFixed(2)} kVA</strong> across {results.length} pole/phase location{results.length === 1 ? '' : 's'}</p>
               <HostingNonConvergenceWarning rows={results} />
+              <TaskProgress task={explainTask} />
+              <ExplainDrawer trace={explain} onClose={() => setExplain(null)} />
               <div className="tbl-wrap"><table>
-                <thead><tr><th>Rank</th><th>Pole</th><th>Phase</th><th>Additional PV headroom (kVA)</th><th>Limited by</th></tr></thead>
+                <thead><tr><th>Rank</th><th>Pole</th><th>Phase</th><th>Additional PV headroom (kVA)</th><th>Limited by</th><th></th></tr></thead>
                 <tbody>
                   {results.map((r, i) => (
-                    <tr key={i}><td>{i + 1}</td><td>{r.pole}</td><td className={'phase' + r.phase}>{r.phase}</td><td>{r.kva.toFixed(2)}</td><HostingLimitCell row={r} capLabel={`Setup cap (${design.maxpv} kW)`} /></tr>
+                    <tr key={i}><td>{i + 1}</td><td>{r.pole}</td><td className={'phase' + r.phase}>{r.phase}</td><td>{r.kva.toFixed(2)}</td><HostingLimitCell row={r} capLabel={`Setup cap (${design.maxpv} kW)`} />
+                      <td><button className="mini" onClick={() => runExplain(r)} disabled={explainTask.running} aria-label={`Explain the result at ${r.pole} phase ${r.phase}`}>Explain</button></td></tr>
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr><td colSpan={3}><strong>Total</strong></td><td><strong>{results.reduce((sum, r) => sum + r.kva, 0).toFixed(2)}</strong></td><td></td></tr>
+                  <tr><td colSpan={3}><strong>Total</strong></td><td><strong>{results.reduce((sum, r) => sum + r.kva, 0).toFixed(2)}</strong></td><td></td><td></td></tr>
                 </tfoot>
               </table></div>
             </div>

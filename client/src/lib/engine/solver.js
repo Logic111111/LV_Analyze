@@ -376,6 +376,8 @@ function solveTxSubtree(design, tx, opts) {
     return {
       id, feeder: p.feeder, parent: p.parent, cond: p.cond, spanM: p.spanM,
       volt, vph: { A: { ...V[id].A }, B: { ...V[id].B }, C: { ...V[id].C } }, vn: vnShift[id], vufPct: vufPct(V[id]),
+      // Complex span phase currents (P5.6 explain traces), A; `cur` holds their magnitudes.
+      icum: { A: { ...Icum[id].A }, B: { ...Icum[id].B }, C: { ...Icum[id].C } },
       inverters: injections[id].smart.map(u => {
         const vPu = C.abs(V[id][u.phase]) / design.vnom;
         const o = inverterOutput(u, vPu, invSettings);
@@ -453,7 +455,8 @@ function solveTxSubtree(design, tx, opts) {
     convergence: { status, retried, deltaHistory },
     summary: {
       id: tx.id, name: tx.name, txKVA, txPct, flowDirection, netKW, netKVAR, busVoltPct,
-      busVph: { A: { ...Vbus.A }, B: { ...Vbus.B }, C: { ...Vbus.C } }, busVufPct: vufPct(Vbus), phaseCurrentA, txZ, txLossW, txNoLoadW, V0, hvMultiplier: hvMult
+      busVph: { A: { ...Vbus.A }, B: { ...Vbus.B }, C: { ...Vbus.C } }, busVufPct: vufPct(Vbus), phaseCurrentA, txZ, txLossW, txNoLoadW, V0, hvMultiplier: hvMult,
+      itot: { A: { ...Itot.A }, B: { ...Itot.B }, C: { ...Itot.C } } // complex secondary phase currents (P5.6)
     }
   };
 }

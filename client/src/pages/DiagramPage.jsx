@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useDesign } from '../context/DesignContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
-import { faultLevels, connectionPowerAt, predictVoltages, phaseMoveChanges, applyPhaseBalance } from '../lib/loadflow.js';
+import { faultLevels, connectionPowerAt, predictVoltages, phaseMoveChanges, applyPhaseBalance, explainPoleVoltage, explainSpanLoading, explainSpanLoss, explainTxLoading, explainFault, explainVuf } from '../lib/loadflow.js';
+import ExplainDrawer from '../components/ExplainDrawer.jsx';
 import { buildDiagramSVG } from '../lib/diagram.js';
 import { buildSldScene } from '../lib/sld/scene.js';
 import { sceneToSvg } from '../lib/sld/svg.js';
@@ -49,6 +50,7 @@ export default function DiagramPage() {
   const [moves, setMoves] = useState([]);
   const [pending, setPending] = useState(null); // { ref, to, predicted, before }
   const [confirmed, setConfirmed] = useState(null);
+  const [explain, setExplain] = useState(null); // a trace from engine/explain.js (P5.6)
 
   // Live solve: every change of design / hour / year / multipliers, debounced, in the worker.
   useEffect(() => {
@@ -70,6 +72,19 @@ export default function DiagramPage() {
   // The scene must describe the design the result was solved for, so it waits for the solve.
   const sceneDesign = solvedFor.current ? solvedFor.current.design : design;
   const op = solvedFor.current ? { year: solvedFor.current.year, hour: solvedFor.current.hour, loadMult: solvedFor.current.loadMult, solarMult: solvedFor.current.solarMult } : null;
+
+  // ---- P5.6 explain ----
+  function openExplain(kind, id) {
+    if (!res) return;
+    const d = sceneDesign;
+    const t = kind === 'poleVoltage' ? explainPoleVoltage(d, res, id.split('|')[0], id.split('|')[1])
+      : kind === 'vuf' ? explainVuf(res, id)
+        : kind === 'spanLoading' ? explainSpanLoading(d, res, id)
+          : kind === 'spanLoss' ? explainSpanLoss(d, res, id)
+            : kind === 'txLoading' ? explainTxLoading(d, res, id)
+              : kind === 'fault' ? explainFault(d, id) : null;
+    setExplain(t);
+  }
 
   // ---- P5.2 what-if ----
   async function ensureSens() {
@@ -212,7 +227,7 @@ export default function DiagramPage() {
                 </p>
               </div>
               <div className="card sld-panel" aria-live="polite">
-                <SldDetails design={sceneDesign} res={res} faults={faults} protection={protection} element={selected} onMove={doMove} onPreviewMove={previewMove} />
+                <SldDetails design={sceneDesign} res={res} faults={faults} protection={protection} element={selected} onMove={doMove} onPreviewMove={previewMove} onExplain={openExplain} />
               </div>
             </div>
           )}
@@ -245,6 +260,7 @@ export default function DiagramPage() {
               })()}
             </div>
           )}
+          <ExplainDrawer trace={explain} onClose={() => setExplain(null)} />
           {exportingTx.length > 0 && (
             <div className="note" style={{ marginTop: 14, borderColor: 'var(--warn)' }}>
               {exportingTx.length === 1

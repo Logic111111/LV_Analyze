@@ -172,10 +172,15 @@ export function pvHostingBaseline(design) { return hostingBaseline(design, HOSTI
 // hour — the baseline's to begin with, then the previous size tried — since consecutive sizes
 // differ only in one injection. Measured: ~37 % less time on a 50-pole feeder, every hosting
 // golden unchanged.
-/** @param {Design} design @param {string} pole @param {import('./types.js').Phase} phase @param {number} hi @param {PvConnection[]} committed @param {HostingBaseline} baseline */
-function findMaxPV(design, pole, phase, hi, committed, baseline) {
+/**
+ * `trace`, when given, collects every size tried and its outcome, in order (P5.6 "explain").
+ * @param {Design} design @param {string} pole @param {import('./types.js').Phase} phase @param {number} hi @param {PvConnection[]} committed @param {HostingBaseline} baseline
+ * @param {{ kva: number, failure: HostingFailure | null }[] | null} [trace]
+ */
+function findMaxPV(design, pole, phase, hi, committed, baseline, trace = null) {
   const warm = new Map(baseline.startByHour);
-  return searchWithLimit(kva => {
+  /** @param {number} kva @returns {HostingFailure | null} */
+  const check = (kva) => {
     for (const h of HOSTING_TEST_HOURS) {
       const res = runSnapshot(design, { year: 0, hour: h, loadMult: 1, solarMult: 1, extraPV: [...committed, { pole, phase, kva }], bessDispatch: baseline.dispatchByHour ? baseline.dispatchByHour.get(h) : null }, { ...baseline.ctx, initialV: warm.get(h) || null });
       // Voltage collapse (P4.3) is a network limit in its own right, checked first: with any real
@@ -187,7 +192,21 @@ function findMaxPV(design, pole, phase, hi, committed, baseline) {
       if (v) return { reason: 'violation', detail: { hour: h, ...v } };
     }
     return null;
-  }, hi);
+  };
+  return searchWithLimit(trace ? (kva) => { const f = check(kva); trace.push({ kva, failure: f }); return f; } : check, hi);
+}
+
+/**
+ * The PV hosting search at one pole-phase with every size it tried (P5.6): the same search as the
+ * Hosting page's independent table, so `result` equals that row.
+ * @param {Design} design @param {string} pole @param {import('./types.js').Phase} phase @param {number} [cap]
+ */
+export function traceHostingSearch(design, pole, phase, cap = design.maxpv) {
+  const baseline = pvHostingBaseline(design);
+  /** @type {{ kva: number, failure: HostingFailure | null }[]} */
+  const trace = [];
+  const result = findMaxPV(design, pole, phase, cap, [], baseline, trace);
+  return { pole, phase, cap, testHours: HOSTING_TEST_HOURS, result, trace, baselineViolations: baseline.violations };
 }
 
 /** @param {Design} design @param {number} cap @param {HostingBaseline} baseline @param {import('./types.js').ProgressHooks} hooks @param {string} stage @returns {HostingRow[]} */

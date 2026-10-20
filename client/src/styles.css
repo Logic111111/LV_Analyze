@@ -108,6 +108,9 @@ tr:hover td{background:var(--panel-2)}
 .issues-drawer{position:fixed;right:16px;bottom:64px;z-index:41;width:min(420px,calc(100vw - 32px));max-height:min(70vh,640px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 .issues-list{list-style:none;margin:0;padding:0}
 .issues-list li{padding:8px 0;border-top:1px solid var(--line)}
+/* Explain drawer (P5.6): a modal panel from the right. */
+.explain-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:60;display:flex;justify-content:flex-end}
+.explain-drawer{background:var(--panel);width:min(760px,100vw);height:100%;overflow:auto;padding:16px;border-left:1px solid var(--line);box-sizing:border-box}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .authwrap{max-width:380px;margin:80px auto;padding:0 20px}
 .error-banner{background:rgba(220,38,38,.1);border:1px solid var(--bad);color:var(--bad);padding:10px 14px;border-radius:8px;font-size:12.5px;margin-bottom:14px}

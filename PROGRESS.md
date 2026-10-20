@@ -64,7 +64,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P5.3** Engineering charts (V vs distance, phasor diagram, heatmap, loading-duration, VUF, fault level)
 - [x] **P5.4** Scenario manager and comparison
 - [x] **P5.5** Issues panel
-- [ ] **P5.6** "Explain this number" drawer
+- [x] **P5.6** "Explain this number" drawer
 - [ ] **P5.7** Map-based network editor (react-leaflet, configurable tiles, haversine "measured vs entered")
 - [ ] **P5.8** Guided new-design wizard
 - [ ] **P5.9** Report upgrade (new sections, print stylesheet, sign-off block, optional logo)
@@ -716,6 +716,27 @@ within 1e-9.
   `diagram?hour&pole` (opens that hour and selects that pole), and `setup?section=fault|conductors`
   (scrolls past the sticky header).
 - **Header.** No longer sticky at ≤ 720 px: with 18 tabs it covered much of a phone screen.
+
+**P5.6 explain drawer (2026-10-20).**
+- **Engine.** `engine/explain.js`: `explainPoleVoltage`, `explainSpanLoading`, `explainSpanLoss`,
+  `explainTxLoading`, `explainFault`, `explainVuf`, `explainHosting` (fed by the new
+  `traceHostingSearch` in `hosting.js`).
+- **Pole voltage.** V = V0 − Z_T·I_T − Σ(R+jX)·L·I_ph − Σ ΔV_N, where each ΔV_N is the rise of the
+  local neutral (`vn`, P5.3). This one form covers ungrounded, grounded (nodal neutral solve) and
+  coupled-model subtrees. Each term's in-phase part is shown as its share of the magnitude drop.
+- **Tests.** Every trace equals the reported figure:
+  - pole voltages within 1e-3 V on all 9 pole-phases, grounded and coupled included (P3 A
+    212.862 V);
+  - span loading and loss, transformer loading, fault currents vs `faultLevels`, VUF;
+  - the hosting trace's result equals the Hosting page row.
+- **Engine additions** (reported only, no other number changes): `poleResults[].icum` (complex
+  span currents) and `transformers[].itot`. `findMaxPV` takes an optional trace array; the same
+  check function runs either way.
+- **UI.** `components/ExplainDrawer.jsx` is a modal dialog: focus moves to Close, Escape closes,
+  and focus returns to where it was.
+  - The SLD side panel has "Explain" buttons on phase voltages, VUF, span loss and loading,
+    transformer loading and fault level.
+  - Each Hosting row has "Explain", which runs the traced search in the worker.
 
 ## Phase verification log
 

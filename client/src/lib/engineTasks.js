@@ -13,7 +13,7 @@ import {
   computeFeederSplitCandidates, searchDualFeederSplit, scoreDualFeederCandidate, makeTx, nextTransformerId,
   proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runDailyScan, protectionCheck, tapAdvisor,
   reconductorAdvisor, fixItLadder, optimisePhaseBalance, voltageSensitivity, linearHostingEstimateKw, monteCarloStudy,
-  runSnapshotAt, compareScenarios, collectIssues
+  runSnapshotAt, compareScenarios, collectIssues, traceHostingSearch, explainHosting
 } from './loadflow.js';
 import { buildReportHtml } from './report.js';
 
@@ -83,6 +83,9 @@ export const ENGINE_TASKS = {
     const daily = runDailyScan(design, 0);
     return collectIssues(design, daily, protectionCheck(design, daily));
   },
+
+  // "Explain" for one hosting row (P5.6): the same search with every size tried.
+  explainHosting: ({ design, pole, phase }) => explainHosting(traceHostingSearch(design, pole, phase)),
 
   dailyScan: ({ design, year, loadMult, solarMult }, hooks) =>
     runDailyScan(design, year, { loadMult, solarMult, onProgress: hooks.onProgress, stage: 'Solving 24 hours' }),
