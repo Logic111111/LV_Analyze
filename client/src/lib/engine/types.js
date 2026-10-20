@@ -26,6 +26,7 @@
  * @property {number} hvActual   Assumed constant HV supply voltage, V line-line.
  * @property {number} [txXR]     X/R ratio used to split |Z| (default 3).
  * @property {number} [txGroundOhms] Star-point earth electrode resistance, Ω (default 7.5).
+ * @property {number[]} [hvProfile] 24 per-unit multipliers on hvActual, one per hour (absent = all 1.0).
  */
 
 /**

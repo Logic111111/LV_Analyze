@@ -2,7 +2,7 @@
 // The load-flow solver: a damped backward-forward sweep per transformer subtree (4-wire, with
 // an optional multi-grounded neutral nodal solve), and the snapshot/violation assembly.
 import { C, PHASES, PHASE_ANGLE, factorComplexSystem, solveFactoredSystem } from './complex.js';
-import { conductorParams, getTransformerType, secondaryLNVoltage, txImpedance } from './model.js';
+import { conductorParams, getTransformerType, secondaryLNVoltage, txImpedance, hvMultiplierAt } from './model.js';
 import { netS, zipMultiplier, connectionIndex } from './loads.js';
 import { vufPct } from './sequence.js';
 import { standardsOf } from './standards.js';
@@ -21,7 +21,8 @@ import { inverterSettings, inverterOutput } from './inverter.js';
  */
 function solveTxSubtree(design, tx, opts) {
   const { year, hour, loadMult, solarMult, extraPV, extraBess = [], index, topo, initialV, bessDispatch = null } = opts;
-  const V0 = secondaryLNVoltage(tx);
+  const hvMult = hvMultiplierAt(tx, hour);
+  const V0 = secondaryLNVoltage(tx) * hvMult;
   const V0ph = { A: C.fromPolar(V0, PHASE_ANGLE.A), B: C.fromPolar(V0, PHASE_ANGLE.B), C: C.fromPolar(V0, PHASE_ANGLE.C) };
   // Topology from the per-snapshot maps (see topologyOf): same ids in the same order as
   // design.poles.filter(...) / bfsOrderFrom / children produced, without their O(n²) scans.
@@ -346,7 +347,7 @@ function solveTxSubtree(design, tx, opts) {
     converged, iterUsed, lastDelta, poleResults, totalLossW, lossByPole, groundLossW, groundLossByPole,
     summary: {
       id: tx.id, name: tx.name, txKVA, txPct, flowDirection, netKW, netKVAR, busVoltPct,
-      busVph: { A: { ...Vbus.A }, B: { ...Vbus.B }, C: { ...Vbus.C } }, busVufPct: vufPct(Vbus), phaseCurrentA, txZ, txLossW, txNoLoadW, V0
+      busVph: { A: { ...Vbus.A }, B: { ...Vbus.B }, C: { ...Vbus.C } }, busVufPct: vufPct(Vbus), phaseCurrentA, txZ, txLossW, txNoLoadW, V0, hvMultiplier: hvMult
     }
   };
 }

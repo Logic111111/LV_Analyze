@@ -73,6 +73,19 @@ export default function SetupPage() {
                 <input type="number" value={tx.txGroundOhms ?? 7.5} step={0.5} min={0.1} onChange={e => updateTx(tx.id, { txGroundOhms: num(e.target.value) })} />
               </label>
               <p className="hint" style={{ marginTop: -4 }}>No-load secondary phase-neutral voltage at this tap: {v0.toFixed(1)} V ({(v0 * Math.sqrt(3)).toFixed(0)} V line-line).</p>
+              <details style={{ marginBottom: 10 }}>
+                <summary style={{ cursor: 'pointer', fontSize: 12 }}>HV voltage profile {Array.isArray(tx.hvProfile) && tx.hvProfile.some(v => v !== 1) ? '(varies by hour)' : '(flat — 1.0 all day)'}</summary>
+                <p className="hint" style={{ marginTop: 6 }}>Per-unit multipliers on the assumed HV supply, one per hour, for an HV feeder whose voltage swings over the day (e.g. from your SCADA or HV studies). Leave at 1.0 for a constant supply.</p>
+                <div className="tbl-wrap"><table>
+                  <thead><tr>{Array.from({ length: 24 }, (_, h) => <th key={h}>{String(h).padStart(2, '0')}</th>)}</tr></thead>
+                  <tbody><tr>{Array.from({ length: 24 }, (_, h) => (
+                    <td key={h}><input type="number" step={0.005} min={0.8} max={1.2} style={{ width: 62, padding: '6px 4px' }} aria-label={`HV multiplier at ${h}:00 for ${tx.id}`}
+                      value={Array.isArray(tx.hvProfile) ? (tx.hvProfile[h] ?? 1) : 1}
+                      onChange={e => { const prof = Array.isArray(tx.hvProfile) ? [...tx.hvProfile] : Array(24).fill(1); prof[h] = Number(e.target.value) || 1; updateTx(tx.id, { hvProfile: prof }); }} /></td>
+                  ))}</tr></tbody>
+                </table></div>
+                {Array.isArray(tx.hvProfile) && <button className="mini" style={{ marginTop: 6 }} onClick={() => updateTx(tx.id, { hvProfile: undefined })}>reset to flat</button>}
+              </details>
               <p className="hint" style={{ marginTop: -4 }}>Series impedance referred to LV, per phase: R={tz.r.toFixed(4)} Ω, X={tz.x.toFixed(4)} Ω (|Z|={tz.z.toFixed(4)} Ω from {(getTransformerType(design, tx.txRating).z * 100).toFixed(1)}% on nameplate rating).</p>
             </div>
           );

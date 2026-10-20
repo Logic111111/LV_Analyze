@@ -340,6 +340,17 @@ export function secondaryLNVoltage(tx) {
   return vLN * (tx.hvActual / TAPS[tx.tap]);
 }
 
+// HV voltage profile (P3.4): an optional 24-value list of per-unit multipliers on the transformer's
+// assumed HV supply (hvActual), one per hour — for an HV feeder whose voltage swings over the day.
+// Absent, or any value that isn't a positive number, means 1.0 for that hour: exactly the constant
+// hvActual every design used before, so results are bit-identical (V0 × 1 = V0).
+/** @param {Transformer} tx @param {number} hour @returns {number} */
+export function hvMultiplierAt(tx, hour) {
+  const p = /** @type {any} */ (tx).hvProfile;
+  const m = Array.isArray(p) ? Number(p[hour]) : NaN;
+  return Number.isFinite(m) && m > 0 ? m : 1;
+}
+
 // Series transformer impedance, referred to the LV side, expressed as an equivalent per-phase
 // (line-neutral) impedance so it can be added in series with each feeder root. X/R split is a
 // modelling assumption (no factory test-certificate X/R was provided) — default 3, editable.

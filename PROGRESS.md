@@ -46,7 +46,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P3.1** Smart-inverter PV (volt-var / volt-watt / export limit; IEEE 1547-2018 Cat B seed curves, labelled)
 - [x] **P3.2** BESS with state of charge (`schedule` default; `socSchedule` / `solarFollowing`)
 - [x] **P3.3** Transformer thermal ageing (IEC 60076-7)
-- [ ] **P3.4** HV voltage profile (`hvProfile`, default all 1.0)
+- [x] **P3.4** HV voltage profile (`hvProfile`, default all 1.0)
 - [ ] **P3.5** Coupled line model (4×4 matrices, behind a flag)
 
 ## Phase 4 — Optimisation and mathematics
@@ -473,6 +473,12 @@ Decisions:
 **Caveat:** the rises Δθor and Hgr are unit-specific heat-run values, and the UI asks for them.
 **Waiting on data:** the site ambient profile (the flat 20 °C IEC reference is flagged in the UI
 and the report) and heat-run values where available.
+
+**P3.4 HV profile (2026-10-20).** `tx.hvProfile`, read through `hvMultiplierAt` (anything missing
+or invalid counts as 1.0). Decision: `withDefaults` doesn't add an all-1.0 array to every
+transformer. The accessor's default is the migration, and it keeps saved designs and the
+transformer comparisons in existing tests unchanged. Snapshots report `hvMultiplier`; the fault
+calculation uses `vnom` and isn't affected. **Waiting on data:** the HV voltage profile.
 
 ## Phase verification log
 
