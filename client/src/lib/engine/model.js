@@ -123,6 +123,8 @@ export function defaultDesign() {
     // Transformer thermal model (P3.3, engine/thermal.js). The ambient is the flat 20 °C IEC 60076-7
     // reference, not climate data — the UI asks for the site's hourly profile.
     thermal: { ambientC: Array(24).fill(20), oilExponentX: 0.8, windingExponentY: 1.6, lossRatioR: 5, k11: 1.0, k21: 1.0, k22: 2.0, tauOilMin: 180, tauWindingMin: 4, topOilRiseK: 55, hotSpotGradientK: 23 },
+    // Sign-off block for drawings and reports (P5.1 / P5.9): names and dates, blank until filled.
+    signOff: { prepared: '', preparedDate: '', checked: '', checkedDate: '', approved: '', approvedDate: '' },
     // Smart-inverter PV (P3.1): 'unity' = today's behaviour. Curves seeded with the IEEE 1547-2018
     // Category B defaults, labelled as such in the UI — replace with the local grid code's.
     inverter: { mode: 'unity', voltVarCurve: [[0.92, 0.44], [0.98, 0], [1.02, 0], [1.08, -0.44]], voltWattCurve: [[1.06, 1.0], [1.10, 0.2]], exportLimitKw: null },
@@ -187,7 +189,7 @@ export function normalizeDesign(design) {
 const DESIGN_COLLECTIONS = ['poles', 'loads', 'pv', 'bess', 'openPoints', 'fuseLibrary'];
 // Settings groups whose individual fields are filled one by one, so a design saved after a group
 // existed but before one of its fields did still gets that field's default.
-const DESIGN_SETTING_GROUPS = ['standards', 'fault', 'protection', 'inverter', 'thermal'];
+const DESIGN_SETTING_GROUPS = ['standards', 'fault', 'protection', 'inverter', 'thermal', 'signOff'];
 /** @param {any} design A saved, imported or partial design. @returns {Design} */
 /** @param {any} value @param {Record<string, any>} defaults */
 function fillMissing(value, defaults) {

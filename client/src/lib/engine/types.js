@@ -146,6 +146,7 @@
  * @property {Standards} [standards]
  * @property {import('./inverter.js').InverterSettings} [inverter]
  * @property {Partial<typeof import('./thermal.js').THERMAL_DEFAULTS> & { ambientC?: number[] }} [thermal]
+ * @property {{ prepared?: string, preparedDate?: string, checked?: string, checkedDate?: string, approved?: string, approvedDate?: string }} [signOff] Drawing / report sign-off (P5.1, P5.9).
  * @property {import('./faults.js').FaultSettings} [fault]
  * @property {import('./faults.js').FuseType[]} [fuseLibrary]
  * @property {{ feederFuses: Record<string, string>, poleFuses: Record<string, string> }} [protection]

@@ -1,8 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
-import { useTheme } from '../context/ThemeContext.jsx';
 import { applyReconductor, describeReconductor, runSnapshotAt, usableConductorCodes } from '../lib/loadflow.js';
-import { buildDiagramSVG } from '../lib/diagram.js';
+import SldPreview from '../components/SldPreview.jsx';
 import TaskProgress from '../components/TaskProgress.jsx';
 import { ConvergenceWarning } from '../components/Convergence.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
@@ -14,7 +13,6 @@ const lkr = (v) => (v == null ? null : Math.round(v).toLocaleString('en-US'));
 
 export default function ReconductorPage() {
   const { design, setDesign, setLastReconductor } = useDesign();
-  const { theme } = useTheme();
   const [horizon, setHorizon] = useState(5);
   const [checkHorizon, setCheckHorizon] = useState(true);
   const [maxCandidates, setMaxCandidates] = useState(200);
@@ -38,11 +36,11 @@ export default function ReconductorPage() {
     setPreview(null); setResult(null);
   }
 
-  const previewView = preview ? (() => {
+  const previewView = useMemo(() => {
+    if (!preview) return null;
     const d = applyReconductor(design, preview.changes);
-    const res = runSnapshotAt(d, { year: 0, hour: 20, loadMult: 1, solarMult: 1 });
-    return { res, svg: buildDiagramSVG(d, res, theme) };
-  })() : null;
+    return { d, res: runSnapshotAt(d, { year: 0, hour: 20, loadMult: 1, solarMult: 1 }) };
+  }, [design, preview]);
 
   return (
     <div>
@@ -108,7 +106,7 @@ export default function ReconductorPage() {
           <p className="hint">Shown at night peak (20:00, year 0). Restrung spans are labelled with their new conductor.</p>
           <p><span className={'pill ' + (previewView.res.violations.length ? 'bad' : 'ok')}>{previewView.res.violations.length} violation{previewView.res.violations.length === 1 ? '' : 's'} at 20:00</span></p>
           <ConvergenceWarning show={!previewView.res.converged}>The preview load flow did not converge — the diagram may be inaccurate.</ConvergenceWarning>
-          <div className="diagram" dangerouslySetInnerHTML={{ __html: previewView.svg }} />
+          <SldPreview design={previewView.d} before={design} res={previewView.res} label="Reconductoring preview, 20:00" />
         </div>
       )}
     </div>

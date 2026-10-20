@@ -1,8 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
-import { useTheme } from '../context/ThemeContext.jsx';
 import { runSnapshotAt } from '../lib/loadflow.js';
-import { buildDiagramSVG } from '../lib/diagram.js';
+import SldPreview from './SldPreview.jsx';
 import TaskProgress from './TaskProgress.jsx';
 import { ConvergenceWarning } from './Convergence.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
@@ -21,7 +20,6 @@ export function tapStatus(result, t) {
 
 export default function TapAdvisorCard() {
   const { design, setDesign, setLastTapAdvice } = useDesign();
-  const { theme } = useTheme();
   const [txId, setTxId] = useState(design.transformers[0]?.id || '');
   const [horizon, setHorizon] = useState(5);
   const [result, setResult] = useState(null);
@@ -42,12 +40,12 @@ export default function TapAdvisorCard() {
     setPreviewTap(null);
   }
 
-  const preview = result && previewTap != null ? (() => {
+  const preview = useMemo(() => {
+    if (!result || previewTap == null) return null;
     const t = result.byTap.find(x => x.tap === previewTap);
     const d = { ...design, transformers: design.transformers.map(x => (x.id === result.txId ? { ...x, tap: previewTap } : x)) };
-    const res = runSnapshotAt(d, { year: t.minV.year, hour: t.minV.hour, loadMult: 1, solarMult: 1 });
-    return { t, res, svg: buildDiagramSVG(d, res, theme) };
-  })() : null;
+    return { t, d, res: runSnapshotAt(d, { year: t.minV.year, hour: t.minV.hour, loadMult: 1, solarMult: 1 }) };
+  }, [design, result, previewTap]);
 
   return (
     <div className="card">
@@ -116,7 +114,7 @@ export default function TapAdvisorCard() {
           </div>
           <p><span className={'pill ' + (preview.res.violations.length ? 'bad' : 'ok')}>{preview.res.violations.length} violation{preview.res.violations.length === 1 ? '' : 's'} at that hour</span></p>
           <ConvergenceWarning show={!preview.res.converged}>The preview load flow did not converge — the diagram may be inaccurate.</ConvergenceWarning>
-          <div className="diagram" dangerouslySetInnerHTML={{ __html: preview.svg }} />
+          <SldPreview design={preview.d} before={design} res={preview.res} label={`Tap ${preview.t.tap} preview`} />
         </div>
       )}
     </div>

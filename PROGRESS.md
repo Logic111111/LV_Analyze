@@ -59,7 +59,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 
 ## Phase 5 — UI/UX
 
-- [ ] **P5.1** New single-line diagram (`SingleLineDiagram.jsx`, IEC 60617-style, overlays, before/after, SVG/PNG/PDF/DXF export)
+- [x] **P5.1** New single-line diagram (`SingleLineDiagram.jsx`, IEC 60617-style, overlays, before/after, SVG/PNG/PDF/DXF export)
 - [ ] **P5.2** Interactive what-if (drag a drop to another phase; sensitivity preview, confirmed by full load flow)
 - [ ] **P5.3** Engineering charts (V vs distance, phasor diagram, heatmap, loading-duration, VUF, fault level)
 - [ ] **P5.4** Scenario manager and comparison
@@ -596,6 +596,47 @@ within 1e-9.
   - Feeder split: capex has no data until P6.1.
   - Missing values are shown as "—" and skipped in the dominance test, with the reason printed.
 - **Engine.** `ladderMetrics` gains `worstVufPct`, the max over checked years and hours (tested).
+
+**P5.1 single-line diagram (2026-10-20).**
+- **Architecture.** `lib/sld/scene.js` → `buildSldScene(design, res, { overlays, faults,
+  protection, compareTo })` returns plain primitives (line, polyline, polygon, rect, circle, arc,
+  text) with colour *tokens*. Every output renders this one scene:
+  - `components/SingleLineDiagram.jsx` (live SVG);
+  - `lib/sld/svg.js` (standalone SVG with a title block; PNG through a canvas; print/PDF through a
+    hidden iframe, A3 landscape);
+  - `lib/sld/dxf.js` (ASCII DXF R12, AC1009: LINE, CIRCLE, ARC and TEXT only, one layer per
+    element type and per drop phase). Dashes are drawn as segments, so no linetype table is
+    needed, and text is ASCII-only.
+
+  The layout is tested without a browser: a test asserts that no two labels from different
+  elements overlap, on the fixture and on the 50-pole feeder with every overlay on.
+- **Symbols (IEC 60617 style).**
+  - HV source: a circle with "~", showing S"k or "not set".
+  - Transformer: two circles, with rating, Dyn11 and tap.
+  - LV busbar and feeder fuse (rectangle with the conductor through it).
+  - Pole node, outlined in its voltage status. Earth electrode: a stem and three bars.
+  - Open point: dashed line.
+  - Drops in A/B/C (and 3φ) groups. Every drop label starts with its phase letter; a group header
+    shows the phase voltage and "!" when outside the band. Markers: load ▲, EV ▲ with a bar,
+    PV a square with a diagonal, BESS two plates. "*" marks ADMD.
+- **Layout.** A pole sits level with its first child; further branches go downwards, and each
+  pole's drop block is reserved before the next branch starts. The drawing scrolls inside its
+  frame. The initial zoom fits the width but never goes below 85 %.
+- **Diagram page.**
+  - SLD by default; the old drawing is the "Simple view".
+  - The hour slider and multipliers re-solve live: debounced 250 ms, in the worker (task
+    `snapshotAt`).
+  - Overlays: voltage, loading %, power flow, VUF, fault level (`faultLevels`), protection
+    (`protectionCheck` via the worker).
+  - Elements are keyboard-selectable buttons with aria-labels; the side panel shows full details.
+  - Exports carry a title block with the design, date and snapshot, plus the prepared / checked /
+    approved names and dates. These are stored in the new `design.signOff` (defaulted to blanks in
+    `withDefaults`) and reused by the report in P5.9.
+- **Before/after in all five advisor previews** (`components/SldPreview.jsx`):
+  - moved drops are boxed, with an arrow from a dashed ghost in the old phase;
+  - upgraded spans are 5 px with "old→new" conductor;
+  - a new transformer is dashed, and re-fed spans are marked;
+  - a tap change is shown as "tap a → b".
 
 ## Phase verification log
 

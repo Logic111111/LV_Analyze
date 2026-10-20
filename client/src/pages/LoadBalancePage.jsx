@@ -1,8 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
-import { useTheme } from '../context/ThemeContext.jsx';
 import { applyPhaseBalance, runSnapshotAt, DAILY_HOURS } from '../lib/loadflow.js';
-import { buildDiagramSVG } from '../lib/diagram.js';
+import SldPreview from '../components/SldPreview.jsx';
 import { ConvergenceWarning } from '../components/Convergence.jsx';
 import { txCurrentSummary } from '../lib/format.js';
 import TaskProgress from '../components/TaskProgress.jsx';
@@ -28,7 +27,6 @@ const KIND_LABEL = { load: 'load', pv: 'PV', bess: 'BESS' };
 
 export default function LoadBalancePage() {
   const { design, setDesign } = useDesign();
-  const { theme } = useTheme();
 
   const [txId, setTxId] = useState(design.transformers[0]?.id || '');
   const [testMode, setTestMode] = useState('daily');
@@ -62,8 +60,7 @@ export default function LoadBalancePage() {
     setProposal(null);
   }
 
-  const previewSnapshot = preview ? runSnapshotAt(preview.design, { year: 0, hour: 20, loadMult: 1, solarMult: 1 }) : null;
-  const previewSvg = previewSnapshot ? buildDiagramSVG(preview.design, previewSnapshot, theme) : null;
+  const previewSnapshot = useMemo(() => (preview ? runSnapshotAt(preview.design, { year: 0, hour: 20, loadMult: 1, solarMult: 1 }) : null), [preview]);
 
   return (
     <div>
@@ -174,7 +171,7 @@ export default function LoadBalancePage() {
           <ConvergenceWarning show={!!previewSnapshot && !previewSnapshot.converged}>
             The preview load flow at 20:00 did not converge ({previewSnapshot?.iterUsed} iterations) — the diagram below may be inaccurate.
           </ConvergenceWarning>
-          {previewSvg && <div className="diagram" dangerouslySetInnerHTML={{ __html: previewSvg }} />}
+          {previewSnapshot && <SldPreview design={preview.design} before={design} res={previewSnapshot} label="Rebalanced phases, 20:00" />}
         </div>
       )}
     </div>

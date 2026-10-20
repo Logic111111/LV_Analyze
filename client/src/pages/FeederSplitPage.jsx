@@ -1,17 +1,18 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
-import { useTheme } from '../context/ThemeContext.jsx';
 import {
   feederTrees, poleById, transformerOfPole, nextTransformerId, conductorCodes, transformerRatings,
   buildSplitCandidate, runSnapshotAt, feederConnectedTotals, DAILY_HOURS
 } from '../lib/loadflow.js';
-import { buildDiagramSVG } from '../lib/diagram.js';
+import SldPreview from '../components/SldPreview.jsx';
 import { ConvergenceWarning } from '../components/Convergence.jsx';
 import { txCurrentSummary } from '../lib/format.js';
 import TaskProgress from '../components/TaskProgress.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
+import MultiCriteriaView from '../components/MultiCriteriaView.jsx';
 
 const DUAL_SHORTLIST_K = 8;
+const candidateKey = (mode, c) => (mode === 'single' ? c.poleId : c.poleA + '-' + c.poleB);
 
 function openPointLabel(design, o) {
   const a = poleById(design, o.poleA), b = poleById(design, o.poleB);
@@ -57,7 +58,6 @@ function testOptsFor(testMode) {
 
 export default function FeederSplitPage() {
   const { design, setDesign } = useDesign();
-  const { theme } = useTheme();
   const trees = feederTrees(design);
   const base = design.transformers[0];
   const openPoints = design.openPoints;
@@ -188,8 +188,7 @@ export default function FeederSplitPage() {
     setQuickResult(null);
   }
 
-  const previewSnapshot = preview ? runSnapshotAt(preview.design, { year: 0, hour: 20, loadMult: 1, solarMult: 1 }) : null;
-  const previewSvg = previewSnapshot ? buildDiagramSVG(preview.design, previewSnapshot, theme) : null;
+  const previewSnapshot = useMemo(() => (preview ? runSnapshotAt(preview.design, { year: 0, hour: 20, loadMult: 1, solarMult: 1 }) : null), [preview]);
   const previewNewTxId = preview ? preview.design.transformers[preview.design.transformers.length - 1].id : null;
   const previewFeeders = preview
     ? feederConnectedTotals(preview.design).map(g => ({ ...g, txName: preview.design.transformers.find(t => t.id === g.txId)?.name || g.txId }))
@@ -419,6 +418,21 @@ export default function FeederSplitPage() {
               </tbody>
             </table></div>
           </div>
+          <MultiCriteriaView
+            title="Compare split options by criteria"
+            items={results.candidates.map(c => ({
+              id: candidateKey(results.mode, c),
+              label: results.mode === 'single' ? `Cut at ${c.poleId}` : `Cuts ${c.poleA} + ${c.poleB}`,
+              values: { violations: c.voltageViolationCount, kwh: c.lossKwh, capex: null, vuf: c.worstVuf ? c.worstVuf.value : null }
+            }))}
+            criteria={[
+              { key: 'violations', label: 'Voltage violations', digits: 0 },
+              { key: 'kwh', label: results.lossLabel, digits: 2 },
+              { key: 'capex', label: 'Capex LKR', digits: 0, missing: 'not available yet — transformer and cable unit costs come with Economics (P6.1); until then options are compared without it.' },
+              { key: 'vuf', label: 'Worst VUF %', digits: 2 }
+            ]}
+            onPreview={(id) => { const c = results.candidates.find(x => candidateKey(results.mode, x) === id); if (c) previewCandidate(c); }}
+          />
         </div>
       )}
 
@@ -438,7 +452,7 @@ export default function FeederSplitPage() {
           <ConvergenceWarning show={!!previewSnapshot && !previewSnapshot.converged}>
             The preview load flow at 20:00 did not converge ({previewSnapshot?.iterUsed} iterations) — the diagram below may be inaccurate.
           </ConvergenceWarning>
-          {previewSvg && <div className="diagram" dangerouslySetInnerHTML={{ __html: previewSvg }} />}
+          {previewSnapshot && <SldPreview design={preview.design} before={design} res={previewSnapshot} label="Feeder split preview, 20:00" />}
           <div className="section-title" style={{ marginTop: 14 }}>Feeders after the split — connected load &amp; solar PV (kVA per phase)</div>
           <p className="hint" style={{ marginTop: 0 }}>Every feeder in the resulting design, so you can see what moved to the new transformer and what stayed. Load is ADMD-substituted where unspecified; PV is installed (nameplate) kVA.</p>
           <div className="tbl-wrap"><table>

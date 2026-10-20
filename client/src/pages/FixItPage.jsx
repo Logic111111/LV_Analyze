@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
-import { useTheme } from '../context/ThemeContext.jsx';
 import { LADDER_STEPS, LADDER_STEP_LABELS, runSnapshotAt } from '../lib/loadflow.js';
-import { buildDiagramSVG } from '../lib/diagram.js';
+import SldPreview from '../components/SldPreview.jsx';
 import TaskProgress from '../components/TaskProgress.jsx';
 import { ConvergenceWarning } from '../components/Convergence.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
+import MultiCriteriaView from '../components/MultiCriteriaView.jsx';
 
 // Fix-it ladder (P2.6): tries the usual remedies in order and stops at the first one that leaves
 // no voltage violation in any checked year. Runs in the engine worker.
@@ -21,7 +21,6 @@ export function ladderCost(s) {
 
 export default function FixItPage() {
   const { design, setDesign, setLastFixIt } = useDesign();
-  const { theme } = useTheme();
   const [order, setOrder] = useState(LADDER_STEPS.map(step => ({ step, on: true })));
   const [horizon, setHorizon] = useState(5);
   const [stopAtFirst, setStopAtFirst] = useState(true);
@@ -51,10 +50,7 @@ export default function FixItPage() {
     setPreview(null); setResult(null);
   }
 
-  const previewView = preview ? (() => {
-    const res = runSnapshotAt(preview.design, { year: 0, hour: 20, loadMult: 1, solarMult: 1 });
-    return { res, svg: buildDiagramSVG(preview.design, res, theme) };
-  })() : null;
+  const previewView = useMemo(() => (preview ? { res: runSnapshotAt(preview.design, { year: 0, hour: 20, loadMult: 1, solarMult: 1 }) } : null), [preview]);
   const kwhDay = (v) => v.toFixed(2);
 
   return (
@@ -134,6 +130,20 @@ export default function FixItPage() {
                 </tbody>
               </table></div>
               <p className="hint" style={{ marginTop: 8 }}>kWh/yr = the year-0 daily figure × 365 (a simplification: one representative day). LKR/yr needs the energy cost of losses, which arrives with Economics (P6.1).</p>
+              <MultiCriteriaView
+                title="Compare remedies by criteria"
+                items={[
+                  { id: '__current', label: 'Current design', values: { violations: result.baseline.totalViolations, kwh: result.baseline.kwhYear0, capex: 0, vuf: result.baseline.worstVufPct ?? null } },
+                  ...result.steps.filter(s => s.metrics).map(s => ({ id: s.step, label: s.label, values: { violations: s.metrics.totalViolations, kwh: s.metrics.kwhYear0, capex: s.capex ?? null, vuf: s.metrics.worstVufPct ?? null } }))
+                ]}
+                criteria={[
+                  { key: 'violations', label: `Voltage violations (yrs ${result.years.join(' + ')})`, digits: 0 },
+                  { key: 'kwh', label: 'Loss kWh/day (yr 0)', digits: 2 },
+                  { key: 'capex', label: 'Capex LKR (where known)', digits: 0, missing: 'only reconductoring with conductor costs entered has a capex; moves, tap changes and new transformers need unit costs (Economics, P6.1), so they show "—" and are not compared on capex.' },
+                  { key: 'vuf', label: 'Worst VUF %', digits: 2 }
+                ]}
+                onPreview={(id) => { const s = result.steps.find(x => x.step === id); if (s && s.design) setPreview(s); }}
+              />
             </>
           )}
         </div>
@@ -148,7 +158,7 @@ export default function FixItPage() {
           <p className="hint">{preview.actions.join('; ')}. Shown at night peak (20:00, year 0).</p>
           <p><span className={'pill ' + (previewView.res.violations.length ? 'bad' : 'ok')}>{previewView.res.violations.length} violation{previewView.res.violations.length === 1 ? '' : 's'} at 20:00</span></p>
           <ConvergenceWarning show={!previewView.res.converged}>The preview load flow did not converge — the diagram may be inaccurate.</ConvergenceWarning>
-          <div className="diagram" dangerouslySetInnerHTML={{ __html: previewView.svg }} />
+          <SldPreview design={preview.design} before={design} res={previewView.res} label="Fix-it remedy preview, 20:00" />
         </div>
       )}
     </div>
