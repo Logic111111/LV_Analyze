@@ -29,17 +29,19 @@ export const LADDER_STEP_LABELS = {
 export function ladderMetrics(design, years, hours) {
   /** @type {Record<number, number>} */ const violationsByYear = {};
   /** @type {Record<string, number>} */ const byPole = {};
-  let kwhYear0 = 0, converged = true;
+  let kwhYear0 = 0, converged = true, worstVufPct = 0;
   years.forEach((year, i) => {
     let n = 0;
     runHours(design, hours, { year, loadMult: 1, solarMult: 1 }).forEach(res => {
       if (!res.converged) converged = false;
+      // Worst voltage unbalance over every checked year and hour (P4.5 multi-criteria view).
+      if (res.worstVuf && res.worstVuf.value > worstVufPct) worstVufPct = res.worstVuf.value;
       res.violations.forEach(v => { if (v.type === 'undervoltage' || v.type === 'overvoltage') { n++; byPole[v.pole] = (byPole[v.pole] || 0) + 1; } });
       if (i === 0) kwhYear0 += systemLossW(res).totalLossW / 1000;
     });
     violationsByYear[year] = n;
   });
-  return { violationsByYear, totalViolations: years.reduce((s, y) => s + violationsByYear[y], 0), kwhYear0, converged, byPole };
+  return { violationsByYear, totalViolations: years.reduce((s, y) => s + violationsByYear[y], 0), kwhYear0, worstVufPct, converged, byPole };
 }
 
 /**

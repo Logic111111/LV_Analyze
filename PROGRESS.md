@@ -55,7 +55,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P4.2** Voltage sensitivity matrix
 - [x] **P4.3** Solver robustness (diagnostics, α=0.3 retry, collapse detection)
 - [x] **P4.4** Probabilistic (Monte Carlo) planning
-- [ ] **P4.5** Multi-criteria view for feeder split and fix-it ladder
+- [x] **P4.5** Multi-criteria view for feeder split and fix-it ladder
 
 ## Phase 5 — UI/UX
 
@@ -583,7 +583,35 @@ within 1e-9.
   `lib/chartTheme.js` and `components/ChartCanvas.jsx` now hold the chart palette and canvas,
   shared with Daily and reused by P5.3.
 
+**P4.5 multi-criteria view (2026-10-20).**
+- **Component.** `components/MultiCriteriaView.jsx` and `lib/pareto.js` (`dominates`,
+  `nonDominatedIndices`, `sortRows`), shown under the Feeder Split and Fix-it Ladder results.
+- **The advisors' own lexicographic ranking is untouched.** The view adds:
+  - a table sortable by any criterion (`aria-sort`; a third click returns to the advisor's order);
+  - a "non-dominated" column;
+  - a scatter of any two criteria (violations, kWh, capex, worst VUF). Non-dominated options are
+    triangles and the rest circles, so shape as well as colour tells them apart.
+- **Capex is not invented.**
+  - Ladder: only reconductoring with user-entered conductor costs has a capex.
+  - Feeder split: capex has no data until P6.1.
+  - Missing values are shown as "—" and skipped in the dominance test, with the reason printed.
+- **Engine.** `ladderMetrics` gains `worstVufPct`, the max over checked years and hours (tested).
+
 ## Phase verification log
+
+**Phase 4 (2026-10-20).**
+- **Checks.** Lint, typecheck, the full client suite, the build and the server tests all pass
+  (counts in the final summary). Every golden and the 1e-9 reference lock are unchanged.
+- **Browser** (headless Edge against the Vite dev server, `/api` mocked, all checks pass):
+  - Load Balance → Optimised: a 10-row Pareto table plus the Quick reference row. Preview of
+    K = 3 draws the diagram, and Discard returns to the same table.
+  - Solar Hosting → instant linear estimate.
+  - Probabilistic: 60 runs, with the probability heatmap and 4 histograms.
+  - Fix-it Ladder and Feeder Split: multi-criteria tables sort, mark non-dominated options and
+    draw the scatter. The split figures still match the goldens (14.56 / 17.14 / 21.88 kWh).
+  - At 390 px, Probabilistic and Load Balance have no horizontal page scroll. The histograms
+    overflowed at first; fixed with `minWidth: 0` on the grid cells.
+  - No console errors; 16 tabs.
 
 **Phase 1 (2026-10-20).**
 - **Checks.** `npm run lint` (0 problems), `npm run typecheck` (0 errors), `npm test` (173 tests in
