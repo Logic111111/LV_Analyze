@@ -27,6 +27,8 @@
  * @property {number} [txXR]     X/R ratio used to split |Z| (default 3).
  * @property {number} [txGroundOhms] Star-point earth electrode resistance, Ω (default 7.5).
  * @property {number[]} [hvProfile] 24 per-unit multipliers on hvActual, one per hour (absent = all 1.0).
+ * @property {number | null} [lat]  Optional position for the map view (P5.7), decimal degrees.
+ * @property {number | null} [lng]
  */
 
 /**
@@ -39,6 +41,8 @@
  * @property {string} cond       Conductor code of that span; key into the conductor library.
  * @property {boolean} [grounded] Earth electrode bonded to the neutral at this pole.
  * @property {number} [groundOhms]
+ * @property {number | null} [lat]  Optional position for the map view (P5.7), decimal degrees.
+ * @property {number | null} [lng]
  */
 
 /**
@@ -148,6 +152,7 @@
  * @property {Partial<typeof import('./thermal.js').THERMAL_DEFAULTS> & { ambientC?: number[] }} [thermal]
  * @property {{ prepared?: string, preparedDate?: string, checked?: string, checkedDate?: string, approved?: string, approvedDate?: string }} [signOff] Drawing / report sign-off (P5.1, P5.9).
  * @property {any[]} [scenarios] Named what-if scenarios (P5.4, see scenarios.js).
+ * @property {{ tileUrl: string, attribution: string, maxZoom: number, centerLat: number, centerLng: number, zoom: number }} [map] Map view settings (P5.7).
  * @property {any} [economics] User-entered costs (P6.1, see economics.js).
  * @property {import('./faults.js').FaultSettings} [fault]
  * @property {import('./faults.js').FuseType[]} [fuseLibrary]

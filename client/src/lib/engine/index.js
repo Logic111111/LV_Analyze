@@ -24,6 +24,7 @@
 //   scenarios.js            named scenarios: overrides + design patches, side-by-side comparison
 //   issues.js               the issues list (violations, protection, solver, missing data)
 //   explain.js              "explain this number" traces (formula, substituted values, result)
+//   geo.js                  map editor geometry (haversine, measured vs entered spans)
 //   hosting.js              PV hosting capacity
 //   bess.js                 BESS hosting capacity
 //   advisors/feederSplit.js feeder split advisor
@@ -51,6 +52,7 @@ export * from './monteCarlo.js';
 export * from './scenarios.js';
 export * from './issues.js';
 export * from './explain.js';
+export * from './geo.js';
 export * from './hosting.js';
 export * from './bess.js';
 export * from './advisors/feederSplit.js';

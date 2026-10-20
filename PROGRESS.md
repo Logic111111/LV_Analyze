@@ -65,7 +65,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P5.4** Scenario manager and comparison
 - [x] **P5.5** Issues panel
 - [x] **P5.6** "Explain this number" drawer
-- [ ] **P5.7** Map-based network editor (react-leaflet, configurable tiles, haversine "measured vs entered")
+- [x] **P5.7** Map-based network editor (react-leaflet, configurable tiles, haversine "measured vs entered")
 - [ ] **P5.8** Guided new-design wizard
 - [ ] **P5.9** Report upgrade (new sections, print stylesheet, sign-off block, optional logo)
 - [ ] **P5.10** Internationalisation & accessibility (`t()`, en default, Sinhala/Tamil machine drafts)
@@ -738,6 +738,31 @@ within 1e-9.
     transformer loading and fault level.
   - Each Hosting row has "Explain", which runs the traced search in the worker.
 
+**P5.7 map editor (2026-10-21).**
+- **Geometry.** `engine/geo.js`: `haversineM` (R = 6 371 008.8 m), `measuredSpans`,
+  `acceptMeasuredSpans`, `hasCoords`. Optional `lat`/`lng` on transformers and poles; a test checks
+  that coordinates never change results.
+- **Map settings.** New `design.map` settings group, defaulted in `withDefaults`:
+  OpenStreetMap tiles with attribution, and an initial view of Sri Lanka used only when nothing is
+  placed.
+- **Page.** `pages/MapPage.jsx` (tab "Map") uses **Leaflet 1.9.4 (BSD-2) directly**.
+  **react-leaflet was not used:** it and @react-leaflet/core are under the Hippocratic License 2.1
+  (not OSI-approved, with use restrictions). See the open questions.
+- **Modes.**
+  - Select / drag to move.
+  - Place the selected item.
+  - Add a pole fed from the selected item. The length is measured from the parent; the conductor
+    and feeder come from the parent.
+  - Connect to a new parent; a loop is refused.
+- **Customers.** Phase-lettered chips at each pole (EV / PV / BESS subscripts).
+- **Measured vs entered.** The table applies measured lengths only on "Use measured", with a
+  confirm when they differ by more than 100 %; ⚠ marks differences over 10 %.
+- **Keyboard route.** Number fields for latitude and longitude, plus the Network table.
+- **Performance.** Every page is now a lazy chunk: main bundle 703 → 215 kB; Leaflet loads only
+  with the Map page.
+- **Browser check.** Tiles are mocked. Place TX and P1, use measured, add P4: all pass, with no
+  horizontal scroll at 390 px.
+
 ## Phase verification log
 
 **Phase 4 (2026-10-20).**
@@ -787,6 +812,11 @@ stack and the database were not touched. Results:
   work. Icons come with the P7.8 PWA manifest.
 
 ## Open questions for the user
+
+- **react-leaflet licence.** The brief names react-leaflet, but it (and @react-leaflet/core) is
+  licensed under the Hippocratic License 2.1, which is not an OSI open-source licence and restricts
+  some uses. The map editor uses Leaflet's own API (BSD-2) instead, with identical behaviour.
+  Switching to react-leaflet later is easy if your organisation accepts that licence.
 
 1. Docker images run Node 20, which is end-of-life. OK to move both Dockerfiles to `node:22-alpine`
    (would happen alongside P7.1, when both images are rebuilt anyway)?
