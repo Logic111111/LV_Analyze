@@ -19,6 +19,7 @@
 //   thermal.js              transformer hot spot and ageing (IEC 60076-7)
 //   lineModel.js            optional coupled 4×4 line impedance model
 //   random.js               seeded PRNG (mulberry32) for reproducible searches
+//   sensitivity.js          voltage sensitivity matrix (∂|V|/∂P, ∂|V|/∂Q), linear previews
 //   hosting.js              PV hosting capacity
 //   bess.js                 BESS hosting capacity
 //   advisors/feederSplit.js feeder split advisor
@@ -41,6 +42,7 @@ export * from './bessDispatch.js';
 export * from './thermal.js';
 export * from './lineModel.js';
 export * from './random.js';
+export * from './sensitivity.js';
 export * from './hosting.js';
 export * from './bess.js';
 export * from './advisors/feederSplit.js';

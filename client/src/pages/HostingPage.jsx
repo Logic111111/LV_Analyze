@@ -13,6 +13,14 @@ export default function HostingPage() {
   // Both searches run in the engine worker (seconds on a large feeder), with progress and Cancel.
   const indep = useEngineTask();
   const sys = useEngineTask();
+  const quick = useEngineTask();
+  const [estimate, setEstimate] = useState(null);
+
+  // Linear first estimate (P4.2): seconds faster than the search, voltage limits only, one hour.
+  async function runEstimate() {
+    const r = await quick.run('linearHostingEstimate', { design, hour: 12 }, 'Computing voltage sensitivities');
+    if (r.ok) setEstimate(r.result);
+  }
 
   async function run() {
     sys.cancel();
@@ -34,9 +42,31 @@ export default function HostingPage() {
       <div className="card">
         <h2>Additional solar hosting capacity</h2>
         <p className="hint">Tests adding single-phase PV (up to the cap set in Setup) at every pole and phase across the solar shoulder hours (09:00–15:00), then ranks poles by the extra capacity that can be absorbed before it creates a statutory voltage or conductor-thermal violation (or makes one the design already has worse). The transformer is not a limiting factor here when the result is a net export — reverse flow back to the grid is unrestricted.</p>
-        <button className="primary" onClick={run} disabled={indep.running}>Compute hosting capacity</button>
+        <button className="primary" onClick={run} disabled={indep.running}>Compute hosting capacity</button>{' '}
+        <button className="ghost" onClick={runEstimate} disabled={quick.running}>Instant linear estimate</button>
         <TaskProgress task={indep} />
+        <TaskProgress task={quick} />
       </div>
+
+      {estimate && (
+        <div className="card" style={{ marginTop: 14 }}>
+          <h2>Instant linear estimate (12:00)</h2>
+          <p className="hint">From the voltage sensitivity matrix at 12:00 (nominal solar): the unity-pf PV each pole/phase could take before a voltage would leave the band, if voltage changed linearly. It ignores thermal limits, the other shoulder hours and the Setup cap. It is a first look only; use "Compute hosting capacity" for the confirmed figures, which are full load flows.</p>
+          {!estimate.converged && <p className="hint" style={{ color: 'var(--warn)' }}>⚠ Some sensitivity load flows did not converge — treat the estimate with caution.</p>}
+          <div className="tbl-wrap"><table>
+            <thead><tr><th>Pole</th><th>Phase</th><th>Estimate (kW)</th><th>First limit reached</th></tr></thead>
+            <tbody>
+              {estimate.rows.map(r => (
+                <tr key={r.pole + r.phase}>
+                  <td>{r.pole}</td><td className={'phase' + r.phase}>{r.phase}</td>
+                  <td>{Number.isFinite(r.kw) ? r.kw.toFixed(2) : 'no voltage limit'}</td>
+                  <td>{r.limitPole ? `${r.limit === 'high' ? 'over' : 'under'}voltage at ${r.limitPole} ${r.limitPhase}` : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table></div>
+        </div>
+      )}
 
       <BaselineBanner baseline={baseline} kind="solar shoulder (09:00–15:00)" />
 

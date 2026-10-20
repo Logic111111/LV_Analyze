@@ -12,7 +12,7 @@ import {
   computeBessHostingCapacity, computeSystemBessHostingCapacity, bessHostingBaseline,
   computeFeederSplitCandidates, searchDualFeederSplit, scoreDualFeederCandidate, makeTx, nextTransformerId,
   proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runDailyScan, protectionCheck, tapAdvisor,
-  reconductorAdvisor, fixItLadder, optimisePhaseBalance
+  reconductorAdvisor, fixItLadder, optimisePhaseBalance, voltageSensitivity, linearHostingEstimateKw
 } from './loadflow.js';
 import { buildReportHtml } from './report.js';
 
@@ -52,6 +52,18 @@ export const ENGINE_TASKS = {
   // Phase balancing v2 (P4.1): the Pareto table, with each row's scan metrics.
   phaseBalanceOptimised: ({ design, txId, objective, kMax, hours, solarMult, restarts, iterations, seed }, hooks) =>
     optimisePhaseBalance(design, txId, { objective, kMax, hours, solarMult, restarts, iterations, seed, onProgress: hooks.onProgress }),
+
+  // Voltage sensitivity matrix (P4.2) at one operating point.
+  voltageSensitivity: ({ design, year, hour, loadMult, solarMult }, hooks) =>
+    voltageSensitivity(design, { year, hour, loadMult, solarMult, onProgress: hooks.onProgress }),
+  // A first, linear hosting estimate per pole-phase from the sensitivities at one hour (voltage
+  // limits only). The Hosting page labels it as such; the full search is the confirmation.
+  linearHostingEstimate: ({ design, hour = 12 }, hooks) => {
+    const sens = voltageSensitivity(design, { year: 0, hour, solarMult: 1, onProgress: hooks.onProgress });
+    const rows = sens.blocks.flatMap(b => b.nodes.map(n => ({ pole: n.pole, phase: n.phase, ...linearHostingEstimateKw(sens, n.pole, n.phase) })))
+      .sort((a, b) => b.kw - a.kw);
+    return { hour, rows, converged: sens.blocks.every(b => b.converged) };
+  },
 
   dailyScan: ({ design, year, loadMult, solarMult }, hooks) =>
     runDailyScan(design, year, { loadMult, solarMult, onProgress: hooks.onProgress, stage: 'Solving 24 hours' }),

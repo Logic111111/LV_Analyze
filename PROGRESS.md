@@ -52,7 +52,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 ## Phase 4 — Optimisation and mathematics
 
 - [x] **P4.1** Phase balancing v2 (impedance-weighted / load-flow objectives, local search, Pareto table, seeded SA)
-- [ ] **P4.2** Voltage sensitivity matrix
+- [x] **P4.2** Voltage sensitivity matrix
 - [ ] **P4.3** Solver robustness (diagnostics, α=0.3 retry, collapse detection)
 - [ ] **P4.4** Probabilistic (Monte Carlo) planning
 - [ ] **P4.5** Multi-criteria view for feeder split and fix-it ladder
@@ -521,6 +521,22 @@ test-only.
     9 moves.
   - Impedance objective: K = 9 equals Quick (0.058).
   - Nameplate objective: K = 8 reaches Quick's 1.0 kVA spread.
+
+**P4.2 voltage sensitivity (2026-10-20).** `engine/sensitivity.js`: `voltageSensitivity`,
+`predictVoltages`, `phaseMoveChanges`, `linearHostingEstimateKw`. `transformerSubDesign` moved to
+`model.js` and is shared with P4.1. `runSnapshot` gains `extraS` (constant-power test injections,
+load convention); with none, nothing changes. It is checked against equivalent unity-pf PV
+within 1e-9.
+- Central differences, ±0.5 kW and ±0.5 kvar: four solves per pole-phase, each warm-started from
+  the base case.
+- Result layout: one block per transformer, rows are injections and columns are observed
+  voltages. Cross-transformer terms are exactly zero.
+- SOC-BESS dispatch is simulated once and held fixed.
+- Accuracy on the fixture: ±1 kW / ±1 kvar at all 9 pole-phases at 20:00 and 12:00, worst
+  linear-prediction error 7.7 mV (test bound 0.2 V).
+- Speed: the 50-pole feeder takes 1.4 s, so it runs in the worker.
+- Hosting page: "Instant linear estimate (12:00)" — voltage limits only, labelled as a first
+  look. The full search, which the goldens cover, is unchanged and remains the confirmation.
 
 ## Phase verification log
 

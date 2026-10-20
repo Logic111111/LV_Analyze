@@ -175,6 +175,15 @@
  * @property {PvConnection[]} [extraPV]    Candidate PV additions (hosting searches).
  * @property {BessConnection[]} [extraBess] Candidate BESS additions.
  * @property {Record<string, number> | null} [bessDispatch] SOC-mode BESS grid power this hour, kW (+ discharge).
+ * @property {ExtraInjection[]} [extraS] Constant-power test injections (voltage sensitivity).
+ */
+
+/**
+ * @typedef {object} ExtraInjection
+ * @property {string} pole
+ * @property {Phase} phase
+ * @property {number} p  kW, load convention (+ consumption, − generation)
+ * @property {number} q  kvar, load convention
  */
 
 /**

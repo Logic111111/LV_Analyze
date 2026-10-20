@@ -247,6 +247,24 @@ export function transformerOfPole(design, poleId) {
   }
   return cur;
 }
+// One transformer's network as a design of its own: its poles and the connections on them, with
+// every setting unchanged. Each transformer's subtree is solved independently, so the load flow of
+// the sub-design gives the same results for it. Searches that re-solve one transformer many times
+// (phase optimiser, voltage sensitivity) then skip solving the others.
+/** @param {Design} design @param {string} txId @returns {Design} */
+export function transformerSubDesign(design, txId) {
+  const poles = design.poles.filter(p => transformerOfPole(design, p.id) === txId);
+  const ids = new Set(poles.map(p => p.id));
+  return {
+    ...design,
+    transformers: design.transformers.filter(t => t.id === txId),
+    poles,
+    loads: design.loads.filter(l => ids.has(l.pole)),
+    pv: design.pv.filter(p => ids.has(p.pole)),
+    bess: design.bess.filter(b => ids.has(b.pole)),
+    openPoints: (design.openPoints || []).filter(o => ids.has(o.poleA) && ids.has(o.poleB))
+  };
+}
 /** @param {Design} design @param {string[]} rootIds @returns {string[]} */
 export function bfsOrderFrom(design, rootIds) {
   const order = []; const queue = [...rootIds];

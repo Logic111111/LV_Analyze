@@ -26,7 +26,7 @@
 // nothing, and the move count is the minimum number of drops to re-terminate to reach the
 // arrangement (see normaliser below).
 import { C, PHASES } from '../complex.js';
-import { poleById, isTransformerId, conductorParams, transformerOfPole } from '../model.js';
+import { poleById, isTransformerId, conductorParams, transformerSubDesign } from '../model.js';
 import { runHours, summarizeScan, DAILY_HOURS } from '../scan.js';
 import { mulberry32, randomInt } from '../random.js';
 import { balanceableConnections, proposePhaseBalance, applyPhaseBalance } from './phaseBalance.js';
@@ -55,24 +55,6 @@ export function pathImpedanceOhm(design, poleId) {
     cur = p.parent;
   }
   return C.abs(z);
-}
-
-// The transformer's own network as a design of its own. Each transformer's subtree is solved
-// independently, so the results for it are the same. A load flow of the rest would be wasted
-// work, repeated for every arrangement tried.
-/** @param {Design} design @param {string} txId @returns {Design} */
-function transformerSubDesign(design, txId) {
-  const poles = design.poles.filter(p => transformerOfPole(design, p.id) === txId);
-  const ids = new Set(poles.map(p => p.id));
-  return {
-    ...design,
-    transformers: design.transformers.filter(t => t.id === txId),
-    poles,
-    loads: design.loads.filter(l => ids.has(l.pole)),
-    pv: design.pv.filter(p => ids.has(p.pole)),
-    bess: design.bess.filter(b => ids.has(b.pole)),
-    openPoints: (design.openPoints || []).filter(o => ids.has(o.poleA) && ids.has(o.poleB))
-  };
 }
 
 /** The original connection behind a balance item. @param {Design} design @param {OptimiserItem} it */
@@ -154,6 +136,7 @@ export function optimisePhaseBalance(design, txId, opts = {}) {
   /** @param {Phase[]} arr */
   const keyOf = (arr) => arr.join('');
 
+  // Only the transformer's own network is solved, for every arrangement tried.
   const sub = objective === 'loadflow' ? transformerSubDesign(design, txId) : null;
   // Per-span neutral resistance (Ω) for the neutral I²R term.
   /** @type {Record<string, number>} */

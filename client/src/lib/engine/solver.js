@@ -19,10 +19,10 @@ import { getConductor } from './model.js';
 // independently with the original single-TX backward-forward sweep).
 /**
  * @param {Design} design @param {Transformer} tx
- * @param {{ year: number, hour: number, loadMult: number, solarMult: number, extraPV: import('./types.js').PvConnection[], extraBess?: import('./types.js').BessConnection[], index: import('./loads.js').ConnectionIndex, topo: ReturnType<typeof topologyOf>, initialV?: InitialV | null, bessDispatch?: Record<string, number> | null }} opts
+ * @param {{ year: number, hour: number, loadMult: number, solarMult: number, extraPV: import('./types.js').PvConnection[], extraBess?: import('./types.js').BessConnection[], index: import('./loads.js').ConnectionIndex, topo: ReturnType<typeof topologyOf>, initialV?: InitialV | null, bessDispatch?: Record<string, number> | null, extraS?: import('./types.js').ExtraInjection[] }} opts
  */
 function solveTxSubtree(design, tx, opts) {
-  const { year, hour, loadMult, solarMult, extraPV, extraBess = [], index, topo, initialV, bessDispatch = null } = opts;
+  const { year, hour, loadMult, solarMult, extraPV, extraBess = [], index, topo, initialV, bessDispatch = null, extraS = [] } = opts;
   const hvMult = hvMultiplierAt(tx, hour);
   const V0 = secondaryLNVoltage(tx) * hvMult;
   const V0ph = { A: C.fromPolar(V0, PHASE_ANGLE.A), B: C.fromPolar(V0, PHASE_ANGLE.B), C: C.fromPolar(V0, PHASE_ANGLE.C) };
@@ -151,6 +151,12 @@ function solveTxSubtree(design, tx, opts) {
   // snapshot here rather than on every iteration; only the ZIP multiplier (which does depend on
   // the iterate's |V|) is applied inside the loop.
   const injections = {}; order.forEach(id => { injections[id] = netS(design, id, year, hour, loadMult, solarMult, extraPV, extraBess, index, bessDispatch); });
+  // Constant-power test injections (voltage sensitivity, P4.2): kW / kvar in the load convention,
+  // added as they are. Nothing is touched when there are none.
+  extraS.forEach(x => {
+    const inj = injections[x.pole];
+    if (inj) inj.otherS = { ...inj.otherS, [x.phase]: C.add(inj.otherS[x.phase], { re: x.p, im: x.q }) };
+  });
   const invSettings = inverterSettings(design);
   for (let iter = 0; iter < MAX_ITER; iter++) {
     iterUsed = iter + 1;
@@ -427,11 +433,11 @@ export function warmStartFrom(res) {
  * @returns {SnapshotResult}
  */
 export function runSnapshot(design, opts, ctx = {}) {
-  const { year, hour, loadMult = 1, solarMult = 1, extraPV = [], extraBess = [], bessDispatch = null } = opts;
+  const { year, hour, loadMult = 1, solarMult = 1, extraPV = [], extraBess = [], bessDispatch = null, extraS = [] } = opts;
   const index = ctx.index || connectionIndex(design);
   const topo = ctx.topo || topologyOf(design);
   const initialV = ctx.initialV || null;
-  const solved = design.transformers.map(tx => solveTxSubtree(design, tx, { year, hour, loadMult, solarMult, extraPV, extraBess, index, topo, initialV, bessDispatch }));
+  const solved = design.transformers.map(tx => solveTxSubtree(design, tx, { year, hour, loadMult, solarMult, extraPV, extraBess, index, topo, initialV, bessDispatch, extraS }));
 
   const poleResults = solved.flatMap(s => s.poleResults);
   const lossByPole = Object.assign({}, ...solved.map(s => s.lossByPole));
