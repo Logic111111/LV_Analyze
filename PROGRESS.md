@@ -34,7 +34,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 ## Phase 2 — Engineering analyses
 
 - [x] **P2.1** Symmetrical components & VUF (phasors kept in results; per pole/hour + worst over 24 h; `'unbalance'` violation only when `design.standards.vufAsViolation`)
-- [ ] **P2.2** Voltage-profile data — `distanceFromTx`, `voltageProfile`
+- [x] **P2.2** Voltage-profile data — `distanceFromTx`, `voltageProfile`
 - [ ] **P2.3** Fault level & protection check (`faults.js`, IEC 60909-style; fuse library empty by default; Protection panel + report section)
 - [ ] **P2.4** Tap advisor (multi-year, ranking, unbalance diagnosis, off-load note, Apply/Preview)
 - [ ] **P2.5** Editable conductor library + reconductoring advisor
@@ -338,6 +338,11 @@ Finding: on Walkthrough Island at 20:00, P3's VUF is 1.70 % (balanced: 0.74 %). 
 EN 50160's 2 %, even though P3's phase-to-neutral voltages span 212.9–239.2 V. Most of that spread
 is neutral shift, which is zero sequence and correctly excluded from VUF. So the phase-to-neutral
 band check, not VUF, is what bites on this feeder. No golden changed.
+
+**P2.2 profile data (2026-10-20).** `engine/profile.js`: `distanceFromTx`, and
+`voltageProfile(result, design, { feederRoot | path })`. Each profile is one series per
+root-to-leaf path (a branch shows as its own line), starting at the LV bus at 0 m. A `path` that
+doesn't follow parents outwards is rejected with a clear error. The UI comes in P5.3.
 
 ## Phase verification log
 
