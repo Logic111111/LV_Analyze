@@ -74,7 +74,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 
 - [x] **P6.1** Economics (loss cost, discount rate, cost table → LKR/yr, capex, payback, NPV)
 - [x] **P6.2** Demand from billing data (Velander, fitted from CSV)
-- [ ] **P6.3** Smart-meter (AMI) import
+- [x] **P6.3** Smart-meter (AMI) import
 - [ ] **P6.4** Measured vs simulated (incl. phase-label check)
 - [ ] **P6.5** Fleet dashboard (`designs.summary` JSON column)
 - [ ] **P6.6** Exports (xlsx, CSV, GeoJSON)
@@ -866,6 +866,22 @@ within 1e-9.
     R², residuals with outliers > 2×RMS in bold, "Use these constants". It warns when the option
     is on but constants are missing.
   - Network: per-load "Annual kWh" and "Meter id" (for P6.3).
+
+**P6.3 smart-meter import (2026-10-21).**
+- **Engine.** `engine/ami.js`: `parseWallClock`, `parseAmiCsv`, `amiAnalysis`,
+  `applyAmiSuggestions`, `AMI_TYPES`.
+- **Data.** CSV of meter id, `YYYY-MM-DD[ T]HH:MM`, kWh per interval. The interval is
+  configurable (default 30 min), and kW = kWh × 60/interval. Timestamps are local wall-clock with
+  no time-zone conversion.
+- **Mapping.** Meters map to connections through the new `meterId`; the Network column came
+  with P6.2. Unmatched meters and meterless connections are listed.
+- **Suggestions.**
+  - Per-type normalised curve: mean hourly demand ÷ its own max, optionally weekday/weekend.
+    Hours with no data are reported, and an incomplete curve can't be applied.
+  - Per-customer peak.
+  - Group ADMD = coincident peak of the summed demand ÷ customers ÷ pf (kVA).
+  - Applied only for the ticked items, after a confirm.
+- **Tests.** Hand-computed figures on synthetic data.
 
 ## Phase verification log
 
