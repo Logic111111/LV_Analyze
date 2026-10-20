@@ -29,6 +29,7 @@
 //   velander.js             demand from annual kWh (Velander), least-squares fit of k1, k2
 //   ami.js                  smart-meter import: curves, peaks and ADMD suggestions
 //   fieldReadings.js        measured vs simulated voltages, phase-label check
+//   summary.js              compact per-design summary for the fleet dashboard
 //   hosting.js              PV hosting capacity
 //   bess.js                 BESS hosting capacity
 //   advisors/feederSplit.js feeder split advisor
@@ -61,6 +62,7 @@ export * from './economics.js';
 export * from './velander.js';
 export * from './ami.js';
 export * from './fieldReadings.js';
+export * from './summary.js';
 export * from './hosting.js';
 export * from './bess.js';
 export * from './advisors/feederSplit.js';

@@ -13,7 +13,7 @@ import {
   computeFeederSplitCandidates, searchDualFeederSplit, scoreDualFeederCandidate, makeTx, nextTransformerId,
   proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runDailyScan, protectionCheck, tapAdvisor,
   reconductorAdvisor, fixItLadder, optimisePhaseBalance, voltageSensitivity, linearHostingEstimateKw, monteCarloStudy,
-  runSnapshotAt, compareScenarios, collectIssues, traceHostingSearch, explainHosting, compareMeasured
+  runSnapshotAt, compareScenarios, collectIssues, traceHostingSearch, explainHosting, compareMeasured, designSummary
 } from './loadflow.js';
 import { buildReportHtml } from './report.js';
 
@@ -89,6 +89,9 @@ export const ENGINE_TASKS = {
 
   // Measured vs simulated (P6.4).
   compareMeasured: ({ design, readings, year }) => compareMeasured(design, readings, { year }),
+
+  // Fleet-dashboard summary stored with each save (P6.5).
+  designSummary: ({ design, hostingTotalKva }) => designSummary(design, { hostingTotalKva }),
 
   dailyScan: ({ design, year, loadMult, solarMult }, hooks) =>
     runDailyScan(design, year, { loadMult, solarMult, onProgress: hooks.onProgress, stage: 'Solving 24 hours' }),

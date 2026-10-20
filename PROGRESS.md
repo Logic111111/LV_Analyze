@@ -76,13 +76,13 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P6.2** Demand from billing data (Velander, fitted from CSV)
 - [x] **P6.3** Smart-meter (AMI) import
 - [x] **P6.4** Measured vs simulated (incl. phase-label check)
-- [ ] **P6.5** Fleet dashboard (`designs.summary` JSON column)
+- [x] **P6.5** Fleet dashboard (`designs.summary` JSON column)
 - [ ] **P6.6** Exports (xlsx, CSV, GeoJSON)
 
 ## Phase 7 — Platform
 
 - [ ] **P7.1** Shared engine package (`packages/engine/`)
-- [ ] **P7.2** Database migrations (numbered SQL, `schema_migrations`)
+- [x] **P7.2** Database migrations (numbered SQL, `schema_migrations`)
 - [ ] **P7.3** Version history and undo/redo
 - [ ] **P7.4** Teams, roles and approval workflow
 - [ ] **P7.5** Session revocation
@@ -896,6 +896,48 @@ within 1e-9.
   the P6.3 commit on its own doesn't expose `ami.js` through `loadflow.js`.
 - **Browser check.** Matched meters: ADMD applied after a confirm. A P3 "phase A" reading at
   B's voltage is flagged as a likely phase-B record.
+
+**P7.2 migrations and server restructure (2026-10-21; done before P6.5, which needed it).**
+- **Runner.** `server/src/migrate.js` applies `server/sql/migrations/NNN_name.sql` once each, at
+  start-up and before the app listens.
+  - A `schema_migrations` table records what has run.
+  - `GET_LOCK` stops two instances racing.
+  - Each migration runs in `START TRANSACTION … COMMIT` together with its version row.
+  - **MySQL commits DDL implicitly**, so statements carry `-- @skip-if-(column|table|index|fk)-exists`
+    guards checked against information_schema; an interrupted migration can simply be re-run.
+- **Schema.** `schema.sql` stays the fresh-install base: Docker initdb, then the migrations.
+  Existing databases are upgraded in place. Migrations:
+  - 001: summary columns.
+  - 002: `design_versions`; existing designs become version 1.
+  - 003: organisations, memberships, design org/status/locked version, reviews, audit_log.
+  - 004: sessions.
+- **Server structure.** `createApp({ repo })` (`src/app.js`). All SQL lives in `src/repo/mysql.js`
+  (parameterised; multi-statement changes in transactions), and the access rules in
+  `src/access.js`. Routes: auth, designs, orgs, ai. Every route requires auth and checks ownership
+  or role.
+- **Tests.** supertest + node:test on an in-memory repo (`test/memoryRepo.js`), 16 server tests:
+  - migration runner with a fake connection;
+  - 401 on every route;
+  - sessions;
+  - ownership (404 for others' designs);
+  - versions, restore, duplicate;
+  - payload limits;
+  - organisations;
+  - the full workflow.
+
+  The server image now ships `sql/`, and CI runs `npm ci` for the server (lockfile added).
+- **Not yet verified against a real MySQL:** the throwaway-stack Docker check at the end covers
+  that.
+
+**P6.5 fleet dashboard (2026-10-21).**
+- **Summary.** `engine/summary.js` `designSummary` (tested) is computed in the worker on each save
+  (`saveDesign`), sent as `__summary`, and stored by the server. A summary over 8 kB is dropped.
+  - The worst voltage is whichever extreme is furthest from nominal. On the fixture that is 212.5 V
+    at P3 A 19:00, the day's minimum; 212.9 V is the 20:00 golden snapshot.
+- **Dashboard page.** Lists own and organisation-shared designs with search, a status filter,
+  sortable columns, and a "worst first" view (most violations, then the furthest from nominal).
+- **Gap.** The hosting total is the sum of the last independent hosting scan when one was run in
+  the session.
 
 ## Phase verification log
 
