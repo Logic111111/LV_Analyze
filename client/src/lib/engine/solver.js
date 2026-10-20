@@ -344,6 +344,26 @@ function solveTxSubtree(design, tx, opts) {
     return C.div(C.sub(VnParent, Vn[id]), spanZ[id].Zn);
   };
 
+  // Neutral-point shift at each pole (P5.3 phasor diagram): the local neutral's potential relative
+  // to the transformer star point, V. Grounded subtrees get it from the nodal neutral solve; others
+  // accumulate the neutral conductor's drop span by span with the same terms the forward sweep
+  // used (Zn·In, or the coupled matrix's neutral row). Reported only, it changes no other result.
+  /** @type {Record<string, Complex>} */
+  const vnShift = {};
+  order.forEach(id => {
+    if (groundedIds.length) { vnShift[id] = C.sub(Vn[id], VnTx); return; }
+    const parent = parentOf[id];
+    const up = parent === tx.id ? C.zero() : vnShift[parent];
+    const z = spanZ[id];
+    const In = C.add(C.add(Icum[id].A, Icum[id].B), Icum[id].C);
+    let rise;
+    if (z.M) {
+      const I4 = [Icum[id].A, Icum[id].B, Icum[id].C, C.mulS(In, -1)];
+      rise = C.mulS(z.M[3].reduce((s, zkj, j) => C.add(s, C.mul(zkj, I4[j])), C.zero()), -1);
+    } else rise = C.mul(z.Zn, In);
+    vnShift[id] = C.add(up, rise);
+  });
+
   const poleResults = order.map(id => {
     const p = poleOf(id);
     const volt = /** @type {import('./types.js').PhaseMap<number>} */ ({}); PHASES.forEach(ph => { volt[ph] = C.abs(V[id][ph]); });
@@ -355,7 +375,7 @@ function solveTxSubtree(design, tx, opts) {
     const flowKW = Sspan.re / 1000, flowKVAR = Sspan.im / 1000;
     return {
       id, feeder: p.feeder, parent: p.parent, cond: p.cond, spanM: p.spanM,
-      volt, vph: { A: { ...V[id].A }, B: { ...V[id].B }, C: { ...V[id].C } }, vufPct: vufPct(V[id]),
+      volt, vph: { A: { ...V[id].A }, B: { ...V[id].B }, C: { ...V[id].C } }, vn: vnShift[id], vufPct: vufPct(V[id]),
       inverters: injections[id].smart.map(u => {
         const vPu = C.abs(V[id][u.phase]) / design.vnom;
         const o = inverterOutput(u, vPu, invSettings);

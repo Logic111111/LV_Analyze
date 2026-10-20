@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext.jsx';
 
 const TABS = [
   ['setup', 'Setup'], ['network', 'Network'], ['diagram', 'Diagram'], ['reports', 'Run & Reports'],
-  ['daily', '24h Profile'], ['hosting', 'Solar Hosting'], ['bess-hosting', 'BESS Hosting'], ['feeder-split', 'Feeder Split'], ['load-balance', 'Load Balance'], ['reconductor', 'Reconductor'], ['fix-it', 'Fix-it Ladder'], ['monte-carlo', 'Probabilistic'], ['protection', 'Protection'], ['insights', 'AI Insights'],
+  ['daily', '24h Profile'], ['charts', 'Charts'], ['hosting', 'Solar Hosting'], ['bess-hosting', 'BESS Hosting'], ['feeder-split', 'Feeder Split'], ['load-balance', 'Load Balance'], ['reconductor', 'Reconductor'], ['fix-it', 'Fix-it Ladder'], ['monte-carlo', 'Probabilistic'], ['protection', 'Protection'], ['insights', 'AI Insights'],
   ['designs', 'Designs'], ['about', 'About']
 ];
 

@@ -61,7 +61,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 
 - [x] **P5.1** New single-line diagram (`SingleLineDiagram.jsx`, IEC 60617-style, overlays, before/after, SVG/PNG/PDF/DXF export)
 - [x] **P5.2** Interactive what-if (drag a drop to another phase; sensitivity preview, confirmed by full load flow)
-- [ ] **P5.3** Engineering charts (V vs distance, phasor diagram, heatmap, loading-duration, VUF, fault level)
+- [x] **P5.3** Engineering charts (V vs distance, phasor diagram, heatmap, loading-duration, VUF, fault level)
 - [ ] **P5.4** Scenario manager and comparison
 - [ ] **P5.5** Issues panel
 - [ ] **P5.6** "Explain this number" drawer
@@ -656,6 +656,22 @@ within 1e-9.
 - **Undo.** Local Undo on the page, one move at a time. P7.3 adds the global undo/redo stack.
 - **Drag bug fixed.** Native text selection auto-scrolled the frame mid-drag and dropped onto the
   wrong phase. The SVG is now `user-select: none`, and pointer-down cancels the default action.
+
+**P5.3 engineering charts (2026-10-20).**
+- **Page.** **Charts** (`/app/charts`), built on `lib/chartData.js` (`phasorData`,
+  `voltageHeatmap`, `loadingDuration`, `vufByPole`, `faultAlongFeeder`; unit tested).
+  - One worker 24 h scan feeds every chart; the hour slider picks the snapshot for the profile,
+    phasor and VUF charts.
+  - Every canvas has an aria-label, and the key numbers are printed beside it. The heatmap prints
+    the value in every cell.
+- **Engine addition.** `poleResults[].vn`, the complex neutral shift of the local neutral relative
+  to the transformer star point. It takes the nodal solve's `Vn − VnTx` for grounded subtrees;
+  otherwise it accumulates Zn·In (or the coupled matrix's neutral row) span by span.
+  - Reported only: every golden, the reference lock and the benchmark are unchanged.
+  - Tested: at P1 |vn| = |Zn|·In; the shift grows outwards and shrinks after balancing.
+  - Fixture at 20:00: 9.24 V ∠2.6° at P3.
+- **Phasor diagram.** O = star point, N′ = local neutral. N′→tip are the customers' voltages, and
+  O→tip the phase-to-star voltages. An enlarged inset shows O→N′, which is tiny next to 230 V.
 
 ## Phase verification log
 

@@ -19,6 +19,7 @@ import ProtectionPage from './pages/ProtectionPage.jsx';
 import ReconductorPage from './pages/ReconductorPage.jsx';
 import FixItPage from './pages/FixItPage.jsx';
 import MonteCarloPage from './pages/MonteCarloPage.jsx';
+import ChartsPage from './pages/ChartsPage.jsx';
 import InsightsPage from './pages/InsightsPage.jsx';
 import DesignsPage from './pages/DesignsPage.jsx';
 import AboutPage from './pages/AboutPage.jsx';
@@ -38,6 +39,7 @@ function ProtectedShell() {
           <Route path="diagram" element={<DiagramPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="daily" element={<DailyPage />} />
+          <Route path="charts" element={<ChartsPage />} />
           <Route path="hosting" element={<HostingPage />} />
           <Route path="bess-hosting" element={<BessHostingPage />} />
           <Route path="feeder-split" element={<FeederSplitPage />} />

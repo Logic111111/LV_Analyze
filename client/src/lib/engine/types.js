@@ -205,6 +205,7 @@
  * @property {number} spanM
  * @property {PhaseMap<number>} volt    |V| phase-to-local-neutral, V.
  * @property {PhaseMap<Complex>} vph    The same voltages as complex phasors (source phase A at 0°).
+ * @property {Complex} [vn]  Local neutral's potential relative to the transformer star point, V (P5.3).
  * @property {{ id?: string, phase: Phase, mode: string, vPu: number, pAvailKw: number, pKw: number, qKvar: number, curtailedKw: number }[]} [inverters]
  *   Smart-inverter PV units at this pole (empty in unity mode): final output and curtailment.
  * @property {number} vufPct            Voltage unbalance factor |V2|/|V1|, %.
