@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
-import { LADDER_STEPS, LADDER_STEP_LABELS, runSnapshotAt } from '../lib/loadflow.js';
+import { LADDER_STEPS, LADDER_STEP_LABELS, runSnapshotAt, capexOf, optionEconomics } from '../lib/loadflow.js';
 import SldPreview from '../components/SldPreview.jsx';
 import TaskProgress from '../components/TaskProgress.jsx';
 import { ConvergenceWarning } from '../components/Convergence.jsx';
@@ -103,16 +103,20 @@ export default function FixItPage() {
               <div className="tbl-wrap"><table>
                 <thead><tr>
                   <th>#</th><th>Remedy</th>{result.years.map(y => <th key={y}>Violations yr {y}</th>)}
-                  <th>Loss (kWh/day)</th><th>Saved (kWh/yr)</th><th>LKR/yr saved</th><th>What it takes</th><th>Result</th><th></th>
+                  <th>Loss (kWh/day)</th><th>Saved (kWh/yr)</th><th>LKR/yr saved</th><th>Capex (LKR)</th><th>Payback (yr)</th><th>NPV (LKR)</th><th>What it takes</th><th>Result</th><th></th>
                 </tr></thead>
                 <tbody>
                   <tr>
                     <td>—</td><td>Current design</td>
                     {result.years.map(y => <td key={y}><span className={'pill ' + (result.baseline.violationsByYear[y] ? 'bad' : 'ok')}>{result.baseline.violationsByYear[y]}</span></td>)}
-                    <td>{kwhDay(result.baseline.kwhYear0)}</td><td>—</td><td>—</td><td>—</td><td></td><td></td>
+                    <td>{kwhDay(result.baseline.kwhYear0)}</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td></td><td></td>
                   </tr>
                   {result.steps.map((s, i) => {
                     const saved = s.metrics ? (result.baseline.kwhYear0 - s.metrics.kwhYear0) * 365 : null;
+                    // Economics (P6.1): from the user's costs only; "not set" where an input is missing.
+                    const cx = s.design ? capexOf(design, s.design, design) : null;
+                    const ec = s.metrics ? optionEconomics(design, { baseKwhDay: result.baseline.kwhYear0, optionKwhDay: s.metrics.kwhYear0, capexLkr: cx ? cx.lkr : null }) : null;
+                    const notSet = (title) => <span style={{ color: 'var(--muted)' }} title={title}>not set</span>;
                     return (
                       <tr key={s.step}>
                         <td>{i + 1}</td>
@@ -120,7 +124,10 @@ export default function FixItPage() {
                         {result.years.map(y => <td key={y}>{s.metrics ? <span className={'pill ' + (s.metrics.violationsByYear[y] ? 'bad' : 'ok')}>{s.metrics.violationsByYear[y]}</span> : '—'}</td>)}
                         <td>{s.metrics ? kwhDay(s.metrics.kwhYear0) : '—'}</td>
                         <td>{saved == null ? '—' : saved.toFixed(0)}</td>
-                        <td><span style={{ color: 'var(--muted)' }} title="Needs the energy cost of losses (Economics, P6.1)">not set</span></td>
+                        <td>{!ec ? '—' : ec.lkrYearSaved == null ? notSet('Needs the energy cost of losses (Setup → Economics)') : Math.round(ec.lkrYearSaved).toLocaleString('en-US')}</td>
+                        <td>{!cx ? '—' : cx.lkr == null ? notSet(`Needs: ${cx.missing.join(', ')}`) : Math.round(cx.lkr).toLocaleString('en-US')}</td>
+                        <td>{!ec ? '—' : ec.paybackYears == null ? (ec.lkrYearSaved != null && ec.lkrYearSaved <= 0 ? 'no saving' : notSet('Needs the loss cost and the capex')) : ec.paybackYears.toFixed(1)}</td>
+                        <td>{!ec ? '—' : ec.npvLkr == null ? notSet('Needs the loss cost, capex, discount rate and study period') : Math.round(ec.npvLkr).toLocaleString('en-US')}</td>
                         <td style={{ whiteSpace: 'normal', minWidth: 160 }}>{ladderCost(s)}</td>
                         <td>{!s.design ? <span className="pill warn">Nothing to change</span> : s.solves ? <span className="pill ok">Fixes it</span> : <span className="pill bad">Not enough</span>}</td>
                         <td style={{ whiteSpace: 'nowrap' }}>{s.design && <><button className="mini" onClick={() => setPreview(s)}>Preview</button> <button className="mini" onClick={() => apply(s)}>Apply</button></>}</td>
@@ -129,17 +136,17 @@ export default function FixItPage() {
                   })}
                 </tbody>
               </table></div>
-              <p className="hint" style={{ marginTop: 8 }}>kWh/yr = the year-0 daily figure × 365 (a simplification: one representative day). LKR/yr needs the energy cost of losses, which arrives with Economics (P6.1).</p>
+              <p className="hint" style={{ marginTop: 8 }}>kWh/yr = the year-0 daily figure × 365 (a simplification: one representative day). LKR figures use the costs under Setup → Economics and the conductor library; "not set" means an input is missing (hover for which). NPV = −capex + Σ saving / (1 + r)^t over the study period.</p>
               <MultiCriteriaView
                 title="Compare remedies by criteria"
                 items={[
                   { id: '__current', label: 'Current design', values: { violations: result.baseline.totalViolations, kwh: result.baseline.kwhYear0, capex: 0, vuf: result.baseline.worstVufPct ?? null } },
-                  ...result.steps.filter(s => s.metrics).map(s => ({ id: s.step, label: s.label, values: { violations: s.metrics.totalViolations, kwh: s.metrics.kwhYear0, capex: s.capex ?? null, vuf: s.metrics.worstVufPct ?? null } }))
+                  ...result.steps.filter(s => s.metrics).map(s => ({ id: s.step, label: s.label, values: { violations: s.metrics.totalViolations, kwh: s.metrics.kwhYear0, capex: s.design ? capexOf(design, s.design, design).lkr : null, vuf: s.metrics.worstVufPct ?? null } }))
                 ]}
                 criteria={[
                   { key: 'violations', label: `Voltage violations (yrs ${result.years.join(' + ')})`, digits: 0 },
                   { key: 'kwh', label: 'Loss kWh/day (yr 0)', digits: 2 },
-                  { key: 'capex', label: 'Capex LKR (where known)', digits: 0, missing: 'only reconductoring with conductor costs entered has a capex; moves, tap changes and new transformers need unit costs (Economics, P6.1), so they show "—" and are not compared on capex.' },
+                  { key: 'capex', label: 'Capex LKR (where known)', digits: 0, missing: 'a remedy whose unit costs are not all entered (Setup → Economics, conductor library) shows "—" and is not compared on capex.' },
                   { key: 'vuf', label: 'Worst VUF %', digits: 2 }
                 ]}
                 onPreview={(id) => { const s = result.steps.find(x => x.step === id); if (s && s.design) setPreview(s); }}

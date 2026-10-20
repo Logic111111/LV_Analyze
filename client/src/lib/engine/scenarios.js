@@ -11,7 +11,7 @@
 import { BUILTIN_STANDARDS_PROFILES, applyStandardsProfile } from './standards.js';
 import { runDailyScan, systemLossW } from './scan.js';
 import { protectionCheck } from './faults.js';
-import { conductorCostPerM } from './advisors/reconductor.js';
+import { capexOf, optionEconomics } from './economics.js';
 /** @import { Design, ProgressHooks } from './types.js' */
 
 export const PATCH_COLLECTIONS = /** @type {const} */ (['transformers', 'poles', 'loads', 'pv', 'bess', 'openPoints']);
@@ -81,32 +81,12 @@ export function applyScenario(design, sc) {
 }
 
 /**
- * Capex of a scenario's network changes, where it can be worked out from user data: re-strung
- * spans at their conductor's cost per metre. Other kinds of change (connection moves, new
- * transformers, tap changes) need unit costs and are listed in `missing` (Economics, P6.1).
+ * Capex of a scenario's network changes (economics.js capexOf, with the design's own costs).
  * @param {Design} base @param {Design} variant
  */
 export function patchCapex(base, variant) {
-  let lkr = 0;
-  const missing = [];
-  const poles = new Map(base.poles.map(p => [p.id, p]));
-  variant.poles.forEach(p => {
-    const b = poles.get(p.id);
-    if (b && b.cond !== p.cond) {
-      const c = conductorCostPerM(variant, p.cond);
-      if (c == null) missing.push(`cost per metre of ${p.cond}`); else lkr += c * Number(p.spanM || 0);
-    }
-  });
-  const moved = ['loads', 'pv', 'bess'].reduce((n, k) => {
-    const m = new Map(/** @type {any[]} */ (base[k]).map(x => [x.id, x.phase]));
-    return n + /** @type {any[]} */ (variant[k]).filter(x => m.has(x.id) && m.get(x.id) !== x.phase).length;
-  }, 0);
-  if (moved) missing.push(`${moved} connection move${moved === 1 ? '' : 's'} (rewiring cost)`);
-  const newTx = variant.transformers.filter(t => !base.transformers.some(b => b.id === t.id)).length;
-  if (newTx) missing.push(`${newTx} new transformer${newTx === 1 ? '' : 's'}`);
-  const taps = variant.transformers.filter(t => { const b = base.transformers.find(x => x.id === t.id); return b && b.tap !== t.tap; }).length;
-  if (taps) missing.push(`${taps} tap change${taps === 1 ? '' : 's'} (outage)`);
-  return { lkr: missing.length ? null : lkr, knownLkr: lkr, missing };
+  const c = capexOf(base, variant); // the applied scenario keeps the design's library and costs
+  return { lkr: c.lkr, knownLkr: c.knownLkr, missing: c.missing };
 }
 
 /**
@@ -154,7 +134,10 @@ export const SCENARIO_ROWS = Object.freeze([
   { key: 'lossLkrYear', label: 'Losses (LKR/yr)', better: 'low', digits: 0 },
   { key: 'txPeakPct', label: 'Transformer peak (%)', better: 'low', digits: 0 },
   { key: 'protectionFails', label: 'Protection devices failing', better: 'low', digits: 0 },
-  { key: 'capexLkr', label: 'Capex (LKR)', better: 'low', digits: 0 }
+  { key: 'capexLkr', label: 'Capex (LKR)', better: 'low', digits: 0 },
+  { key: 'lkrYearSavedVsCurrent', label: 'Loss saving vs the current design (LKR/yr)', better: 'high', digits: 0 },
+  { key: 'paybackYears', label: 'Simple payback (years)', better: 'low', digits: 1 },
+  { key: 'npvLkr', label: 'NPV vs the current design (LKR)', better: 'high', digits: 0 }
 ]);
 
 /**
@@ -164,9 +147,19 @@ export const SCENARIO_ROWS = Object.freeze([
  */
 export function compareScenarios(design, scenarios, hooks = {}) {
   const list = scenarios.slice(0, MAX_COMPARED_SCENARIOS);
-  const columns = list.map((sc, i) => {
-    const m = scenarioMetrics(design, sc, { onProgress: hooks.onProgress, stage: `Scenario ${i + 1} of ${list.length}: ${sc.name}` });
-    return { ...m, protectionFails: m.protection.fail };
+  const metrics = list.map((sc, i) => scenarioMetrics(design, sc, { onProgress: hooks.onProgress, stage: `Scenario ${i + 1} of ${list.length}: ${sc.name}` }));
+  // Savings, payback and NPV are against the current design at each scenario's own year and
+  // multipliers (P6.1); computed only when the energy cost of losses is set.
+  const costSet = /** @type {any} */ (design).economics && Number(/** @type {any} */ (design).economics.lossCostLkrPerKwh) > 0;
+  const baseKwh = new Map();
+  const columns = metrics.map((m, i) => {
+    let econ = { lkrYearSaved: null, paybackYears: null, npvLkr: null };
+    if (costSet && list[i].id !== CURRENT_DESIGN_SCENARIO.id) {
+      const key = `${m.year}|${m.loadMult}|${m.solarMult}`;
+      if (!baseKwh.has(key)) baseKwh.set(key, scenarioMetrics(design, { ...CURRENT_DESIGN_SCENARIO, year: m.year, loadMult: m.loadMult, solarMult: m.solarMult }).lossKwhDay);
+      econ = optionEconomics(design, { baseKwhDay: baseKwh.get(key), optionKwhDay: m.lossKwhDay, capexLkr: m.capexLkr });
+    }
+    return { ...m, protectionFails: m.protection.fail, lkrYearSavedVsCurrent: econ.lkrYearSaved, paybackYears: econ.paybackYears, npvLkr: econ.npvLkr };
   });
   /** @type {Record<string, string[]>} */
   const best = {};

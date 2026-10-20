@@ -1,4 +1,4 @@
-import { getTransformerType, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh, pvHostingBaseline, bessHostingBaseline, faultLevels, protectionCheck, C, describeReconductor, standardsOf, inverterSettings, transformerAgeing, thermalSettings, SCENARIO_ROWS } from './loadflow.js';
+import { getTransformerType, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh, pvHostingBaseline, bessHostingBaseline, faultLevels, protectionCheck, C, describeReconductor, standardsOf, inverterSettings, transformerAgeing, thermalSettings, SCENARIO_ROWS, economicsOf, capexOf, optionEconomics } from './loadflow.js';
 import { buildSldScene } from './sld/scene.js';
 import { sceneToSvg } from './sld/svg.js';
 import { hostingLimitText, vufText } from './format.js';
@@ -358,9 +358,25 @@ function monteCarloSectionBody(r) {
     ${hot.length ? `<h3>Most likely violation locations</h3>${table(['Pole / phase', 'Probability'], hot.map(h => [esc(h.at), (h.p * 100).toFixed(1) + ' %']))}` : '<p>No pole-phase had a violation in any run.</p>'}`;
 }
 function economicsSectionBody(design, extras) {
-  const e = design.economics || {};
-  if (!(Number(e.lossCostLkrPerKwh) > 0)) return '<p class="empty">Economics not set — enter the energy cost of losses (and optionally the discount rate, study period and unit costs) under Setup → Economics to see LKR figures.</p>';
-  return extras.economicsHtml || `<p>Energy cost of losses: ${Number(e.lossCostLkrPerKwh)} LKR/kWh.</p>`;
+  const e = economicsOf(design);
+  if (!(e.lossCostLkrPerKwh > 0)) return '<p class="empty">Economics not set — enter the energy cost of losses (and optionally the discount rate, study period and unit costs) under Setup → Economics to see LKR figures.</p>';
+  const fmt = (v, d = 0) => (v == null ? 'not set' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d }));
+  let out = `<div class="kv">
+      <div><span>Energy cost of losses</span><b>${fmt(e.lossCostLkrPerKwh, 2)} LKR/kWh</b></div>
+      <div><span>Discount rate / study period</span><b>${fmt(e.discountRatePct, 1)} % / ${fmt(e.studyYears)} years</b></div>
+      <div><span>Rewiring per connection move</span><b>${fmt(e.rewirePerMoveLkr)} LKR</b></div>
+      <div><span>Tap change / outage</span><b>${fmt(e.tapChangeLkr)} LKR</b></div>
+    </div><p class="hint">Annual loss = the daily figure × 365 (one representative day). NPV = −capex + Σ saving/(1+r)^t, end-of-year savings.</p>`;
+  const fx = extras.fixIt;
+  if (fx && fx.steps && fx.steps.length) {
+    const rows = fx.steps.filter(s => s.metrics && s.design).map(s => {
+      const cx = capexOf(design, s.design, design);
+      const ec = optionEconomics(design, { baseKwhDay: fx.baseline.kwhYear0, optionKwhDay: s.metrics.kwhYear0, capexLkr: cx.lkr });
+      return [esc(s.label), fmt(ec.kwhYearSaved), fmt(ec.lkrYearSaved), cx.lkr == null ? 'not set (' + esc(cx.missing.join(', ')) + ')' : fmt(cx.lkr), fmt(ec.paybackYears, 1), fmt(ec.npvLkr)];
+    });
+    out += `<h3>Fix-it ladder remedies</h3>${table(['Remedy', 'kWh/yr saved', 'LKR/yr saved', 'Capex (LKR)', 'Payback (yr)', 'NPV (LKR)'], rows)}`;
+  }
+  return out;
 }
 
 export function buildReportHtml(design, res, hosting, daily, bessHosting, extras = {}) {

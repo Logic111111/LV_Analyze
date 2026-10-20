@@ -9,6 +9,7 @@ import StandardsCard from '../components/StandardsCard.jsx';
 import InverterCard from '../components/InverterCard.jsx';
 import ThermalCard from '../components/ThermalCard.jsx';
 import LineModelCard from '../components/LineModelCard.jsx';
+import EconomicsCard from '../components/EconomicsCard.jsx';
 
 export default function SetupPage() {
   const { design, setDesign } = useDesign();
@@ -248,6 +249,7 @@ export default function SetupPage() {
       <div className="section-title" id="section-conductors" tabIndex={-1}>Conductor library</div>
       <ConductorLibraryEditor />
       <div style={{ marginTop: 18 }}><LineModelCard /></div>
+      <div style={{ marginTop: 18 }} id="section-economics" tabIndex={-1}><EconomicsCard /></div>
 
       <div className="grid g4" style={{ marginTop: 18 }}>
         <div className="card">

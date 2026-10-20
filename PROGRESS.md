@@ -72,7 +72,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 
 ## Phase 6 — Data and economics
 
-- [ ] **P6.1** Economics (loss cost, discount rate, cost table → LKR/yr, capex, payback, NPV)
+- [x] **P6.1** Economics (loss cost, discount rate, cost table → LKR/yr, capex, payback, NPV)
 - [ ] **P6.2** Demand from billing data (Velander, fitted from CSV)
 - [ ] **P6.3** Smart-meter (AMI) import
 - [ ] **P6.4** Measured vs simulated (incl. phase-label check)
@@ -823,6 +823,27 @@ within 1e-9.
     outlines, and named chart canvases.
   - Scope: the audit covers each page's initial state. Result panels added since (SLD, explain
     drawer, dialogs) were built keyboard-first and checked by hand.
+
+**P6.1 economics (2026-10-21).**
+- **Engine.** `engine/economics.js`: `economicsOf`, `capexOf`, `npv`, `optionEconomics`.
+- **Data.** `design.economics` is a settings group, all `null` by default.
+  - Inputs: loss cost LKR/kWh, discount %, study years, rewire LKR per move, tap-change LKR,
+    transformer LKR by rating.
+  - Conductor LKR/m is `costPerM` in the conductor library.
+  - Nothing is defaulted. Missing inputs make the dependent figures `null`, which the UI shows as
+    "not set" with a tooltip naming the input.
+- **Formulas.**
+  - Annual kWh = daily × 365 (one representative day; stated in the UI and report).
+  - Simple payback = capex / LKR saved per year.
+  - NPV = −capex + Σ_{t=1..N} saving/(1+r)^t, with end-of-year savings.
+  - Hand-checked: 100 000 capex, 20 000/yr, 10 %, 10 yr → 22 891.34.
+- **Where shown.**
+  - Fix-it ladder columns (browser check: rebalance → 107 089 LKR/yr, capex 27 000, payback
+    0.3 yr, NPV 631 018).
+  - Scenario rows for saving, payback and NPV against the current design at the same year and
+    multipliers.
+  - The report's Economics section.
+  - `patchCapex` (P5.4) now uses `capexOf`.
 
 ## Phase verification log
 

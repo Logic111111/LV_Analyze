@@ -103,7 +103,7 @@ export default function ScenariosPage() {
                       if (row.key === 'minV' && c.minAt) extra = ` (${c.minAt})`;
                       if (row.key === 'maxV' && c.maxAt) extra = ` (${c.maxAt})`;
                       if (row.key === 'protectionFails') extra = ` (${c.protection.pass} pass, ${c.protection.missing} data missing)`;
-                      if (row.key === 'lossLkrYear' && v == null) extra = 'not set';
+                      if (['lossLkrYear', 'lkrYearSavedVsCurrent', 'paybackYears', 'npvLkr'].includes(row.key) && v == null) extra = c.id === '__current' && row.key !== 'lossLkrYear' ? '' : 'not set';
                       if (row.key === 'capexLkr' && v == null) extra = c.capexMissing.length ? `needs ${c.capexMissing.join(', ')}` : '';
                       return (
                         <td key={c.id} style={{ fontWeight: isBest ? 800 : 400, background: isBest ? 'color-mix(in srgb, var(--good) 14%, transparent)' : undefined }}>

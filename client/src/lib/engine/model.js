@@ -130,6 +130,8 @@ export function defaultDesign() {
     // Map view (P5.7): tile server and attribution are configurable; OpenStreetMap by default,
     // used interactively only (its tile usage policy forbids bulk downloading). The centre is
     // only the initial view when nothing has coordinates yet.
+    // Economics (P6.1): all user-entered, blank means "not set" (nothing is assumed).
+    economics: { lossCostLkrPerKwh: null, discountRatePct: null, studyYears: null, rewirePerMoveLkr: null, tapChangeLkr: null, transformerCostLkr: {} },
     map: { tileUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '© OpenStreetMap contributors', maxZoom: 19, centerLat: 7.8731, centerLng: 80.7718, zoom: 8 },
     // Smart-inverter PV (P3.1): 'unity' = today's behaviour. Curves seeded with the IEEE 1547-2018
     // Category B defaults, labelled as such in the UI — replace with the local grid code's.
@@ -195,7 +197,7 @@ export function normalizeDesign(design) {
 const DESIGN_COLLECTIONS = ['poles', 'loads', 'pv', 'bess', 'openPoints', 'fuseLibrary', 'scenarios'];
 // Settings groups whose individual fields are filled one by one, so a design saved after a group
 // existed but before one of its fields did still gets that field's default.
-const DESIGN_SETTING_GROUPS = ['standards', 'fault', 'protection', 'inverter', 'thermal', 'signOff', 'map'];
+const DESIGN_SETTING_GROUPS = ['standards', 'fault', 'protection', 'inverter', 'thermal', 'signOff', 'map', 'economics'];
 /** @param {any} design A saved, imported or partial design. @returns {Design} */
 /** @param {any} value @param {Record<string, any>} defaults */
 function fillMissing(value, defaults) {

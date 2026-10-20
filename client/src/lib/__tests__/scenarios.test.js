@@ -39,7 +39,7 @@ describe('patches', () => {
     expect(patchCapex(base, variants.reconductor).lkr).toBeNull(); // no costPerM in the built-ins
     const priced = { ...variants.reconductor, conductorLibrary: { ...variants.reconductor.conductorLibrary, '70ABC': { ...variants.reconductor.conductorLibrary['70ABC'], costPerM: 1000 } } };
     expect(patchCapex(base, priced).lkr).toBe(1000 * 60);
-    expect(patchCapex(base, variants.balance).missing[0]).toMatch(/connection moves/);
+    expect(patchCapex(base, variants.balance).missing[0]).toMatch(/Connection moved/);
   });
 });
 
