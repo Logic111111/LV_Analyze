@@ -60,7 +60,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 ## Phase 5 — UI/UX
 
 - [x] **P5.1** New single-line diagram (`SingleLineDiagram.jsx`, IEC 60617-style, overlays, before/after, SVG/PNG/PDF/DXF export)
-- [ ] **P5.2** Interactive what-if (drag a drop to another phase; sensitivity preview, confirmed by full load flow)
+- [x] **P5.2** Interactive what-if (drag a drop to another phase; sensitivity preview, confirmed by full load flow)
 - [ ] **P5.3** Engineering charts (V vs distance, phasor diagram, heatmap, loading-duration, VUF, fault level)
 - [ ] **P5.4** Scenario manager and comparison
 - [ ] **P5.5** Issues panel
@@ -637,6 +637,25 @@ within 1e-9.
   - upgraded spans are 5 px with "old→new" conductor;
   - a new transformer is dashed, and re-fed spans are marked;
   - a tap change is shown as "tap a → b".
+
+**P5.2 interactive what-if (2026-10-20).**
+- **Gesture.** On the SLD, drag a single-phase drop onto another phase group of the same pole.
+  The keyboard route is the side panel's "→ A / B / C" buttons; hover or focus previews, click
+  applies. Three-phase connections are not draggable.
+- **Preview.** While over a target, the diagram shows voltages predicted from the P4.2 sensitivity
+  matrix of the solved snapshot. The matrix is computed in the worker on first use and cached per
+  solve. The P and Q moved come from the new engine helper `connectionPowerAt`, which matches netS
+  injections to 1e-12 (tested).
+  - Smart-inverter PV counts at its available power.
+  - SOC-BESS counts as idle; the confirming load flow handles both.
+- **Confirmation.** On release the move is applied to the design, and the live load flow re-solves
+  it. A "What-if moves" card lists before / preview / load-flow voltages and the largest preview
+  error.
+  - Browser check: 0.38 V for the 7 kVA EV, A → B at 20:00.
+  - Unit test: within 0.5 V.
+- **Undo.** Local Undo on the page, one move at a time. P7.3 adds the global undo/redo stack.
+- **Drag bug fixed.** Native text selection auto-scrolled the frame mid-drag and dropped onto the
+  wrong phase. The SVG is now `user-select: none`, and pointer-down cancels the default action.
 
 ## Phase verification log
 

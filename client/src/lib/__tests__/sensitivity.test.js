@@ -98,3 +98,32 @@ describe('worker tasks', () => {
     for (let i = 1; i < e.rows.length; i++) expect(e.rows[i].kw).toBeLessThanOrEqual(e.rows[i - 1].kw);
   });
 });
+
+describe('drag-to-rephase preview (P5.2)', () => {
+  it('connectionPowerAt matches what the load flow injects', async () => {
+    const { connectionPowerAt, loadKvaAt, pvKvaAt } = await import('../loadflow.js');
+    const d = walkthroughIsland();
+    const l = d.loads.find(x => x.id === 'L18'); // 7 kVA EV
+    const s = connectionPowerAt(d, 'load', 'L18', { year: 2, hour: 20, loadMult: 1.1 });
+    const kva = loadKvaAt(d, l, 2, 20) * 1.1;
+    expect(s.pKw).toBeCloseTo(kva * d.pf, 12);
+    expect(s.qKvar).toBeCloseTo(kva * Math.sqrt(1 - d.pf * d.pf), 12);
+    const pv = d.pv[0];
+    const g = connectionPowerAt(d, 'pv', pv.id, { hour: 12, solarMult: 1 });
+    expect(g.pKw).toBeCloseTo(-pvKvaAt(d, pv, 12), 12);
+    expect(g.qKvar).toBeCloseTo(0, 12);
+  });
+
+  it('moving the 7 kVA EV from A to B at 20:00: the sensitivity preview is within 0.5 V of the load flow', async () => {
+    const { connectionPowerAt, applyPhaseBalance } = await import('../loadflow.js');
+    const d = walkthroughIsland();
+    const op = { year: 0, hour: 20, solarMult: 0 };
+    const sens = voltageSensitivity(d, op);
+    const { pKw, qKvar } = connectionPowerAt(d, 'load', 'L18', op);
+    const pred = predictVoltages(sens, phaseMoveChanges({ pole: 'P3', from: 'A', to: 'B', pKw, qKvar }));
+    const truth = voltsOf(runSnapshot(applyPhaseBalance(d, [{ id: 'L18', newPhase: 'B' }]), op));
+    let worst = 0;
+    Object.keys(truth).forEach(pole => PHASES.forEach(ph => { worst = Math.max(worst, Math.abs(pred[pole][ph] - truth[pole][ph])); }));
+    expect(worst).toBeLessThan(0.5);
+  });
+});

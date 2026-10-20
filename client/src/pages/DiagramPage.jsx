@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
-import { faultLevels } from '../lib/loadflow.js';
+import { faultLevels, connectionPowerAt, predictVoltages, phaseMoveChanges, applyPhaseBalance } from '../lib/loadflow.js';
 import { buildDiagramSVG } from '../lib/diagram.js';
 import { buildSldScene } from '../lib/sld/scene.js';
 import { sceneToSvg } from '../lib/sld/svg.js';
@@ -36,7 +36,16 @@ export default function DiagramPage() {
   const [selectedId, setSelectedId] = useState(null);
   const solve = useEngineTask();
   const prot = useEngineTask();
+  const sensTask = useEngineTask();
   const solvedFor = useRef(null);
+  // Interactive what-if (P5.2): sensitivities of the solved snapshot (computed on first use),
+  // the move being previewed, the moves made (for Undo), and the last move's predicted vs
+  // confirmed voltages.
+  const [sens, setSens] = useState(null); // { key, data }
+  const [hoverMove, setHoverMove] = useState(null); // { ref, to }
+  const [moves, setMoves] = useState([]);
+  const [pending, setPending] = useState(null); // { ref, to, predicted, before }
+  const [confirmed, setConfirmed] = useState(null);
 
   // Live solve: every change of design / hour / year / multipliers, debounced, in the worker.
   useEffect(() => {
@@ -57,8 +66,60 @@ export default function DiagramPage() {
   const faults = useMemo(() => (overlays.fault || selectedId ? faultLevels(design) : null), [design, overlays.fault, selectedId]);
   // The scene must describe the design the result was solved for, so it waits for the solve.
   const sceneDesign = solvedFor.current ? solvedFor.current.design : design;
-  const scene = useMemo(() => (res ? buildSldScene(sceneDesign, res, { overlays, faults: overlays.fault ? faults : null, protection: overlays.protection ? protection : null }) : null),
-    [sceneDesign, res, overlays, faults, protection]);
+  const op = solvedFor.current ? { year: solvedFor.current.year, hour: solvedFor.current.hour, loadMult: solvedFor.current.loadMult, solarMult: solvedFor.current.solarMult } : null;
+
+  // ---- P5.2 what-if ----
+  async function ensureSens() {
+    const key = solvedFor.current;
+    if (!key || (sens && sens.key === key) || sensTask.running) return;
+    const r = await sensTask.run('voltageSensitivity', { design: key.design, year: key.year, hour: key.hour, loadMult: key.loadMult, solarMult: key.solarMult }, 'Voltage sensitivities for the preview');
+    if (r.ok && solvedFor.current === key) setSens({ key, data: r.result });
+  }
+  function predictMove(ref, to) {
+    if (!sens || sens.key !== solvedFor.current || !op) return null;
+    const { pKw, qKvar } = connectionPowerAt(sceneDesign, ref.kind, ref.id, op);
+    return predictVoltages(sens.data, phaseMoveChanges({ pole: ref.pole, from: ref.phase, to, pKw, qKvar }));
+  }
+  function previewMove(ref, to) {
+    if (!ref || !to) { setHoverMove(null); return; }
+    ensureSens();
+    setHoverMove({ ref, to });
+  }
+  function doMove(ref, to) {
+    const predicted = predictMove(ref, to);
+    const before = res ? Object.fromEntries(res.poleResults.map(p => [p.id, { ...p.volt }])) : null;
+    setHoverMove(null);
+    setMoves(m => [...m, { ref, to }]);
+    setPending({ ref, to, predicted, before });
+    setConfirmed(null);
+    setDesign(d => applyPhaseBalance(d, [{ id: ref.id, newPhase: to }]));
+  }
+  function undoMove() {
+    const last = moves[moves.length - 1];
+    if (!last) return;
+    setMoves(m => m.slice(0, -1));
+    setPending(null); setConfirmed(null);
+    setDesign(d => applyPhaseBalance(d, [{ id: last.ref.id, newPhase: last.ref.phase }]));
+  }
+  // The full load flow after a move confirms (or corrects) the instant preview.
+  useEffect(() => {
+    if (!pending || !res || !solvedFor.current) return;
+    const list = pending.ref.kind === 'load' ? sceneDesign.loads : pending.ref.kind === 'pv' ? sceneDesign.pv : sceneDesign.bess;
+    const c = list.find(x => x.id === pending.ref.id);
+    if (!c || c.phase !== pending.to) return; // the solve for the moved design hasn't landed yet
+    const rows = res.poleResults.flatMap(pr => ['A', 'B', 'C'].map(ph => ({
+      pole: pr.id, phase: ph, before: pending.before ? pending.before[pr.id][ph] : null,
+      predicted: pending.predicted ? pending.predicted[pr.id][ph] : null, actual: pr.volt[ph]
+    })));
+    setConfirmed({ ref: pending.ref, to: pending.to, rows });
+    setPending(null);
+  }, [res]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const hoverPred = useMemo(() => (hoverMove ? predictMove(hoverMove.ref, hoverMove.to) : null), [hoverMove, sens, sceneDesign]); // eslint-disable-line react-hooks/exhaustive-deps
+  // While previewing, the diagram shows the predicted voltages (statuses follow them).
+  const shownRes = useMemo(() => (res && hoverPred ? { ...res, poleResults: res.poleResults.map(pr => ({ ...pr, volt: hoverPred[pr.id] || pr.volt })) } : res), [res, hoverPred]);
+  const scene = useMemo(() => (shownRes ? buildSldScene(sceneDesign, shownRes, { overlays, faults: overlays.fault ? faults : null, protection: overlays.protection ? protection : null }) : null),
+    [sceneDesign, shownRes, overlays, faults, protection]);
   const selected = scene && selectedId ? scene.elements.find(e => e.id === selectedId) : null;
 
   function applyPreset(preset) {
@@ -132,7 +193,15 @@ export default function DiagramPage() {
           ) : scene && (
             <div className="sld-layout">
               <div className="card" style={{ padding: 12 }}>
-                <SingleLineDiagram scene={scene} theme={theme} selectedId={selectedId} onSelect={(e) => setSelectedId(e.id)} label={`Single-line diagram of ${design.name}, ${snapshotText}`} />
+                {hoverMove && (
+                  <div className="note" role="status" style={{ marginTop: 0, marginBottom: 8, borderColor: 'var(--accent-2)' }}>
+                    {hoverPred
+                      ? <>Preview (linear sensitivity): {hoverMove.ref.id} {hoverMove.ref.phase} → {hoverMove.to}. The diagram shows the predicted voltages; release (or click the move button) to apply it and confirm with a full load flow.</>
+                      : <>Computing voltage sensitivities for the preview…</>}
+                  </div>
+                )}
+                <SingleLineDiagram scene={scene} theme={theme} selectedId={selectedId} onSelect={(e) => setSelectedId(e.id)} label={`Single-line diagram of ${design.name}, ${snapshotText}`}
+                  onDropMove={doMove} onDragOver={previewMove} />
                 <p className="hint" style={{ marginBottom: 0 }}>
                   Pole outline: <span style={{ color: 'var(--good)' }}>OK</span> / <span style={{ color: 'var(--warn)' }}>within 1 % of a limit</span> / <span style={{ color: 'var(--bad)' }}>outside the band</span>, and a "!" after the phase voltage.
                   Each drop is labelled with its phase (A/B/C, or 3φ); kVA with * = ADMD-substituted. ▲ marker = load (with a bar: EV), square with a diagonal = PV, two plates = BESS.
@@ -140,8 +209,37 @@ export default function DiagramPage() {
                 </p>
               </div>
               <div className="card sld-panel" aria-live="polite">
-                <SldDetails design={sceneDesign} res={res} faults={faults} protection={protection} element={selected} />
+                <SldDetails design={sceneDesign} res={res} faults={faults} protection={protection} element={selected} onMove={doMove} onPreviewMove={previewMove} />
               </div>
+            </div>
+          )}
+          {view === 'sld' && (moves.length > 0 || pending || confirmed) && (
+            <div className="card" style={{ marginTop: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                <h2 style={{ margin: 0 }}>What-if moves</h2>
+                <button className="ghost" onClick={undoMove} disabled={!moves.length}>Undo last move{moves.length ? ` (${moves[moves.length - 1].ref.id} ${moves[moves.length - 1].to} → ${moves[moves.length - 1].ref.phase})` : ''}</button>
+              </div>
+              <p className="hint">{moves.length} move{moves.length === 1 ? '' : 's'} made on this page (they change the design; Undo reverses them one at a time).</p>
+              {pending && <p className="hint" role="status">Confirming {pending.ref.id} → {pending.to} with a full load flow…</p>}
+              {confirmed && (() => {
+                const err = confirmed.rows.filter(r => r.predicted != null).reduce((m, r) => Math.max(m, Math.abs(r.predicted - r.actual)), 0);
+                const changed = confirmed.rows.filter(r => r.before != null && Math.abs(r.actual - r.before) >= 0.05);
+                return (
+                  <>
+                    <p style={{ fontSize: 13 }}>{confirmed.ref.id} moved {confirmed.ref.phase} → {confirmed.to}. {confirmed.rows.some(r => r.predicted != null) ? <>Largest difference between the instant preview and the full load flow: <b>{err.toFixed(2)} V</b>.</> : 'No preview was computed for this move.'}</p>
+                    <div className="tbl-wrap"><table>
+                      <thead><tr><th scope="col">Pole</th><th scope="col">Phase</th><th scope="col">Before (V)</th><th scope="col">Preview (V)</th><th scope="col">Load flow (V)</th><th scope="col">Change (V)</th></tr></thead>
+                      <tbody>{changed.map(r => (
+                        <tr key={r.pole + r.phase}>
+                          <td>{r.pole}</td><td className={'phase' + r.phase}>{r.phase}</td>
+                          <td>{r.before.toFixed(1)}</td><td>{r.predicted != null ? r.predicted.toFixed(1) : '—'}</td>
+                          <td>{r.actual.toFixed(1)}</td><td>{(r.actual - r.before >= 0 ? '+' : '') + (r.actual - r.before).toFixed(2)}</td>
+                        </tr>
+                      ))}</tbody>
+                    </table></div>
+                  </>
+                );
+              })()}
             </div>
           )}
           {exportingTx.length > 0 && (

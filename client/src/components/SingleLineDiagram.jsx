@@ -68,13 +68,15 @@ export default function SingleLineDiagram({ scene, theme = 'light', selectedId, 
 
   function onPointerDown(e, el) {
     if (el && el.draggable && onDropMove && e.button === 0) {
+      // No native text selection: it would auto-scroll the frame under the pointer mid-drag.
+      e.preventDefault();
       e.stopPropagation();
       const pt = toSvg(e);
       setDrag({ el, x: pt.x, y: pt.y, over: null, moved: false });
       e.currentTarget.setPointerCapture?.(e.pointerId);
       return;
     }
-    if (!el && e.button === 0) pan.current = { x: e.clientX, y: e.clientY, l: frameRef.current.scrollLeft, t: frameRef.current.scrollTop };
+    if (!el && e.button === 0) { e.preventDefault(); pan.current = { x: e.clientX, y: e.clientY, l: frameRef.current.scrollLeft, t: frameRef.current.scrollTop }; }
   }
   function onPointerMove(e) {
     if (drag) {
@@ -110,7 +112,7 @@ export default function SingleLineDiagram({ scene, theme = 'light', selectedId, 
       <div ref={frameRef} className="sld-frame" style={{ maxHeight, cursor: pan.current ? 'grabbing' : 'default' }}
         onPointerDown={(e) => onPointerDown(e, null)} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}>
         <svg ref={svgRef} role="group" aria-label={label} width={scene.width * scale} height={scene.height * scale}
-          viewBox={`0 0 ${scene.width} ${scene.height}`} fontFamily={SLD_FONT} style={{ display: 'block', background: pal.bg, touchAction: drag ? 'none' : 'auto' }}>
+          viewBox={`0 0 ${scene.width} ${scene.height}`} fontFamily={SLD_FONT} style={{ display: 'block', background: pal.bg, touchAction: drag ? 'none' : 'auto', userSelect: 'none', WebkitUserSelect: 'none' }}>
           {drag && zones.filter(z => z.ref.pole === drag.el.ref.pole && z.ref.phase !== 'ABC' && z.ref.phase !== drag.el.ref.phase).map(z => (
             <rect key={z.id} x={z.zone.x - 2} y={z.zone.y} width={z.zone.w + 2} height={z.zone.h} fill={drag.over === z.ref.phase ? pal.accent : pal[`phase${z.ref.phase}`]} opacity={drag.over === z.ref.phase ? 0.22 : 0.08} />
           ))}

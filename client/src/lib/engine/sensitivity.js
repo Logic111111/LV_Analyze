@@ -16,7 +16,7 @@
 // transformer, each solved on that transformer's own sub-design.
 import { PHASES } from './complex.js';
 import { transformerSubDesign } from './model.js';
-import { connectionIndex } from './loads.js';
+import { connectionIndex, netS } from './loads.js';
 import { runSnapshot, topologyOf, warmStartFrom } from './solver.js';
 import { simulateBessDay, socBessUnits } from './bessDispatch.js';
 /** @import { Design, Phase, ProgressHooks, SnapshotResult } from './types.js' */
@@ -121,6 +121,31 @@ export function phaseMoveChanges(move) {
     { pole: move.pole, phase: move.from, dP: move.pKw, dQ: q },   // its demand leaves `from`
     { pole: move.pole, phase: move.to, dP: -move.pKw, dQ: -q }    // and appears on `to`
   ];
+}
+
+/**
+ * What one connection draws at an operating point: P + jQ, kW / kvar, load convention (negative
+ * for generation), exactly as netS would inject it (curves, growth, multipliers, pf, RTE). A
+ * smart-inverter PV unit counts at its available power (its volt-var response is left to the
+ * confirming load flow), and an SOC-mode BESS as idle (its dispatch belongs to the day
+ * simulation). Feeds phaseMoveChanges for drag-to-rephase previews (P5.2).
+ * @param {Design} design @param {'load' | 'pv' | 'bess'} kind @param {string} id
+ * @param {{ year?: number, hour?: number, loadMult?: number, solarMult?: number }} [op]
+ * @returns {{ pKw: number, qKvar: number }}
+ */
+export function connectionPowerAt(design, kind, id, op = {}) {
+  const { year = 0, hour = 20, loadMult = 1, solarMult = 1 } = op;
+  /** @type {any[]} */
+  const list = kind === 'load' ? design.loads : kind === 'pv' ? design.pv : design.bess;
+  const c = list.find(x => x.id === id);
+  if (!c) return { pKw: 0, qKvar: 0 };
+  /** @type {Design} */
+  const only = { ...design, loads: kind === 'load' ? [c] : [], pv: kind === 'pv' ? [c] : [], bess: kind === 'bess' ? [c] : [] };
+  const s = netS(only, c.pole, year, hour, loadMult, solarMult, [], [], undefined, null);
+  let p = 0, q = 0;
+  PHASES.forEach(ph => { p += s.loadS[ph].re + s.otherS[ph].re; q += s.loadS[ph].im + s.otherS[ph].im; });
+  s.smart.forEach(u => { p -= u.pAvail; });
+  return { pKw: p, qKvar: q };
 }
 
 /**
