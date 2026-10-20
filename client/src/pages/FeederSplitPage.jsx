@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useDesign } from '../context/DesignContext.jsx';
 import {
   feederTrees, poleById, transformerOfPole, nextTransformerId, conductorCodes, transformerRatings,
@@ -63,7 +64,9 @@ export default function FeederSplitPage() {
   const openPoints = design.openPoints;
 
   const [mode, setMode] = useState('single');
-  const [feederRootId, setFeederRootId] = useState(trees[0]?.rootPoleId || '');
+  // ?root=<pole> (from the issues panel) preselects that feeder.
+  const [searchParams] = useSearchParams();
+  const [feederRootId, setFeederRootId] = useState(() => { const q = searchParams.get('root'); return q && trees.some(t => t.rootPoleId === q) ? q : trees[0]?.rootPoleId || ''; });
   const selectedTree = trees.find(t => t.rootPoleId === feederRootId) || null;
   const [txSpec, setTxSpec] = useState({
     name: '', txRating: base?.txRating ?? 250, tap: base?.tap ?? 2,

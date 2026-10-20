@@ -63,7 +63,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P5.2** Interactive what-if (drag a drop to another phase; sensitivity preview, confirmed by full load flow)
 - [x] **P5.3** Engineering charts (V vs distance, phasor diagram, heatmap, loading-duration, VUF, fault level)
 - [x] **P5.4** Scenario manager and comparison
-- [ ] **P5.5** Issues panel
+- [x] **P5.5** Issues panel
 - [ ] **P5.6** "Explain this number" drawer
 - [ ] **P5.7** Map-based network editor (react-leaflet, configurable tiles, haversine "measured vs entered")
 - [ ] **P5.8** Guided new-design wizard
@@ -696,6 +696,26 @@ within 1e-9.
 - **LKR/yr** needs `economics.lossCostLkrPerKwh` (P6.1).
 - **Browser check:** keeping the balance preview as a scenario and comparing it shows violations
   3 → ★ 0.
+
+**P5.5 issues panel (2026-10-20).**
+- **Engine.** `engine/issues.js` → `collectIssues(design, daily, protection)`, `issueCounts`,
+  `LONG_SPAN_M = 60`.
+  - Violations are grouped per location, with the worst value and hours. The fixture's 3
+    undervoltage pole-phase-hours are one issue, P3 A.
+  - Severities:
+    - error: a statutory or rating limit broken, collapse, non-convergence, incomplete conductor
+      data, an orphan pole;
+    - warning: VUF above the limit while not counted as a violation, protection data missing,
+      no fuse data, a span longer than 60 m;
+    - info: HV fault level not set (infinite-bus assumption).
+- **Panel.** `components/IssuesPanel.jsx` sits in the app shell. Counts are written out with
+  icons; the drawer has filters and closes on Escape. It is rebuilt in the worker (task `issues`)
+  800 ms after each change.
+- **"Suggest fix"** routes are pre-filtered by URL: `fix-it?tx`, `load-balance?tx` (preselects the
+  transformer), `feeder-split?root` (preselects the feeder), `reconductor?pole`, `protection?device`,
+  `diagram?hour&pole` (opens that hour and selects that pole), and `setup?section=fault|conductors`
+  (scrolls past the sticky header).
+- **Header.** No longer sticky at ≤ 720 px: with 18 tabs it covered much of a phone screen.
 
 ## Phase verification log
 

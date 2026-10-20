@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useDesign } from '../context/DesignContext.jsx';
 import { secondaryLNVoltage, txImpedance, nextTransformerId, transformerRatings, getTransformerType } from '../lib/loadflow.js';
 import CurveEditor from '../components/CurveEditor.jsx';
@@ -12,6 +14,18 @@ export default function SetupPage() {
   const { design, setDesign } = useDesign();
   const set = (patch) => setDesign(d => ({ ...d, ...patch }));
   const num = (v) => Number(v);
+  // ?section=fault|conductors (from the issues panel) scrolls to that section.
+  const [searchParams] = useSearchParams();
+  const section = searchParams.get('section');
+  useEffect(() => {
+    const el = section && document.getElementById('section-' + section);
+    if (!el) return;
+    // Clear the sticky header (its height depends on how the tabs wrap).
+    const header = document.querySelector('header.top');
+    const offset = header && getComputedStyle(header).position === 'sticky' ? header.offsetHeight + 8 : 8;
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - offset });
+    el.focus({ preventScroll: true });
+  }, [section]);
 
   function updateTx(id, patch) {
     setDesign(d => ({ ...d, transformers: d.transformers.map(t => t.id === id ? { ...t, ...patch } : t) }));
@@ -213,7 +227,7 @@ export default function SetupPage() {
       <div style={{ marginTop: 18 }}><InverterCard /></div>
       <div style={{ marginTop: 18 }}><ThermalCard /></div>
 
-      <div className="section-title">Fault level &amp; protection settings</div>
+      <div className="section-title" id="section-fault" tabIndex={-1}>Fault level &amp; protection settings</div>
       <div className="card">
         <p className="hint">Used by the Protection page (IEC 60909-style fault levels). Leave the HV fault level blank for an infinite source. The voltage factors default to IEC 60909-0's LV values for a +6 % tolerance band; the minimum fault is taken with conductors at the temperature below (R scaled by 1 + 0.00403·(θ − 20) for aluminium).</p>
         <div className="grid g3">
@@ -230,7 +244,7 @@ export default function SetupPage() {
         </div>
       </div>
 
-      <div className="section-title">Conductor library</div>
+      <div className="section-title" id="section-conductors" tabIndex={-1}>Conductor library</div>
       <ConductorLibraryEditor />
       <div style={{ marginTop: 18 }}><LineModelCard /></div>
 

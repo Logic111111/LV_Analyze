@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useDesign } from '../context/DesignContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import { faultLevels, connectionPowerAt, predictVoltages, phaseMoveChanges, applyPhaseBalance } from '../lib/loadflow.js';
@@ -27,13 +28,15 @@ export default function DiagramPage() {
   const { theme } = useTheme();
   const [view, setView] = useState('sld');
   const [year, setYear] = useState(0);
-  const [hour, setHour] = useState(20);
+  // ?hour=<h>&pole=<id> (from the issues panel) open that hour and select that pole.
+  const [searchParams] = useSearchParams();
+  const [hour, setHour] = useState(() => { const h = Number(searchParams.get('hour')); return Number.isInteger(h) && h >= 0 && h < 24 && searchParams.has('hour') ? h : 20; });
   const [loadMult, setLoadMult] = useState(1);
   const [solarMult, setSolarMult] = useState(1);
   const [res, setRes] = useState(null);
   const [overlays, setOverlays] = useState({ voltage: true, loading: true, flow: true, vuf: false, fault: false, protection: false });
   const [protection, setProtection] = useState(null);
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedId, setSelectedId] = useState(() => (searchParams.get('pole') ? 'pole:' + searchParams.get('pole') : null));
   const solve = useEngineTask();
   const prot = useEngineTask();
   const sensTask = useEngineTask();

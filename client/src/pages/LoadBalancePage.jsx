@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useDesign } from '../context/DesignContext.jsx';
 import { applyPhaseBalance, runSnapshotAt, DAILY_HOURS } from '../lib/loadflow.js';
 import SldPreview from '../components/SldPreview.jsx';
@@ -28,7 +29,9 @@ const KIND_LABEL = { load: 'load', pv: 'PV', bess: 'BESS' };
 export default function LoadBalancePage() {
   const { design, setDesign } = useDesign();
 
-  const [txId, setTxId] = useState(design.transformers[0]?.id || '');
+  // ?tx=<id> (from the issues panel) preselects that transformer.
+  const [searchParams] = useSearchParams();
+  const [txId, setTxId] = useState(() => { const q = searchParams.get('tx'); return q && design.transformers.some(t => t.id === q) ? q : design.transformers[0]?.id || ''; });
   const [testMode, setTestMode] = useState('daily');
   const [proposal, setProposal] = useState(null); // { items, before, after, changed, beforeMetrics, afterMetrics, periodLabel, balancedDesign }
   const task = useEngineTask();

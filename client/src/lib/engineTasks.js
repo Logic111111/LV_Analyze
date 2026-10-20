@@ -13,7 +13,7 @@ import {
   computeFeederSplitCandidates, searchDualFeederSplit, scoreDualFeederCandidate, makeTx, nextTransformerId,
   proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runDailyScan, protectionCheck, tapAdvisor,
   reconductorAdvisor, fixItLadder, optimisePhaseBalance, voltageSensitivity, linearHostingEstimateKw, monteCarloStudy,
-  runSnapshotAt, compareScenarios
+  runSnapshotAt, compareScenarios, collectIssues
 } from './loadflow.js';
 import { buildReportHtml } from './report.js';
 
@@ -77,6 +77,12 @@ export const ENGINE_TASKS = {
 
   // Scenario comparison (P5.4): a 24 h scan and protection check per scenario.
   compareScenarios: ({ design, scenarios }, hooks) => compareScenarios(design, scenarios, hooks),
+
+  // Issues panel (P5.5): one 24 h scan (year 0), the protection check, and the data checks.
+  issues: ({ design }) => {
+    const daily = runDailyScan(design, 0);
+    return collectIssues(design, daily, protectionCheck(design, daily));
+  },
 
   dailyScan: ({ design, year, loadMult, solarMult }, hooks) =>
     runDailyScan(design, year, { loadMult, solarMult, onProgress: hooks.onProgress, stage: 'Solving 24 hours' }),

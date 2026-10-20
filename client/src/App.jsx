@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { DesignProvider } from './context/DesignContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 import TopNav from './components/TopNav.jsx';
+import IssuesPanel from './components/IssuesPanel.jsx';
 
 import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
@@ -56,6 +57,7 @@ function ProtectedShell() {
           <Route path="*" element={<Navigate to="setup" replace />} />
         </Routes>
       </main>
+      <IssuesPanel />
     </DesignProvider>
   );
 }
