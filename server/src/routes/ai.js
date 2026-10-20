@@ -1,56 +1,58 @@
 const express = require('express');
+const Anthropic = require('@anthropic-ai/sdk');
 const { requireAuth } = require('../middleware/auth');
 const { anthropicModel } = require('../config');
+const { runInsights } = require('../ai/loop');
 
-function aiRoutes(repo) {
-const router = express.Router();
-router.use(requireAuth(repo));
+// AI Insights (P7.7): a tool-using loop on the server. The client sends its design (and an
+// optional question); the model calls engine tools (ai/tools.js) that run on that design in a
+// worker thread, and answers from their results. Payload caps here, round/time caps in the loop.
+// The route reads nothing from and writes nothing to the database beyond the session check —
+// proposals go back to the client to preview, never saved.
+const CAPS = { transformers: 50, poles: 3000, loads: 20000, pv: 5000, bess: 2000, questionChars: 1000 };
 
-router.post('/insights', async (req, res) => {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return res.status(503).json({ error: 'AI Insights is not configured on this server (missing ANTHROPIC_API_KEY).' });
+function checkDesign(design) {
+  if (!design || typeof design !== 'object' || Array.isArray(design)) return 'Missing design.';
+  if (!Array.isArray(design.transformers) || !design.transformers.length) return 'The design has no transformer.';
+  for (const k of ['transformers', 'poles', 'loads', 'pv', 'bess']) {
+    if (design[k] !== undefined && !Array.isArray(design[k])) return `design.${k} must be a list.`;
+    if (Array.isArray(design[k]) && design[k].length > CAPS[k]) return `The design is too large for AI Insights (more than ${CAPS[k]} ${k}).`;
   }
-  const summary = req.body && req.body.summary;
-  if (!summary || typeof summary !== 'object') {
-    return res.status(400).json({ error: 'Missing report summary.' });
-  }
-
-  const prompt = `You are a distribution planning engineer reviewing an LV (415/240V, DYn11) transformer island unbalanced load-flow study.
-All rooftop PV is grid-tied and reverse power flow through the transformer/feeders is fully permitted and modelled with no export cap at the transformer/grid connection (transformer loading is only ever treated as a limitation when importing) — flowDirection "export" means island generation currently exceeds demand and power is flowing back into the grid. Feeder voltage rise under export is real and still checked against the statutory band.
-Here is the computed snapshot as JSON:
-${JSON.stringify(summary, null, 2)}
-
-Give a concise engineering brief (max ~250 words) covering:
-1. Overall health of the island in one line.
-2. The most important issue(s), referencing specific poles/phases.
-3. Concrete, practical mitigation measures (e.g. phase rebalancing, conductor upgrade, tap change, EV/solar coordination, load transfer) ranked by likely cost-effectiveness.
-4. One forward-looking note tying to the 5-year growth outlook.
-Write directly to the engineer, no preamble.`;
-
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: anthropicModel(),
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-    const data = await response.json();
-    if (data.error) return res.status(502).json({ error: data.error.message || 'Anthropic API error.' });
-    const text = (data.content || []).map(b => b.text || '').join('\n').trim();
-    res.json({ text: text || 'No response received.' });
-  } catch (e) {
-    res.status(502).json({ error: 'AI request failed: ' + e.message });
-  }
-});
-
-return router;
+  return null;
 }
 
-module.exports = { aiRoutes };
+/**
+ * @param {any} repo
+ * @param {{ client?: any, runTool?: Function, deadlineMs?: number }} [opts] injectable for tests
+ */
+function aiRoutes(repo, opts = {}) {
+  const router = express.Router();
+  router.use(requireAuth(repo));
+  let client = opts.client || null;
+
+  router.post('/insights', async (req, res) => {
+    if (!opts.client && !process.env.ANTHROPIC_API_KEY) {
+      return res.status(503).json({ error: 'AI Insights is not configured on this server (missing ANTHROPIC_API_KEY).' });
+    }
+    const body = req.body || {};
+    const bad = checkDesign(body.design);
+    if (bad) return res.status(400).json({ error: bad });
+    if (body.question !== undefined && (typeof body.question !== 'string' || body.question.length > CAPS.questionChars)) {
+      return res.status(400).json({ error: `The question must be text of at most ${CAPS.questionChars} characters.` });
+    }
+    if (!client) client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, maxRetries: 1, timeout: 90000 });
+    try {
+      const out = await runInsights({ client, model: anthropicModel(), design: body.design, question: body.question, runTool: opts.runTool, deadlineMs: opts.deadlineMs });
+      res.json(out);
+    } catch (e) {
+      if (e instanceof Anthropic.APIUserAbortError || (e && e.name === 'AbortError')) return res.status(504).json({ error: 'The AI request ran out of time — try a narrower question.' });
+      if (e instanceof Anthropic.APIError) return res.status(502).json({ error: `Anthropic API error${e.status ? ` (${e.status})` : ''}: ${String(e.message || '').slice(0, 300)}` });
+      console.error(e);
+      res.status(502).json({ error: 'AI request failed.' });
+    }
+  });
+
+  return router;
+}
+
+module.exports = { aiRoutes, CAPS };

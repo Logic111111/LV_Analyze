@@ -13,8 +13,10 @@ export default function AboutPage() {
         your own designs.
       </div>
       <div className="note">
-        <b>AI Insights.</b> The "Get AI insights" button calls this app's own server, which holds the Anthropic
-        API key and proxies the request to Claude — the key is never sent to your browser.
+        <b>AI Insights.</b> The "Get AI insights" button sends the design to this app's own server, which holds the
+        Anthropic API key (never sent to your browser) and lets Claude run the app's engine tools on it — load flows,
+        the 24 h scan and the advisors. The brief lists every tool it ran; suggested changes open as previews and are
+        never applied or saved by the AI.
       </div>
       <div className="note">
         <b>Export / Import JSON.</b> Use these on the Designs page to back up a design outside the database,

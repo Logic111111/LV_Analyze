@@ -44,5 +44,5 @@ export const api = {
   removeMember: (orgId, userId) => request(`/orgs/${orgId}/members/${userId}`, { method: 'DELETE' }),
   audit: (orgId) => request(`/orgs/${orgId}/audit`),
 
-  aiInsights: (summary) => request('/ai/insights', { method: 'POST', body: JSON.stringify({ summary }) })
+  aiInsights: (payload) => request('/ai/insights', { method: 'POST', body: JSON.stringify(payload) })
 };

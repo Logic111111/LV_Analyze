@@ -87,7 +87,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P7.4** Teams, roles and approval workflow
 - [x] **P7.5** Session revocation
 - [x] **P7.6** OpenDSS export and cross-validation
-- [ ] **P7.7** AI insights with tools
+- [x] **P7.7** AI insights with tools
 - [ ] **P7.8** Field mode (PWA)
 
 ---
@@ -1053,6 +1053,32 @@ within 1e-9.
   iteration). The IEEE European LV Test Feeder was not provided, so it isn't a case yet.
 - **Tests.** Script shape, transformer impedance and V0 round-trip, injection totals, earthing and
   the coupled fallback, safe unique names, determinism.
+
+**P7.7 AI insights with tools (2026-10-21).**
+- **Server loop** (`server/src/ai/loop.js`, official `@anthropic-ai/sdk` 0.136, MIT). The model
+  comes from `ANTHROPIC_MODEL` (default unchanged, see P1.3 fix 5); adaptive thinking is sent only
+  to models that support it (4.6 and later). The client sends its design (and an optional
+  question); the model calls tools; the brief is written from their results.
+- **Tools** (`server/src/ai/tools.js`), on the design the client sent, with the shared engine:
+  `run_snapshot`, `run_daily_scan`, `propose_phase_balance`, `tap_advisor`, `reconductor_advisor`,
+  `fault_levels`, `hosting_capacity`. Results are rounded and capped at 12 k characters (longest
+  lists halved, with a "showing n of m" note). Each call runs in a worker thread with a 45 s limit,
+  so a long hosting search never blocks the server.
+- **Limits.** At most 8 tool rounds, a 120 s overall deadline (aborts the API call), the existing
+  600 kB body limit and 30/hour AI rate limit, and caps on the design (50 transformers, 3 000
+  poles, 20 000 loads, 5 000 PV, 2 000 BESS) and question (1 000 characters). Unknown tool names
+  are reported back to the model as errors, never run.
+- **Grounding and proposals.** The system prompt requires every number to come from a tool result
+  and forbids invented costs or settings. Phase balance, tap and reconductor results carry a
+  `proposal_id`; the response lists proposals as design patches. The page lists every tool run
+  (input, time, result) and offers "Preview in app" — the usual before/after diagram with "Keep as
+  scenario". The route writes nothing; the AI never saves.
+- **Tests.** node:test with a scripted client: all seven tools on the golden fixture (P3 212.9 V
+  through the tool), the loop and its message threading, the 8-round stop, the deadline abort,
+  the per-tool time limit, adaptive-thinking gating, payload caps, auth, no repository writes.
+  End to end in the browser (real server, real engine tools, scripted model): brief, tools table,
+  preview, discard, 390 px with no horizontal scroll, no console errors.
+- **Not verified:** a call to the live Anthropic API. There is no API key in this environment.
 
 ## Phase verification log
 
