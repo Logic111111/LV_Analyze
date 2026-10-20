@@ -2,8 +2,9 @@ const express = require('express');
 const { requireAuth } = require('../middleware/auth');
 const { anthropicModel } = require('../config');
 
+function aiRoutes(repo) {
 const router = express.Router();
-router.use(requireAuth);
+router.use(requireAuth(repo));
 
 router.post('/insights', async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -49,4 +50,7 @@ Write directly to the engineer, no preamble.`;
   }
 });
 
-module.exports = router;
+return router;
+}
+
+module.exports = { aiRoutes };

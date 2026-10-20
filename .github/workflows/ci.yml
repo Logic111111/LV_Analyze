@@ -42,8 +42,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      # Parse-only check of every server module (no install or DB needed).
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      # Parse-only check of every server module.
       - name: node --check
         run: find src -name '*.js' -print0 | xargs -0 -n1 node --check
-      # Dependency-free unit tests (node:test) — e.g. config parsing.
+      # node:test: config, the migration runner (fake connection) and every route end to end with
+      # supertest on an in-memory repository — access rules, workflow, sessions (no database).
       - run: npm test

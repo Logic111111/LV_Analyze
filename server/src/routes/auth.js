@@ -1,11 +1,10 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const pool = require('../db');
-const { signSession, cookieOptions, requireAuth, COOKIE_NAME } = require('../middleware/auth');
-
-const router = express.Router();
+const jwt = require('jsonwebtoken');
+const { cookieOptions, requireAuth, startSession, COOKIE_NAME } = require('../middleware/auth');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ah = (fn) => (req, res, next) => fn(req, res, next).catch(next);
 
 function validateCredentials(email, password) {
   if (typeof email !== 'string' || !EMAIL_RE.test(email) || email.length > 255) {
@@ -17,60 +16,67 @@ function validateCredentials(email, password) {
   return null;
 }
 
-router.post('/register', async (req, res) => {
-  const { email, password } = req.body || {};
-  const err = validateCredentials(email, password);
-  if (err) return res.status(400).json({ error: err });
+function authRoutes(repo) {
+  const router = express.Router();
+  const auth = requireAuth(repo);
 
-  try {
-    const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [email.toLowerCase()]);
-    if (existing.length) return res.status(409).json({ error: 'An account with that email already exists.' });
-
+  router.post('/register', ah(async (req, res) => {
+    const { email, password } = req.body || {};
+    const err = validateCredentials(email, password);
+    if (err) return res.status(400).json({ error: err });
+    const e = email.toLowerCase();
+    if (await repo.findUserByEmail(e)) return res.status(409).json({ error: 'An account with that email already exists.' });
     const hash = await bcrypt.hash(password, 12);
-    const [result] = await pool.query(
-      'INSERT INTO users (email, password_hash) VALUES (?, ?)',
-      [email.toLowerCase(), hash]
-    );
-    const user = { id: result.insertId, email: email.toLowerCase() };
-    const token = signSession(user);
-    res.cookie(COOKIE_NAME, token, cookieOptions());
+    const user = { id: await repo.createUser(e, hash), email: e };
+    res.cookie(COOKIE_NAME, await startSession(repo, user, req), cookieOptions());
     res.status(201).json({ user });
-  } catch (e) {
-    console.error('POST /api/auth/register failed:', e);
-    res.status(500).json({ error: 'Registration failed.' });
-  }
-});
+  }));
 
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body || {};
-  if (typeof email !== 'string' || typeof password !== 'string') {
-    return res.status(400).json({ error: 'Email and password are required.' });
-  }
-  try {
-    const [rows] = await pool.query('SELECT id, email, password_hash FROM users WHERE email = ?', [email.toLowerCase()]);
+  router.post('/login', ah(async (req, res) => {
+    const { email, password } = req.body || {};
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Email and password are required.' });
+    }
+    const row = await repo.findUserByEmail(email.toLowerCase());
     // Constant-shape response whether the email exists or not, to avoid user enumeration.
     const genericFail = () => res.status(401).json({ error: 'Incorrect email or password.' });
-    if (!rows.length) return genericFail();
-    const ok = await bcrypt.compare(password, rows[0].password_hash);
-    if (!ok) return genericFail();
-
-    const user = { id: rows[0].id, email: rows[0].email };
-    const token = signSession(user);
-    res.cookie(COOKIE_NAME, token, cookieOptions());
+    if (!row) return genericFail();
+    if (!(await bcrypt.compare(password, row.password_hash))) return genericFail();
+    const user = { id: row.id, email: row.email };
+    res.cookie(COOKIE_NAME, await startSession(repo, user, req), cookieOptions());
     res.json({ user });
-  } catch (e) {
-    console.error('POST /api/auth/login failed:', e);
-    res.status(500).json({ error: 'Login failed.' });
-  }
-});
+  }));
 
-router.post('/logout', (req, res) => {
-  res.clearCookie(COOKIE_NAME, { ...cookieOptions(), maxAge: 0 });
-  res.json({ ok: true });
-});
+  // Logout revokes this session (P7.5); the cookie is cleared either way.
+  router.post('/logout', ah(async (req, res) => {
+    const token = req.cookies[COOKIE_NAME];
+    if (token) {
+      try {
+        const p = jwt.verify(token, process.env.JWT_SECRET);
+        if (p.jti) await repo.revokeSession(p.jti);
+      } catch (e) { /* an invalid or expired token has nothing to revoke */ }
+    }
+    res.clearCookie(COOKIE_NAME, { ...cookieOptions(), maxAge: 0 });
+    res.json({ ok: true });
+  }));
 
-router.get('/me', requireAuth, (req, res) => {
-  res.json({ user: req.user });
-});
+  // "Log out everywhere": every session of this user, this one included.
+  router.post('/logout-all', auth, ah(async (req, res) => {
+    await repo.revokeAllSessions(req.user.id);
+    res.clearCookie(COOKIE_NAME, { ...cookieOptions(), maxAge: 0 });
+    res.json({ ok: true });
+  }));
 
-module.exports = router;
+  router.get('/sessions', auth, ah(async (req, res) => {
+    const sessions = await repo.listSessions(req.user.id);
+    res.json({ sessions: sessions.map(s => ({ ...s, current: s.jti === req.user.jti, jti: undefined })) });
+  }));
+
+  router.get('/me', auth, (req, res) => {
+    res.json({ user: { id: req.user.id, email: req.user.email } });
+  });
+
+  return router;
+}
+
+module.exports = { authRoutes };
