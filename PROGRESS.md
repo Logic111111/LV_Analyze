@@ -39,7 +39,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P2.4** Tap advisor (multi-year, ranking, unbalance diagnosis, off-load note, Apply/Preview)
 - [x] **P2.5** Editable conductor library + reconductoring advisor
 - [x] **P2.6** Fix-it ladder (combined solution advisor)
-- [ ] **P2.7** Standards profiles (`design.standards`; "Current app defaults" profile reproduces today exactly)
+- [x] **P2.7** Standards profiles (`design.standards`; "Current app defaults" profile reproduces today exactly)
 
 ## Phase 3 — Advanced modelling (all off by default)
 
@@ -419,6 +419,17 @@ A step with nothing to change reports a note and no design. The golden is as spe
 balance, 9 moves, 0/0, 19.16 → 13.29). Running every step on the fixture also shows split (14.56
 kWh) and balance + reconductor (12.86 kWh) fix it, while tap and reconductor alone don't.
 LKR/yr waits for P6.1. kWh/yr = daily × 365.
+
+**P2.7 standards profiles (2026-10-20).** `engine/standards.js`. `design.standards` gains
+`profileName`, `cableLoadingLimitPct` (100) and `txLoadingLimitPct` (100). The voltage band stays
+in `design.vnom` / `vdev`, which a profile writes. Two built-in profiles ship, each with its
+source stated: "Current app defaults" and "EN 50160 supply voltage" (230 V ±10 %, VUF ≤ 2 %
+counted; EN 50160 sets no loading limits, so those stay at 100 %).
+
+User profiles are stored in the browser (`localStorage`); the limits applied are stored in the
+design. Shared organisation profiles are deferred to P7.4. The disconnection time moved from the
+fault card to the Standards card. Under the defaults, results are bit-identical (the 1e-9 lock
+passes).
 
 ## Phase verification log
 

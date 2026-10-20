@@ -111,7 +111,8 @@ export function defaultDesign() {
     vnom: 230, vdev: 6, maxpv: 5, maxbess: 5, bessRte: 0.90,
     // Standards the results are judged against (grows in P2.3 / P2.7). VUF limit 2 % is the
     // EN 50160 LV value (95 % of 10-min means over a week); counting it as a violation is opt-in.
-    standards: { vufLimitPct: 2, vufAsViolation: false, disconnectTimeS: 5 },
+    // ("Current app defaults" — see engine/standards.js; the voltage band is vnom/vdev above.)
+    standards: { profileName: 'Current app defaults', vufLimitPct: 2, vufAsViolation: false, disconnectTimeS: 5, cableLoadingLimitPct: 100, txLoadingLimitPct: 100 },
     // Fault-level inputs (P2.3; see engine/faults.js). Blank HV fault level = infinite source.
     // cMax/cMin are the IEC 60909-0 LV voltage factors for a +6 % tolerance band.
     fault: { hvFaultMVA: null, hvXR: 10, cMax: 1.05, cMin: 0.95, condTempC: 80 },

@@ -1,4 +1,4 @@
-import { getTransformerType, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh, pvHostingBaseline, bessHostingBaseline, faultLevels, protectionCheck, C, describeReconductor } from './loadflow.js';
+import { getTransformerType, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh, pvHostingBaseline, bessHostingBaseline, faultLevels, protectionCheck, C, describeReconductor, standardsOf } from './loadflow.js';
 import { hostingLimitText, vufText } from './format.js';
 
 function esc(v) {
@@ -328,6 +328,9 @@ export function buildReportHtml(design, res, hosting, daily, bessHosting, extras
       <div><span>Annual load growth</span><b>${design.growth}%/yr</b></div>
       <div><span>Nominal phase-neutral voltage</span><b>${design.vnom} V</b></div>
       <div><span>Allowed deviation</span><b>±${design.vdev}%</b></div>
+      <div><span>Standards profile</span><b>${esc(standardsOf(design).profileName)}</b></div>
+      <div><span>Loading limits (cable / transformer)</span><b>${standardsOf(design).cableLoadingLimitPct}% / ${standardsOf(design).txLoadingLimitPct}%</b></div>
+      <div><span>VUF limit</span><b>${standardsOf(design).vufLimitPct}% (${standardsOf(design).vufAsViolation ? 'counted as a violation' : 'reported only'})</b></div>
       <div><span>Max single-phase PV per connection</span><b>${design.maxpv} kW</b></div>
       <div><span>Connection types included</span><b>${[
         design.includeGeneral && 'General', design.includeEV && 'EV', design.includeShop && 'Commercial Shop', design.includeSolar && 'Solar PV', design.includeBess && 'BESS'

@@ -33,6 +33,7 @@ import { C } from './complex.js';
 import { conductorParams, getConductor, poleById, txImpedance } from './model.js';
 import { topologyOf } from './solver.js';
 import { feederTrees } from './advisors/feederSplit.js';
+import { standardsOf } from './standards.js';
 /** @import { Design, SnapshotResult } from './types.js' */
 
 /** Temperature coefficient of resistance of aluminium at 20 °C, 1/K. */
@@ -232,7 +233,7 @@ export function protectionCheck(design, scan) {
   const fl = faultLevels(design);
   const fuses = /** @type {FuseType[]} */ (/** @type {any} */ (design).fuseLibrary || []);
   const fuseById = new Map(fuses.map(f => [f.id, f]));
-  const disconnectTimeS = Number(design.standards?.disconnectTimeS) === 0.4 ? 0.4 : 5;
+  const disconnectTimeS = standardsOf(design).disconnectTimeS;
   const ik1At = new Map(fl.poles.map(p => [p.id, p.ik1MinA]));
   /** @type {Map<string, number>} */
   const ik3At = new Map();

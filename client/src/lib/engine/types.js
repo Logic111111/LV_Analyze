@@ -140,6 +140,9 @@
  * @property {number} vufLimitPct     Voltage unbalance factor limit, % (EN 50160 LV: 2 %).
  * @property {boolean} vufAsViolation Raise an 'unbalance' violation above the limit (default off).
  * @property {number} [disconnectTimeS] Fuse disconnection time the protection check uses: 5 or 0.4 s.
+ * @property {number} [cableLoadingLimitPct] Thermal violation above this % of a span's rating (100).
+ * @property {number} [txLoadingLimitPct] Transformer overload above this % of rating, importing (100).
+ * @property {string} [profileName] The standards profile last applied (informational).
  */
 
 /**

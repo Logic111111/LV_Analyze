@@ -3,6 +3,7 @@ import { secondaryLNVoltage, txImpedance, nextTransformerId, transformerRatings,
 import CurveEditor from '../components/CurveEditor.jsx';
 import TapAdvisorCard from '../components/TapAdvisorCard.jsx';
 import ConductorLibraryEditor from '../components/ConductorLibraryEditor.jsx';
+import StandardsCard from '../components/StandardsCard.jsx';
 
 export default function SetupPage() {
   const { design, setDesign } = useDesign();
@@ -150,21 +151,16 @@ export default function SetupPage() {
           )}
         </div>
 
-        <div className="card">
-          <h2>Statutory limits</h2>
-          <label className="field"><span>Nominal phase-neutral voltage (V)</span>
-            <input type="number" value={design.vnom} step={1} onChange={e => set({ vnom: num(e.target.value) })} /></label>
-          <label className="field"><span>Allowed deviation (%)</span>
-            <input type="number" value={design.vdev} step={0.5} onChange={e => set({ vdev: num(e.target.value) })} /></label>
-          <label className="field"><span>Voltage unbalance factor limit (%)</span>
-            <input type="number" value={design.standards.vufLimitPct} step={0.1} min={0} onChange={e => set({ standards: { ...design.standards, vufLimitPct: num(e.target.value) } })} /></label>
-          <label className="chk"><input type="checkbox" checked={!!design.standards.vufAsViolation} onChange={e => set({ standards: { ...design.standards, vufAsViolation: e.target.checked } })} /> Count VUF above the limit as a violation</label>
-          <p className="hint" style={{ marginTop: -4 }}>VUF = |negative-sequence| ÷ |positive-sequence| voltage. EN 50160's LV limit is 2 %. It is always reported; when counted as a violation it also affects hosting capacity and the advisors (off by default).</p>
+        <div>
+          <StandardsCard />
+          <div className="card" style={{ marginTop: 18 }}>
+          <h2>Connection caps</h2>
           <label className="field"><span>Max single-phase PV per connection (kW)</span>
             <input type="number" value={design.maxpv} step={0.5} onChange={e => set({ maxpv: num(e.target.value) })} /></label>
           <label className="field"><span>Max single-phase BESS per connection (kW)</span>
             <input type="number" value={design.maxbess} step={0.5} onChange={e => set({ maxbess: num(e.target.value) })} /></label>
           <div className="note">All rooftop PV is grid-tied and exports at unity power factor whenever site generation exceeds site demand. Reverse power flow through the transformer and every feeder span is fully modelled. <b>No export limit is applied at the transformer / grid connection</b> — transformer loading is only ever treated as a limitation on import. Feeder voltage levels rise naturally under reverse flow, and the statutory band still applies in both directions.</div>
+        </div>
         </div>
 
         <div className="card">
@@ -212,11 +208,6 @@ export default function SetupPage() {
             <input type="number" step={0.01} value={design.fault.cMax} onChange={e => set({ fault: { ...design.fault, cMax: num(e.target.value) } })} /></label>
           <label className="field"><span>Voltage factor cmin (minimum fault)</span>
             <input type="number" step={0.01} value={design.fault.cMin} onChange={e => set({ fault: { ...design.fault, cMin: num(e.target.value) } })} /></label>
-          <label className="field"><span>Fuse disconnection time</span>
-            <select value={design.standards.disconnectTimeS === 0.4 ? '0.4' : '5'} onChange={e => set({ standards: { ...design.standards, disconnectTimeS: num(e.target.value) } })}>
-              <option value="5">5 s (distribution circuits)</option>
-              <option value="0.4">0.4 s (final circuits)</option>
-            </select></label>
         </div>
       </div>
 

@@ -5,6 +5,7 @@ import { C, PHASES, PHASE_ANGLE, factorComplexSystem, solveFactoredSystem } from
 import { conductorParams, getTransformerType, secondaryLNVoltage, txImpedance } from './model.js';
 import { netS, zipMultiplier, connectionIndex } from './loads.js';
 import { vufPct } from './sequence.js';
+import { standardsOf } from './standards.js';
 /** @import { Design, Transformer, SnapshotOptions, SnapshotResult, Violation, Complex } from './types.js' */
 
 /* ============================================================
@@ -399,23 +400,27 @@ export function runSnapshot(design, opts, ctx = {}) {
   const transformers = solved.map(s => s.summary);
 
   const vLimLow = design.vnom * (1 - design.vdev / 100), vLimHigh = design.vnom * (1 + design.vdev / 100);
+  // Loading limits from the design's standards (P2.7); 100 % of rating unless a profile says
+  // otherwise — exactly the historical behaviour.
+  const lim = standardsOf(design);
+  const cableLimitPct = lim.cableLoadingLimitPct, txLimitPct = lim.txLoadingLimitPct;
   let violations = [];
   poleResults.forEach(pr => {
     PHASES.forEach(ph => {
       if (pr.volt[ph] < vLimLow) violations.push({ pole: pr.id, phase: ph, type: 'undervoltage', value: pr.volt[ph] });
       if (pr.volt[ph] > vLimHigh) violations.push({ pole: pr.id, phase: ph, type: 'overvoltage', value: pr.volt[ph] });
     });
-    PHASES.forEach(ph => { if (pr.condPct[ph] > 100) violations.push({ pole: pr.id, phase: ph, type: 'thermal', value: pr.condPct[ph] }); });
+    PHASES.forEach(ph => { if (pr.condPct[ph] > cableLimitPct) violations.push({ pole: pr.id, phase: ph, type: 'thermal', value: pr.condPct[ph] }); });
   });
   transformers.forEach(t => {
-    if (t.txPct > 100 && t.flowDirection === 'import') violations.push({ pole: t.id, phase: '-', type: 'transformer overload', value: t.txPct });
+    if (t.txPct > txLimitPct && t.flowDirection === 'import') violations.push({ pole: t.id, phase: '-', type: 'transformer overload', value: t.txPct });
   });
 
   // Voltage unbalance (P2.1): always reported per pole (vufPct) and as the snapshot's worst; only
   // raised as an 'unbalance' violation when the design's standards ask for it — off by default, so
   // hosting, feeder-split and every other ranking is unchanged unless the user opts in.
-  const standards = /** @type {Partial<import('./types.js').Standards>} */ (design.standards || {});
-  const vufLimitPct = Number.isFinite(Number(standards.vufLimitPct)) ? Number(standards.vufLimitPct) : 2;
+  const standards = lim;
+  const vufLimitPct = lim.vufLimitPct;
   /** @type {{ pole: string, value: number } | null} */
   let worstVuf = null;
   poleResults.forEach(pr => {
