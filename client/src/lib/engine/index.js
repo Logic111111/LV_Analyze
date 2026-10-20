@@ -27,6 +27,8 @@
 //   geo.js                  map editor geometry (haversine, measured vs entered spans)
 //   economics.js            loss cost, capex, payback, NPV (user-entered costs only)
 //   velander.js             demand from annual kWh (Velander), least-squares fit of k1, k2
+//   ami.js                  smart-meter import: curves, peaks and ADMD suggestions
+//   fieldReadings.js        measured vs simulated voltages, phase-label check
 //   hosting.js              PV hosting capacity
 //   bess.js                 BESS hosting capacity
 //   advisors/feederSplit.js feeder split advisor
@@ -57,6 +59,8 @@ export * from './explain.js';
 export * from './geo.js';
 export * from './economics.js';
 export * from './velander.js';
+export * from './ami.js';
+export * from './fieldReadings.js';
 export * from './hosting.js';
 export * from './bess.js';
 export * from './advisors/feederSplit.js';

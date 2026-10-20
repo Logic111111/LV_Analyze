@@ -75,7 +75,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P6.1** Economics (loss cost, discount rate, cost table → LKR/yr, capex, payback, NPV)
 - [x] **P6.2** Demand from billing data (Velander, fitted from CSV)
 - [x] **P6.3** Smart-meter (AMI) import
-- [ ] **P6.4** Measured vs simulated (incl. phase-label check)
+- [x] **P6.4** Measured vs simulated (incl. phase-label check)
 - [ ] **P6.5** Fleet dashboard (`designs.summary` JSON column)
 - [ ] **P6.6** Exports (xlsx, CSV, GeoJSON)
 
@@ -882,6 +882,20 @@ within 1e-9.
   - Group ADMD = coincident peak of the summed demand ÷ customers ÷ pf (kVA).
   - Applied only for the ticked items, after a confirm.
 - **Tests.** Hand-computed figures on synthetic data.
+
+**P6.4 measured vs simulated (2026-10-21).**
+- **Engine.** `engine/fieldReadings.js`: `parseFieldCsv`, `compareMeasured`, `FLAG_V = 3`.
+- **Comparison.** Error = measured − simulated, with bias, MAE and RMSE; |error| > 3 V is flagged.
+  An optional current is compared with the span current into that pole.
+- **Phase-label heuristic.** A flagged reading whose best other phase has |error| ≤ ⅓ of its own
+  and is at least 2 V smaller is marked "likely recorded on phase X". The page states this rule
+  and calls it a prompt for a site check.
+- **Page.** **Field data** (`/app/field-data`) holds the AMI card and this one; it runs in the
+  worker (task `compareMeasured`).
+- **Note.** The P6.3 commit carried the engine only. The index export and page landed here, so
+  the P6.3 commit on its own doesn't expose `ami.js` through `loadflow.js`.
+- **Browser check.** Matched meters: ADMD applied after a confirm. A P3 "phase A" reading at
+  B's voltage is flagged as a likely phase-B record.
 
 ## Phase verification log
 
