@@ -1,5 +1,6 @@
 import { runSnapshot, scanAndSummarize, dailyEnergyLossKwh, proposePhaseBalance, applyPhaseBalance } from '../../loadflow.js';
 import { walkthroughIsland } from './walkthroughIsland.js';
+import { syntheticFeeder } from './syntheticFeeder.js';
 
 // Shared by the full-precision regression lock (reference.test.js) and its generator
 // (scripts/gen-reference.mjs), so the test always recomputes exactly the cases the reference file
@@ -48,7 +49,12 @@ const VARIANTS = {
     d.poles = d.poles.map(p => p.id === 'P3' ? { ...p, parent: 'TX2', spanM: 0, grounded: true, groundOhms: 15 }
       : p.id === 'P2' ? { ...p, grounded: true, groundOhms: 25 } : p);
     return d;
-  }
+  },
+  // The 50-pole / 200-connection synthetic island (benchmark size), plain and with 8 earth
+  // electrodes — a realistically sized tree, branchy feeders, every connection type, and a 51-node
+  // neutral matrix. Added before any Phase 1 engine change, from the untouched engine.
+  synthetic: () => syntheticFeeder(),
+  syntheticGrounded: () => syntheticFeeder({ grounded: true })
 };
 
 const snap = (variant, opts) => ({ kind: 'snapshot', variant, opts });
@@ -77,10 +83,15 @@ export const REFERENCE_CASES = [
   snap('excludedTypes', { year: 0, hour: 20 }),
   snap('twoTx', { year: 0, hour: 20, solarMult: 0 }),
   snap('twoTx', { year: 0, hour: 12, solarMult: 1 }),
+  snap('synthetic', { year: 0, hour: 20 }),
+  snap('synthetic', { year: 3, hour: 12, solarMult: 1.2 }),
+  snap('syntheticGrounded', { year: 0, hour: 20 }),
+  snap('syntheticGrounded', { year: 0, hour: 12 }),
   { kind: 'scan', variant: 'unbalanced' },
   { kind: 'scan', variant: 'balanced' },
   { kind: 'scan', variant: 'twoTx' },
   { kind: 'scan', variant: 'unbalanced', hours: [12], solarMult: 1 },
+  { kind: 'scan', variant: 'synthetic' },
   { kind: 'dailyLoss', variant: 'unbalanced' },
   { kind: 'dailyLoss', variant: 'bess' }
 ];

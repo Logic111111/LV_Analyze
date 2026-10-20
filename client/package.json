@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "gen:reference": "node scripts/gen-reference.mjs"
+    "gen:reference": "node scripts/gen-reference.mjs",
+    "bench": "node scripts/bench.mjs"
   },
   "dependencies": {
     "chart.js": "^4.4.4",

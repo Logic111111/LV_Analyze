@@ -189,8 +189,19 @@ stack and the database were not touched. Results:
 
 ## Performance log
 
-(Filled in by P1.4.)
+`npm run bench` (client) — synthetic 50-pole / 200-connection island (`syntheticFeeder()`), Node 22,
+this dev machine. "Before" = untouched engine at `6326123`, captured before any Phase 1 change.
 
-| Case | Before | After |
+| Case | Before (6326123) | After P1.4 |
 |---|---|---|
-| Walkthrough Island, all Phase 0 goldens (Node 22, this machine) | ~0.9 s total | — |
+| Snapshot, 50 poles / 200 conn, 20:00 (41 iterations) | 11.3 ms | — |
+| Snapshot, same with 8 grounded poles (21 iterations) | 11.0 ms | — |
+| `runDailyScan` (24 snapshots) | 231 ms | — |
+| `runDailyScan`, grounded | 210 ms | — |
+| `scanAndSummarize` (24 h) | 226 ms | — |
+| `proposePhaseBalance` | 0.26 ms | — |
+| Walkthrough Island snapshot (3 poles) | 0.35 ms | — |
+| `computeHostingCapacity`, 50 poles × 3 phases | 17.3 s | — |
+
+The snapshot is inside the 50 ms budget already; a 24 h scan (~230 ms) is not inside the "UI thread
+never blocked > 100 ms" rule, so scans move to the worker in P1.5 regardless of P1.4 gains.
