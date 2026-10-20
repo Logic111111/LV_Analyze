@@ -19,12 +19,77 @@ export const CONDUCTORS = {
   '70ABC': { R: 0.443, L_mH: 0.3, Z: 0.453, I: 203, neutralScale: 70 / 50 },
   '50ABC': { R: 0.641, L_mH: 0.3, Z: 0.647, I: 162, neutralScale: 50 / 35 }
 };
-/** @param {string} c @returns {number} X, Ω/km */
-export function condX(c) { const z = CONDUCTORS[c].Z, r = CONDUCTORS[c].R; return Math.sqrt(Math.max(z * z - r * r, 0)); }
-/** @param {string} c @returns {number} neutral R, Ω/km */
-export function condRn(c) { return CONDUCTORS[c].R * CONDUCTORS[c].neutralScale; }
-/** @param {string} c @returns {number} neutral X, Ω/km */
-export function condXn(c) { return condX(c); } // assume neutral reactance ~ phase reactance (thin conductor, close spacing)
+// The built-in libraries are frozen: designs carry their own copies (see defaultDesign), so
+// nothing should ever write to these shared objects.
+Object.values(TRANSFORMERS).forEach(t => Object.freeze(t));
+Object.values(CONDUCTORS).forEach(c => Object.freeze(c));
+Object.freeze(TRANSFORMERS); Object.freeze(CONDUCTORS);
+
+/* ============================================================
+   EQUIPMENT LIBRARIES
+============================================================ */
+// Every engine lookup of conductor or transformer data goes through these two functions, never
+// CONDUCTORS[...] / TRANSFORMERS[...] directly: a design carries its own `conductorLibrary` and
+// `transformerLibrary` (seeded with exact copies of the built-ins above by defaultDesign/
+// withDefaults, editable later), and a code missing from it falls back to the built-in entry. A
+// code found in neither is a data error — reported clearly here rather than surfacing later as a
+// "cannot read properties of undefined" deep inside the solver.
+
+/** @param {Design | null | undefined} design @param {string} code @returns {ConductorType} */
+export function getConductor(design, code) {
+  const lib = design && design.conductorLibrary;
+  const c = (lib && lib[code]) || CONDUCTORS[code];
+  if (!c) throw new Error(`Unknown conductor "${code}" — it is not in this design's conductor library.`);
+  return c;
+}
+
+/** @param {Design | null | undefined} design @param {number | string} rating @returns {TransformerType} */
+export function getTransformerType(design, rating) {
+  const lib = design && design.transformerLibrary;
+  const t = (lib && lib[rating]) || TRANSFORMERS[rating];
+  if (!t) throw new Error(`Unknown transformer rating "${rating}" kVA — it is not in this design's transformer library.`);
+  return t;
+}
+
+// Codes / ratings available to this design, built-ins first (in their built-in order), then any
+// the design's own library adds — what the pages' pickers offer.
+/** @param {Design | null | undefined} design @returns {string[]} */
+export function conductorCodes(design) {
+  return [...new Set([...Object.keys(CONDUCTORS), ...Object.keys((design && design.conductorLibrary) || {})])];
+}
+/** @param {Design | null | undefined} design @returns {number[]} */
+export function transformerRatings(design) {
+  const all = [...Object.keys(TRANSFORMERS), ...Object.keys((design && design.transformerLibrary) || {})].map(Number);
+  return [...new Set(all)].sort((a, b) => a - b);
+}
+
+// Per-km series impedances of one conductor type. Library entries give R and |Z| (X derived as
+// √(|Z|² − R²)) and a neutral-to-phase resistance ratio; the neutral's reactance is taken equal to
+// the phase's (thin conductor, close spacing in an aerial bundled cable). An entry may instead give
+// X, Rn and/or Xn explicitly — those are used as-is when present (needed once the library is
+// user-editable, P2.5). For the two built-in entries this reproduces the original condX/condRn/
+// condXn arithmetic exactly.
+/** @param {Design | null | undefined} design @param {string} code @returns {{ R: number, X: number, Rn: number, Xn: number, I: number }} Ω/km, A */
+export function conductorParams(design, code) {
+  const c = /** @type {ConductorType & { X?: number, Rn?: number, Xn?: number }} */ (getConductor(design, code));
+  const X = c.X != null ? Number(c.X) : Math.sqrt(Math.max(c.Z * c.Z - c.R * c.R, 0));
+  const Rn = c.Rn != null ? Number(c.Rn) : c.R * c.neutralScale;
+  const Xn = c.Xn != null ? Number(c.Xn) : X;
+  return { R: c.R, X, Rn, Xn, I: c.I };
+}
+
+// Kept for existing callers (Setup page): `design` is optional, and without it these read the
+// built-in library exactly as before.
+/** @param {string} c @param {Design} [design] @returns {number} X, Ω/km */
+export function condX(c, design) { return conductorParams(design, c).X; }
+/** @param {string} c @param {Design} [design] @returns {number} neutral R, Ω/km */
+export function condRn(c, design) { return conductorParams(design, c).Rn; }
+/** @param {string} c @param {Design} [design] @returns {number} neutral X, Ω/km */
+export function condXn(c, design) { return conductorParams(design, c).Xn; } // assume neutral reactance ~ phase reactance (thin conductor, close spacing)
+
+// Deep copies of the built-in libraries — what a new or migrated design starts with.
+function builtInConductorLibrary() { return Object.fromEntries(Object.entries(CONDUCTORS).map(([k, c]) => [k, { ...c }])); }
+function builtInTransformerLibrary() { return Object.fromEntries(Object.entries(TRANSFORMERS).map(([k, t]) => [k, { ...t }])); }
 
 export const DEFAULT_LOAD_CURVE = [0.35, 0.30, 0.28, 0.27, 0.28, 0.32, 0.45, 0.55, 0.50, 0.45, 0.42, 0.40, 0.42, 0.40, 0.42, 0.48, 0.60, 0.75, 0.95, 1.00, 1.00, 0.80, 0.60, 0.45];
 export const DEFAULT_EV_CURVE = [0.55, 0.45, 0.30, 0.20, 0.15, 0.10, 0.08, 0.10, 0.15, 0.20, 0.20, 0.18, 0.15, 0.15, 0.15, 0.20, 0.35, 0.55, 0.85, 1.00, 0.95, 0.85, 0.70, 0.60];
@@ -47,6 +112,7 @@ export function defaultDesign() {
     includeGeneral: true, includeEV: true, includeSolar: true, includeShop: true, includeBess: true, includeEVCS: true,
     bessChargeStartHour: 10, bessChargeEndHour: 14, bessDischargeStartHour: 19, bessDischargeEndHour: 23,
     loadCurve: [...DEFAULT_LOAD_CURVE], evCurve: [...DEFAULT_EV_CURVE], solarCurve: [...DEFAULT_SOLAR_CURVE], shopCurve: [...DEFAULT_SHOP_CURVE], evcsCurve: [...DEFAULT_EVCS_CURVE],
+    conductorLibrary: builtInConductorLibrary(), transformerLibrary: builtInTransformerLibrary(),
     poles: [
       { id: 'P1', feeder: 'F1', parent: 'TX', spanM: 40, cond: '70ABC', grounded: false, groundOhms: 20 },
       { id: 'P2', feeder: 'F1', parent: 'P1', spanM: 35, cond: '70ABC', grounded: false, groundOhms: 20 },
@@ -249,9 +315,9 @@ export function secondaryLNVoltage(tx) {
 // Series transformer impedance, referred to the LV side, expressed as an equivalent per-phase
 // (line-neutral) impedance so it can be added in series with each feeder root. X/R split is a
 // modelling assumption (no factory test-certificate X/R was provided) — default 3, editable.
-/** @param {Transformer} tx @returns {{ r: number, x: number, z: number }} Ω per phase, referred to LV */
-export function txImpedance(tx) {
-  const zpu = TRANSFORMERS[tx.txRating].z;
+/** @param {Transformer} tx @param {Design} [design] Library source (built-ins when omitted). @returns {{ r: number, x: number, z: number }} Ω per phase, referred to LV */
+export function txImpedance(tx, design) {
+  const zpu = getTransformerType(design, tx.txRating).z;
   const zbase = Math.pow(415, 2) / (tx.txRating * 1000);
   const z = zpu * zbase;
   const xr = tx.txXR || 3;

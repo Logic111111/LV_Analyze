@@ -1,4 +1,4 @@
-import { TRANSFORMERS, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh } from './loadflow.js';
+import { getTransformerType, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh } from './loadflow.js';
 
 function esc(v) {
   return String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -67,7 +67,7 @@ function snapshotSectionBody(design, res) {
     const exporting = t.flowDirection === 'export';
     return [
       esc(t.name), exporting ? 'EXPORT' : 'IMPORT', Math.abs(t.netKW).toFixed(1),
-      `${t.txPct.toFixed(1)}% (${t.txKVA.toFixed(1)} / ${TRANSFORMERS[rating].kVA} kVA)`,
+      `${t.txPct.toFixed(1)}% (${t.txKVA.toFixed(1)} / ${getTransformerType(design, rating).kVA} kVA)`,
       `${t.busVoltPct.A.toFixed(1)} / ${t.busVoltPct.B.toFixed(1)} / ${t.busVoltPct.C.toFixed(1)}`,
       (t.txLossW / 1000).toFixed(3), (t.txNoLoadW / 1000).toFixed(3)
     ];
@@ -219,7 +219,7 @@ export function buildReportHtml(design, res, hosting, daily, bessHosting) {
 
   const txRows = design.transformers.map(t => [
     esc(t.name || t.id), esc(t.id), t.txRating + ' kVA', 'Tap ' + t.tap + ' — ' + TAPS[t.tap] + ' : 415 V',
-    t.txXR, t.hvActual + ' V', (design.txNoLoadW?.[t.txRating] ?? TRANSFORMERS[t.txRating].noLoadW) + ' W',
+    t.txXR, t.hvActual + ' V', (design.txNoLoadW?.[t.txRating] ?? getTransformerType(design, t.txRating).noLoadW) + ' W',
     (t.txGroundOhms ?? 7.5) + ' Ω'
   ]);
   const setupBody = `

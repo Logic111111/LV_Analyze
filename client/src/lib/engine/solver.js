@@ -2,7 +2,7 @@
 // The load-flow solver: a damped backward-forward sweep per transformer subtree (4-wire, with
 // an optional multi-grounded neutral nodal solve), and the snapshot/violation assembly.
 import { C, PHASES, PHASE_ANGLE, solveComplexLinearSystem } from './complex.js';
-import { CONDUCTORS, TRANSFORMERS, condX, condRn, condXn, poleById, children, bfsOrderFrom, secondaryLNVoltage, txImpedance } from './model.js';
+import { conductorParams, getTransformerType, poleById, children, bfsOrderFrom, secondaryLNVoltage, txImpedance } from './model.js';
 import { netS, zipMultiplier } from './loads.js';
 /** @import { Design, Transformer, SnapshotOptions, SnapshotResult, Violation, Complex } from './types.js' */
 
@@ -37,13 +37,14 @@ function solveTxSubtree(design, tx, opts) {
     // a pole, e.g. from a feeder split) has Zn = 0 exactly, which turned that span's neutral
     // current and loss into NaN. 1 cm is physically negligible (~6 µΩ) but keeps it finite.
     const kmN = Math.max(km, 1e-5);
+    const cp = conductorParams(design, p.cond);
     spanZ[id] = {
-      Zph: { re: CONDUCTORS[p.cond].R * km, im: condX(p.cond) * km },
-      Zn: { re: condRn(p.cond) * kmN, im: condXn(p.cond) * kmN }
+      Zph: { re: cp.R * km, im: cp.X * km },
+      Zn: { re: cp.Rn * kmN, im: cp.Xn * kmN }
     };
   });
 
-  const txZ = txImpedance(tx);
+  const txZ = txImpedance(tx, design);
   const txZc = { re: txZ.r, im: txZ.x };
   let Vbus = { A: { ...V0ph.A }, B: { ...V0ph.B }, C: { ...V0ph.C } };
   let Itot = { A: C.zero(), B: C.zero(), C: C.zero() };
@@ -239,7 +240,7 @@ function solveTxSubtree(design, tx, opts) {
     const volt = /** @type {import('./types.js').PhaseMap<number>} */ ({}); PHASES.forEach(ph => { volt[ph] = C.abs(V[id][ph]); });
     const cur = /** @type {import('./types.js').PhaseMap<number>} */ ({}); PHASES.forEach(ph => cur[ph] = C.abs(Icum[id][ph]));
     const In = C.abs(spanNeutralCurrent(id));
-    const rating = CONDUCTORS[p.cond].I;
+    const rating = conductorParams(design, p.cond).I;
     let Sspan = C.zero();
     PHASES.forEach(ph => Sspan = C.add(Sspan, C.mul(V[id][ph], C.conj(Icum[id][ph]))));
     const flowKW = Sspan.re / 1000, flowKVAR = Sspan.im / 1000;
@@ -254,7 +255,8 @@ function solveTxSubtree(design, tx, opts) {
   const lossByPole = {};
   order.forEach(id => {
     const p = poleById(design, id); const km = p.spanM / 1000;
-    const Rph = CONDUCTORS[p.cond].R * km, Rn = condRn(p.cond) * km;
+    const cp = conductorParams(design, p.cond);
+    const Rph = cp.R * km, Rn = cp.Rn * km;
     let l = 0;
     PHASES.forEach(ph => l += Math.pow(C.abs(Icum[id][ph]), 2) * Rph);
     const In = C.abs(spanNeutralCurrent(id));
@@ -282,13 +284,14 @@ function solveTxSubtree(design, tx, opts) {
   let Stx = C.zero();
   feederRootIds.forEach(id => { PHASES.forEach(ph => { Stx = C.add(Stx, C.mul(Vbus[ph], C.conj(Icum[id][ph]))); }); });
   const txKVA = C.abs(Stx) / 1000;
-  const txPct = txKVA / TRANSFORMERS[tx.txRating].kVA * 100;
+  const txType = getTransformerType(design, tx.txRating);
+  const txPct = txKVA / txType.kVA * 100;
 
   let txLossW = 0;
   PHASES.forEach(ph => txLossW += Math.pow(C.abs(Itot[ph]), 2) * txZ.r);
   const txNoLoadW = (design.txNoLoadW && design.txNoLoadW[tx.txRating] != null)
     ? Number(design.txNoLoadW[tx.txRating])
-    : TRANSFORMERS[tx.txRating].noLoadW;
+    : txType.noLoadW;
   const busVoltPct = /** @type {import('./types.js').PhaseMap<number>} */ ({}); PHASES.forEach(ph => busVoltPct[ph] = C.abs(Vbus[ph]));
 
   const netKW = Stx.re / 1000, netKVAR = Stx.im / 1000;

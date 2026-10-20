@@ -1,5 +1,5 @@
 import { useDesign } from '../context/DesignContext.jsx';
-import { CONDUCTORS, condX, condRn, secondaryLNVoltage, txImpedance, nextTransformerId, TRANSFORMERS } from '../lib/loadflow.js';
+import { conductorCodes, getConductor, condX, condRn, secondaryLNVoltage, txImpedance, nextTransformerId, transformerRatings, getTransformerType } from '../lib/loadflow.js';
 import CurveEditor from '../components/CurveEditor.jsx';
 
 export default function SetupPage() {
@@ -35,7 +35,7 @@ export default function SetupPage() {
       <div className="grid g3">
         {design.transformers.map(tx => {
           const v0 = secondaryLNVoltage(tx);
-          const tz = txImpedance(tx);
+          const tz = txImpedance(tx, design);
           return (
             <div className="card" key={tx.id}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
@@ -47,7 +47,7 @@ export default function SetupPage() {
               </div>
               <label className="field"><span>Rated capacity</span>
                 <select value={tx.txRating} onChange={e => updateTx(tx.id, { txRating: num(e.target.value) })}>
-                  {Object.keys(TRANSFORMERS).map(k => <option key={k} value={k}>{k} kVA</option>)}
+                  {transformerRatings(design).map(k => <option key={k} value={k}>{k} kVA</option>)}
                 </select>
               </label>
               <label className="field"><span>Tap position</span>
@@ -68,7 +68,7 @@ export default function SetupPage() {
                 <input type="number" value={tx.txGroundOhms ?? 7.5} step={0.5} min={0.1} onChange={e => updateTx(tx.id, { txGroundOhms: num(e.target.value) })} />
               </label>
               <p className="hint" style={{ marginTop: -4 }}>No-load secondary phase-neutral voltage at this tap: {v0.toFixed(1)} V ({(v0 * Math.sqrt(3)).toFixed(0)} V line-line).</p>
-              <p className="hint" style={{ marginTop: -4 }}>Series impedance referred to LV, per phase: R={tz.r.toFixed(4)} Ω, X={tz.x.toFixed(4)} Ω (|Z|={tz.z.toFixed(4)} Ω from {(TRANSFORMERS[tx.txRating].z * 100).toFixed(1)}% on nameplate rating).</p>
+              <p className="hint" style={{ marginTop: -4 }}>Series impedance referred to LV, per phase: R={tz.r.toFixed(4)} Ω, X={tz.x.toFixed(4)} Ω (|Z|={tz.z.toFixed(4)} Ω from {(getTransformerType(design, tx.txRating).z * 100).toFixed(1)}% on nameplate rating).</p>
             </div>
           );
         })}
@@ -83,13 +83,13 @@ export default function SetupPage() {
         <div className="tbl-wrap"><table>
           <thead><tr><th>Rating</th><th>No-load loss (W)</th></tr></thead>
           <tbody>
-            {Object.keys(TRANSFORMERS).map(k => (
+            {transformerRatings(design).map(k => (
               <tr key={k}>
                 <td>{k} kVA</td>
                 <td>
                   <input
                     type="number" step={5} min={0} style={{ width: 90 }}
-                    value={design.txNoLoadW?.[k] ?? TRANSFORMERS[k].noLoadW}
+                    value={design.txNoLoadW?.[k] ?? getTransformerType(design, k).noLoadW}
                     onChange={e => set({ txNoLoadW: { ...design.txNoLoadW, [k]: num(e.target.value) } })}
                   />
                 </td>
@@ -195,10 +195,10 @@ export default function SetupPage() {
         <div className="tbl-wrap"><table>
           <thead><tr><th>Type</th><th>R (Ω/km)</th><th>Self-induction (mH/km)</th><th>X (Ω/km, derived)</th><th>|Z| (Ω/km)</th><th>Rating (A)</th><th>Neutral scaling</th></tr></thead>
           <tbody>
-            {Object.entries(CONDUCTORS).map(([name, c]) => (
+            {conductorCodes(design).map(name => [name, getConductor(design, name)]).map(([name, c]) => (
               <tr key={name}>
-                <td>{name}</td><td>{c.R}</td><td>{c.L_mH}</td><td>{condX(name).toFixed(3)}</td><td>{c.Z}</td><td>{c.I}</td>
-                <td>×{c.neutralScale.toFixed(2)} (R<sub>n</sub>={condRn(name).toFixed(3)} Ω/km)</td>
+                <td>{name}</td><td>{c.R}</td><td>{c.L_mH}</td><td>{condX(name, design).toFixed(3)}</td><td>{c.Z}</td><td>{c.I}</td>
+                <td>×{c.neutralScale.toFixed(2)} (R<sub>n</sub>={condRn(name, design).toFixed(3)} Ω/km)</td>
               </tr>
             ))}
           </tbody>

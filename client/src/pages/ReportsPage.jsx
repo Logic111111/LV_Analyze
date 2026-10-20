@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
-import { runSnapshot, TRANSFORMERS, transformerOfPole, isTransformerId, systemLossW } from '../lib/loadflow.js';
+import { runSnapshot, getTransformerType, transformerOfPole, isTransformerId, systemLossW } from '../lib/loadflow.js';
 import { downloadReport } from '../lib/report.js';
 import YearPicker from '../components/YearPicker.jsx';
 
@@ -127,7 +127,7 @@ function Report({ res, design }) {
           <div className="card" key={t.id} style={{ marginBottom: 12 }}>
             <h2 style={{ fontSize: 13 }}>{t.name}</h2>
             <div className="grid g4">
-              <div className={'stat ' + txClass}><div className="v">{txLabel}</div><div className="l">Transformer loading ({t.txKVA.toFixed(1)} / {TRANSFORMERS[rating].kVA} kVA){exporting ? ' — no export cap applied' : ''}</div></div>
+              <div className={'stat ' + txClass}><div className="v">{txLabel}</div><div className="l">Transformer loading ({t.txKVA.toFixed(1)} / {getTransformerType(design, rating).kVA} kVA){exporting ? ' — no export cap applied' : ''}</div></div>
               <div className="stat ok"><div className="v">{dirLabel}</div><div className="l">Grid direction{exporting ? ' — reverse power flow' : ''}</div></div>
               <div className="stat"><div className="v">{(t.txLossW / 1000).toFixed(3)} kW</div><div className="l">Transformer copper loss</div></div>
               <div className="stat"><div className="v">{(t.txNoLoadW / 1000).toFixed(3)} kW</div><div className="l">Transformer no-load (core) loss</div></div>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
-import { feederRoots, poleById, isTransformerId, transformerOfPole, PHASES, CONDUCTORS } from '../lib/loadflow.js';
+import { feederRoots, poleById, isTransformerId, transformerOfPole, PHASES, conductorCodes } from '../lib/loadflow.js';
 
 export default function NetworkPage() {
   const { design, setDesign } = useDesign();
@@ -127,7 +127,7 @@ export default function NetworkPage() {
                 <td><input type="number" style={{ width: 70 }} value={p.spanM} onChange={e => setPoleField(p.id, 'spanM', e.target.value)} /></td>
                 <td>
                   <select value={p.cond} onChange={e => setPoleField(p.id, 'cond', e.target.value)}>
-                    <option value="70ABC">70 ABC</option><option value="50ABC">50 ABC</option>
+                    {conductorCodes(design).map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </td>
                 <td><input type="checkbox" checked={!!p.grounded} onChange={e => toggleGrounded(p.id, e.target.checked)} /></td>
@@ -148,7 +148,7 @@ export default function NetworkPage() {
           </select>
           <input type="number" placeholder="span (m)" value={np.spanM} onChange={e => setNp({ ...np, spanM: e.target.value })} />
           <select value={np.cond} onChange={e => setNp({ ...np, cond: e.target.value })}>
-            <option value="70ABC">70 ABC</option><option value="50ABC">50 ABC</option>
+            {conductorCodes(design).map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           <button className="primary" onClick={addPole}>+ Add pole</button>
         </div>
@@ -179,7 +179,7 @@ export default function NetworkPage() {
           </select>
           <input type="number" placeholder="tie length (m)" value={nop.spanM} onChange={e => setNop({ ...nop, spanM: e.target.value })} />
           <select value={nop.cond} onChange={e => setNop({ ...nop, cond: e.target.value })}>
-            {Object.keys(CONDUCTORS).map(c => <option key={c} value={c}>{c}</option>)}
+            {conductorCodes(design).map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           <button className="primary" onClick={addOpenPoint}>+ Add open point</button>
         </div>

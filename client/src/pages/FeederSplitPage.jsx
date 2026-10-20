@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import {
-  feederTrees, poleById, transformerOfPole, nextTransformerId, TRANSFORMERS, CONDUCTORS,
+  feederTrees, poleById, transformerOfPole, nextTransformerId, conductorCodes, transformerRatings,
   computeFeederSplitCandidates, dualFeederSetup, scoreFeederSplitCandidate, scoreDualFeederCandidate,
   buildSplitCandidate, runSnapshot, scanAndSummarize, feederConnectedTotals, DAILY_HOURS
 } from '../lib/loadflow.js';
@@ -291,7 +291,7 @@ export default function FeederSplitPage() {
                 </label>
                 <label className="field"><span>Connector conductor</span>
                   <select value={anchorCond} onChange={e => setAnchorCond(e.target.value)}>
-                    {Object.keys(CONDUCTORS).map(c => <option key={c} value={c}>{c}</option>)}
+                    {conductorCodes(design).map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </label>
                 <p className="hint" style={{ alignSelf: 'end', marginBottom: 8 }}>Pick e.g. the last pole of the feeder to fix the site "at the end", or any other pole to fix it somewhere in between — connector length to each candidate cut point is derived automatically from the real distance to this pole.</p>
@@ -307,7 +307,7 @@ export default function FeederSplitPage() {
                 </label>
                 <label className="field"><span>Connector conductor</span>
                   <select value={singleDerivedCond} onChange={e => setSingleDerivedCond(e.target.value)}>
-                    {Object.keys(CONDUCTORS).map(c => <option key={c} value={c}>{c}</option>)}
+                    {conductorCodes(design).map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </label>
                 <p className="hint" style={{ alignSelf: 'end', marginBottom: 8 }}>Connector length is derived per candidate — the real distance along this feeder from the open point out to wherever it's cut.</p>
@@ -320,7 +320,7 @@ export default function FeederSplitPage() {
                 </label>
                 <label className="field"><span>Conductor</span>
                   <select value={manualConnector.cond} onChange={e => setManualConnector({ ...manualConnector, cond: e.target.value })}>
-                    {Object.keys(CONDUCTORS).map(c => <option key={c} value={c}>{c}</option>)}
+                    {conductorCodes(design).map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </label>
               </div>
@@ -336,7 +336,7 @@ export default function FeederSplitPage() {
               </label>
               <label className="field"><span>Connector conductor</span>
                 <select value={dualCond} onChange={e => setDualCond(e.target.value)}>
-                  {Object.keys(CONDUCTORS).map(c => <option key={c} value={c}>{c}</option>)}
+                  {conductorCodes(design).map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </label>
               <p className="hint" style={{ alignSelf: 'end', marginBottom: 8 }}>Used both for placing the new transformer directly at the open point (zero-length, since it sits right there) and, if you search instead below, for its derived connector legs.</p>
@@ -358,7 +358,7 @@ export default function FeederSplitPage() {
           </label>
           <label className="field"><span>Rated capacity</span>
             <select value={txSpec.txRating} onChange={e => setTxSpec({ ...txSpec, txRating: Number(e.target.value) })}>
-              {Object.keys(TRANSFORMERS).map(k => <option key={k} value={k}>{k} kVA</option>)}
+              {transformerRatings(design).map(k => <option key={k} value={k}>{k} kVA</option>)}
             </select>
           </label>
           <label className="field"><span>Tap position</span>

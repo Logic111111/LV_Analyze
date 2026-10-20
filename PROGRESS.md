@@ -21,7 +21,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 ## Phase 1 — Correctness fixes, engine structure, performance
 
 - [x] **P1.1** Split engine into `client/src/lib/engine/*` modules; `loadflow.js` becomes a re-export; JSDoc typedefs + `// @ts-check`
-- [ ] **P1.2** Library refactor — `getConductor(design, code)` / `getTransformerType(design, rating)` reading `design.conductorLibrary` / `design.transformerLibrary`
+- [x] **P1.2** Library refactor — `getConductor(design, code)` / `getTransformerType(design, rating)` reading `design.conductorLibrary` / `design.transformerLibrary`
 - [ ] **P1.3** Bug fixes (each with a test that fails before the fix)
   - [ ] 1. Hosting rounds up to an untested size (`Math.round` → `Math.floor(best*20+1e-9)/20`)
   - [ ] 2. Pre-existing violations zero out hosting — baseline-relative feasibility + banner
@@ -189,6 +189,24 @@ formerly-internal names that another module now imports (`netS`, `zipMultiplier`
 iterate `PHASES` instead of an identical literal `['A','B','C']`; and JSDoc type casts. All 51
 previous `loadflow.js` exports are still exported (checked by script) and the 1e-9 lock passes.
 `npm run typecheck` (TypeScript 5.7, `checkJs`, ES libs only, non-strict) is clean and runs in CI.
+
+**P1.2 libraries (2026-10-20).** `defaultDesign()` (and so `withDefaults` for older designs) now
+seeds `conductorLibrary` and `transformerLibrary` with deep copies of the built-in `CONDUCTORS` /
+`TRANSFORMERS`, which are now frozen. Every engine lookup goes through `getConductor` /
+`getTransformerType` / `conductorParams` (design library first, built-in fallback), as do the
+Setup, Network, Feeder Split and Reports pages and the report. Decisions:
+- A saved design carries its own copy of the equipment data, so its results don't silently change
+  if the built-in table is ever corrected. The built-ins remain the fallback for any code a
+  design's library lacks.
+- `conductorParams` also accepts explicit `X`, `Rn`, `Xn` on an entry (used as given), ready for
+  the P2.5 editor. For the two built-ins it reproduces the old `condX`/`condRn`/`condXn`
+  arithmetic exactly.
+- An unknown conductor code or transformer rating now throws a clear error. It used to be a
+  `TypeError` inside the solver.
+- The per-rating no-load table (`design.txNoLoadW`) keeps precedence over the library's `noLoadW`,
+  as before.
+- The Network page's conductor pickers list the library codes (`70ABC`) instead of the
+  hard-coded "70 ABC" labels.
 
 ## Open questions for the user
 
