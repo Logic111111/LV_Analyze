@@ -11,7 +11,7 @@ import {
   computeHostingCapacity, computeSystemHostingCapacity, pvHostingBaseline,
   computeBessHostingCapacity, computeSystemBessHostingCapacity, bessHostingBaseline,
   computeFeederSplitCandidates, searchDualFeederSplit, scoreDualFeederCandidate, makeTx, nextTransformerId,
-  proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runDailyScan
+  proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runDailyScan, protectionCheck
 } from './loadflow.js';
 import { buildReportHtml } from './report.js';
 
@@ -50,6 +50,10 @@ export const ENGINE_TASKS = {
 
   dailyScan: ({ design, year, loadMult, solarMult }, hooks) =>
     runDailyScan(design, year, { loadMult, solarMult, onProgress: hooks.onProgress, stage: 'Solving 24 hours' }),
+
+  // Fault levels are instant; the load check needs the 24 h scan (year 0).
+  protection: ({ design }, hooks) =>
+    protectionCheck(design, runDailyScan(design, 0, { onProgress: hooks.onProgress, stage: 'Scanning 24 h for the load check' })),
 
   report: ({ design, res, hosting, daily, bessHosting }) => buildReportHtml(design, res, hosting, daily, bessHosting)
 };

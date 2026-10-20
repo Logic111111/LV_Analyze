@@ -35,7 +35,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 
 - [x] **P2.1** Symmetrical components & VUF (phasors kept in results; per pole/hour + worst over 24 h; `'unbalance'` violation only when `design.standards.vufAsViolation`)
 - [x] **P2.2** Voltage-profile data — `distanceFromTx`, `voltageProfile`
-- [ ] **P2.3** Fault level & protection check (`faults.js`, IEC 60909-style; fuse library empty by default; Protection panel + report section)
+- [x] **P2.3** Fault level & protection check (`faults.js`, IEC 60909-style; fuse library empty by default; Protection panel + report section)
 - [ ] **P2.4** Tap advisor (multi-year, ranking, unbalance diagnosis, off-load note, Apply/Preview)
 - [ ] **P2.5** Editable conductor library + reconductoring advisor
 - [ ] **P2.6** Fix-it ladder (combined solution advisor)
@@ -343,6 +343,30 @@ band check, not VUF, is what bites on this feeder. No golden changed.
 `voltageProfile(result, design, { feederRoot | path })`. Each profile is one series per
 root-to-leaf path (a branch shows as its own line), starting at the LV bus at 0 m. A `path` that
 doesn't follow parents outwards is rejected with a clear error. The UI comes in P5.3.
+
+**P2.3 fault levels and protection (2026-10-20).** The new code:
+- **`engine/faults.js`:** `faultSettings`, `sourceImpedance`, `faultLevels`, `protectionDevices`
+  and `protectionCheck`. The brief's goldens are reproduced exactly (c = 1, 20 °C, infinite source).
+- **New design fields** (filled by `withDefaults`): `fault` (`hvFaultMVA` null, `hvXR` 10,
+  `cMax` 1.05, `cMin` 0.95, `condTempC` 80), `fuseLibrary` (empty), `protection`
+  (`feederFuses` keyed `"<txId>|<feeder>"`, `poleFuses`), and `standards.disconnectTimeS` (5).
+
+Decisions:
+- **Pole fuse placement.** A "fuse at pole X" sits at the upstream end of the span into X and
+  protects X and everything downstream. Its breaking-capacity fault level is taken at X's parent,
+  and its first span (for Iz) is the span into X.
+- **Protection zones.** A device's zone stops at the next downstream fuse, so the head fuse
+  doesn't have to clear faults beyond a section fuse.
+- **Load check (c)** uses the year-0 24 h scan. With several root spans under one head fuse, it
+  adds their per-phase peak magnitudes (a conservative upper bound).
+- **Source impedance.** `Zq` uses `cMax` for both fault cases (IEC 60909). The min-fault loop
+  includes the full `Zq`, per the brief's formula; strictly ⅔·`Zq` through a Dyn11, so this errs
+  low on Ik1min, the conservative side. Earth-return paths are ignored, also conservative.
+- **Fuse data.** Nothing is invented. Every check needing a missing number is "data missing".
+  The tests use one fuse entry clearly labelled as fictitious.
+
+UI: a new Protection tab (fault-level table, fuse library editor, head and section fuse positions,
+and the check run through the worker), a fault-settings card on Setup, and a report section.
 
 ## Phase verification log
 

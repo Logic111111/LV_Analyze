@@ -12,6 +12,7 @@
 //   solver.js               backward-forward sweep, runSnapshot
 //   scan.js                 24 h scans, loss accounting, scan summary
 //   profile.js              distance from the transformer, voltage-vs-distance profiles
+//   faults.js               fault levels (IEC 60909-style), fuse protection check
 //   hosting.js              PV hosting capacity
 //   bess.js                 BESS hosting capacity
 //   advisors/feederSplit.js feeder split advisor
@@ -23,6 +24,7 @@ export * from './loads.js';
 export * from './solver.js';
 export * from './scan.js';
 export * from './profile.js';
+export * from './faults.js';
 export * from './hosting.js';
 export * from './bess.js';
 export * from './advisors/feederSplit.js';

@@ -15,6 +15,7 @@ import HostingPage from './pages/HostingPage.jsx';
 import BessHostingPage from './pages/BessHostingPage.jsx';
 import FeederSplitPage from './pages/FeederSplitPage.jsx';
 import LoadBalancePage from './pages/LoadBalancePage.jsx';
+import ProtectionPage from './pages/ProtectionPage.jsx';
 import InsightsPage from './pages/InsightsPage.jsx';
 import DesignsPage from './pages/DesignsPage.jsx';
 import AboutPage from './pages/AboutPage.jsx';
@@ -38,6 +39,7 @@ function ProtectedShell() {
           <Route path="bess-hosting" element={<BessHostingPage />} />
           <Route path="feeder-split" element={<FeederSplitPage />} />
           <Route path="load-balance" element={<LoadBalancePage />} />
+          <Route path="protection" element={<ProtectionPage />} />
           <Route path="insights" element={<InsightsPage />} />
           <Route path="designs" element={<DesignsPage />} />
           <Route path="about" element={<AboutPage />} />

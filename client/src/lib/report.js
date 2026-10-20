@@ -1,4 +1,4 @@
-import { getTransformerType, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh, pvHostingBaseline, bessHostingBaseline } from './loadflow.js';
+import { getTransformerType, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh, pvHostingBaseline, bessHostingBaseline, faultLevels, protectionCheck, C } from './loadflow.js';
 import { hostingLimitText, vufText } from './format.js';
 
 function esc(v) {
@@ -232,6 +232,31 @@ function energyLossSectionBody(design) {
   `;
 }
 
+// Fault levels at every node and the fuse protection check (see engine/faults.js). Always computed
+// fresh; the protection check reruns the year-0 24 h scan for its load check.
+function faultSectionBody(design) {
+  const fl = faultLevels(design);
+  const s = fl.settings;
+  const kA = a => (a / 1000).toFixed(2);
+  const rows = [
+    ...fl.transformers.map(t => [esc(t.id) + ' LV terminals', '0', kA(t.ik3MaxA), kA(t.ik1MinA), C.abs(C.add(t.zSource, t.zTx)).toFixed(4)]),
+    ...fl.poles.map(p => [esc(p.id), String(p.distanceM), kA(p.ik3MaxA), kA(p.ik1MinA), C.abs(p.zLoop).toFixed(4)])
+  ];
+  const pc = protectionCheck(design, runDailyScan(design, 0));
+  const statusText = { pass: 'PASS', fail: 'FAIL', missing: 'DATA MISSING' };
+  const fuseText = f => (f ? esc(`${f.type ? f.type + ' ' : ''}${f.ratingA ?? '?'} A`) : 'none');
+  const checkCell = c => `<b>${statusText[c.status]}</b><br><span style="color:var(--muted);font-size:11px">${esc(c.detail)}</span>`;
+  const devRows = pc.devices.map(d => [esc(d.label), fuseText(d.fuse), esc(d.zonePoles.join(', ')), checkCell(d.checks.disconnection), checkCell(d.checks.breaking), checkCell(d.checks.load), checkCell(d.checks.cable), `<b>${statusText[d.overall]}</b>`]);
+  return `
+    <p>IEC 60909-style. Source: ${s.hvFaultMVA ? `${s.hvFaultMVA} MVA, X/R ${s.hvXR}` : 'infinite (no HV fault level entered)'}; cmax ${s.cMax}, cmin ${s.cMin}; Ik1min with conductors at ${s.condTempC} °C; disconnection time ${pc.disconnectTimeS} s.</p>
+    <h3>Fault levels</h3>${table(['Location', 'Distance (m)', 'Ik3max (kA)', 'Ik1min (kA)', '|Zloop| (Ω)'], rows)}
+    <h3>Protection check</h3>
+    ${pc.fuseLibraryEmpty ? '<p class="warn">No fuse data has been entered, so every protection check is "data missing".</p>' : ''}
+    ${table(['Device', 'Fuse', 'Protects', 'Disconnection', 'Breaking capacity', 'Load', 'Cable overload', 'Overall'], devRows)}
+    <p class="empty">Protection results are reported here only; they are not counted as load-flow violations.</p>
+  `;
+}
+
 // Builds a standalone, printable HTML report combining the design's setup, network and
 // (if available) the latest simulation snapshot, hosting-capacity scan and 24-hour scan.
 export function buildReportHtml(design, res, hosting, daily, bessHosting) {
@@ -375,6 +400,7 @@ export function buildReportHtml(design, res, hosting, daily, bessHosting) {
   ${section('5-year 24-hour scan outlook', outlookBody)}
   ${section('Latest solar hosting-capacity scan', hostingBody)}
   ${section('Latest BESS hosting-capacity scan', bessHostingBody)}
+  ${section('Fault levels and protection', faultSectionBody(design))}
 </body></html>`;
 }
 

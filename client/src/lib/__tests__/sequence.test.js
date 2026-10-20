@@ -98,8 +98,8 @@ describe('VUF in load-flow results', () => {
 
   it('withDefaults gives older designs the standards group, filling missing fields only', () => {
     const { standards, ...old } = walkthroughIsland();
-    expect(withDefaults(old).standards).toEqual({ vufLimitPct: 2, vufAsViolation: false });
-    expect(withDefaults({ ...old, standards: { vufLimitPct: 3 } }).standards).toEqual({ vufLimitPct: 3, vufAsViolation: false });
-    expect(defaultDesign().standards).toEqual({ vufLimitPct: 2, vufAsViolation: false });
+    expect(withDefaults(old).standards).toEqual({ vufLimitPct: 2, vufAsViolation: false, disconnectTimeS: 5 });
+    expect(withDefaults({ ...old, standards: { vufLimitPct: 3 } }).standards).toEqual({ vufLimitPct: 3, vufAsViolation: false, disconnectTimeS: 5 });
+    expect(defaultDesign().standards).toEqual({ vufLimitPct: 2, vufAsViolation: false, disconnectTimeS: 5 });
   });
 });

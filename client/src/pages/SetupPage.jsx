@@ -194,6 +194,28 @@ export default function SetupPage() {
         </div>
       </div>
 
+      <div className="section-title">Fault level &amp; protection settings</div>
+      <div className="card">
+        <p className="hint">Used by the Protection page (IEC 60909-style fault levels). Leave the HV fault level blank for an infinite source. The voltage factors default to IEC 60909-0's LV values for a +6 % tolerance band; the minimum fault is taken with conductors at the temperature below (R scaled by 1 + 0.00403·(θ − 20) for aluminium).</p>
+        <div className="grid g3">
+          <label className="field"><span>HV fault level S″k (MVA, blank = infinite)</span>
+            <input type="number" min={0} step={1} value={design.fault.hvFaultMVA ?? ''} onChange={e => set({ fault: { ...design.fault, hvFaultMVA: e.target.value === '' ? null : num(e.target.value) } })} /></label>
+          <label className="field"><span>HV network X/R</span>
+            <input type="number" min={0} step={0.5} value={design.fault.hvXR} onChange={e => set({ fault: { ...design.fault, hvXR: num(e.target.value) } })} /></label>
+          <label className="field"><span>Conductor temperature for Ik1min (°C)</span>
+            <input type="number" step={5} value={design.fault.condTempC} onChange={e => set({ fault: { ...design.fault, condTempC: num(e.target.value) } })} /></label>
+          <label className="field"><span>Voltage factor cmax (maximum fault)</span>
+            <input type="number" step={0.01} value={design.fault.cMax} onChange={e => set({ fault: { ...design.fault, cMax: num(e.target.value) } })} /></label>
+          <label className="field"><span>Voltage factor cmin (minimum fault)</span>
+            <input type="number" step={0.01} value={design.fault.cMin} onChange={e => set({ fault: { ...design.fault, cMin: num(e.target.value) } })} /></label>
+          <label className="field"><span>Fuse disconnection time</span>
+            <select value={design.standards.disconnectTimeS === 0.4 ? '0.4' : '5'} onChange={e => set({ standards: { ...design.standards, disconnectTimeS: num(e.target.value) } })}>
+              <option value="5">5 s (distribution circuits)</option>
+              <option value="0.4">0.4 s (final circuits)</option>
+            </select></label>
+        </div>
+      </div>
+
       <div className="section-title">Conductor library</div>
       <div className="card" style={{ padding: '8px 12px' }}>
         <div className="tbl-wrap"><table>
