@@ -4,7 +4,7 @@ import { runInWorker, isAbortError } from '../runInWorker.js';
 import {
   computeHostingCapacity, pvHostingBaseline, dualFeederSetup, scoreFeederSplitCandidate,
   scoreDualFeederCandidate, scanAndSummarize, nextTransformerId, searchDualFeederSplit,
-  proposePhaseBalance, applyPhaseBalance, runDailyScan
+  proposePhaseBalance, applyPhaseBalance, runDailyScan, optimisePhaseBalance
 } from '../loadflow.js';
 import { walkthroughIsland } from './fixtures/walkthroughIsland.js';
 import { syntheticFeeder } from './fixtures/syntheticFeeder.js';
@@ -145,6 +145,14 @@ describe('tasks reproduce what the pages computed on the main thread', () => {
     const balancedDesign = applyPhaseBalance(d, p.changed);
     const expected = { ...p, beforeMetrics: scanAndSummarize(d, [20], 0), afterMetrics: scanAndSummarize(balancedDesign, [20], 0), balancedDesign };
     expect(ENGINE_TASKS.phaseBalance({ design: d, txId: 'TX', hours: [20], solarMult: 0 }, {})).toEqual(expected);
+  });
+
+  it('phaseBalanceOptimised equals a direct optimisePhaseBalance call and clones cleanly', () => {
+    const d = walkthroughIsland();
+    const args = { objective: 'loadflow', kMax: 3, hours: [20], solarMult: 0, restarts: 1, iterations: 20, seed: 5 };
+    const viaTask = ENGINE_TASKS.phaseBalanceOptimised({ design: d, txId: 'TX', ...args }, {});
+    expect(viaTask).toEqual(optimisePhaseBalance(d, 'TX', args));
+    expect(structuredClone(viaTask)).toEqual(viaTask);
   });
 
   it('every task result survives structured cloning (plain data only)', () => {

@@ -51,7 +51,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 
 ## Phase 4 — Optimisation and mathematics
 
-- [ ] **P4.1** Phase balancing v2 (impedance-weighted / load-flow objectives, local search, Pareto table, seeded SA)
+- [x] **P4.1** Phase balancing v2 (impedance-weighted / load-flow objectives, local search, Pareto table, seeded SA)
 - [ ] **P4.2** Voltage sensitivity matrix
 - [ ] **P4.3** Solver robustness (diagnostics, α=0.3 retry, collapse detection)
 - [ ] **P4.4** Probabilistic (Monte Carlo) planning
@@ -494,6 +494,34 @@ calculation uses `vnom` and isn't affected. **Waiting on data:** the HV voltage 
 No geometry is assumed. Matrices come from the user. The test matrix with mutual terms is labelled
 test-only.
 
+**P4.1 phase balancing v2 (2026-10-20).**
+- **Code.** `engine/advisors/phaseOptimiser.js` (`optimisePhaseBalance`, `pathImpedanceOhm`,
+  `BALANCE_OBJECTIVES`, `LOADFLOW_OBJECTIVE_WEIGHTS`) and `engine/random.js` (`mulberry32`,
+  `randomInt`, shared with P4.4). The Quick method (`proposePhaseBalance`) and its golden values are
+  unchanged.
+- **UI.** Load Balance page → Method: Quick / Optimised. The Pareto table runs in the worker, and
+  any row can be previewed and applied through the existing preview.
+- **Move count.** Moves are counted physically. Connections identical apart from id and phase are
+  interchangeable, so an arrangement's move count is the minimum number of drops to re-terminate.
+  Swapping two identical ADMD loads is not a move and is never proposed.
+- **Never worse than Quick.** The Quick proposal is seeded into the candidate pool, so Optimised is
+  never worse than Quick at the same move count (that is what makes "K = 9 ≤ legacy" hold in
+  general, not only on the fixture).
+- **Monotone by construction.** Each K's row is the best with ≤ K moves found so far.
+- **Load-flow objective weights** (optimisation weights, not engineering data; overridable):
+  - 1 MW-equivalent per voltage violation-hour;
+  - neutral I²R in W, summed over hours;
+  - 1 kW per % VUF above the profile limit, per pole and hour.
+
+  Only the transformer's own subtree is solved. That is exact, because subtrees are independent.
+- **Screening.** Above 200 neighbours per step (large transformers), only the 200 best by
+  impedance-weighted spread are solved. The fixture is searched in full.
+- **Fixture results** (24 h):
+  - Load-flow objective: 0 violations from K = 1. Objective 163 at K = 8 versus 1777 for Quick's
+    9 moves.
+  - Impedance objective: K = 9 equals Quick (0.058).
+  - Nameplate objective: K = 8 reaches Quick's 1.0 kVA spread.
+
 ## Phase verification log
 
 **Phase 1 (2026-10-20).**
@@ -557,6 +585,19 @@ this dev machine. "Before" = untouched engine at `6326123`, captured before any 
 | `proposePhaseBalance` | 0.26 ms | 0.30 ms | — |
 | Walkthrough Island snapshot (3 poles) | 0.35 ms | 0.16 ms | 2.2× |
 | `computeHostingCapacity`, 50 poles × 3 phases | 17.3 s | 6.5 s | 2.6× |
+
+`optimisePhaseBalance`, Kmax 9, no annealing, without the per-row metrics scans:
+
+| Case | Time | Arrangements evaluated |
+|---|---|---|
+| Walkthrough Island (20 connections), nameplate | 55 ms | 274 |
+| Walkthrough Island, load-flow objective, 24 h | 1.2 s | 486 |
+| 50-pole feeder (190 connections), nameplate, 24 h | 4.0 s | 5 003 |
+| 50-pole feeder, impedance-weighted | 5.1 s | 10 663 |
+| 50-pole feeder, load-flow objective, 1 hour | 15.7 s | 2 868 |
+
+All of these run in the worker with progress and Cancel. On large transformers the UI hint
+recommends the night-peak or solar-peak test conditions for the load-flow objective.
 
 Where the time went:
 - Hoisting `netS` out of the iteration loop and replacing per-pole list filters with

@@ -7,6 +7,7 @@ import { ConvergenceWarning } from '../components/Convergence.jsx';
 import { txCurrentSummary } from '../lib/format.js';
 import TaskProgress from '../components/TaskProgress.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
+import PhaseOptimiserCard from '../components/PhaseOptimiserCard.jsx';
 
 function testOptsFor(testMode) {
   if (testMode === 'solarPeak') return { hours: [12], solarMult: 1, periodLabel: 'at 12:00 (solar peak)' };
@@ -33,7 +34,8 @@ export default function LoadBalancePage() {
   const [testMode, setTestMode] = useState('daily');
   const [proposal, setProposal] = useState(null); // { items, before, after, changed, beforeMetrics, afterMetrics, periodLabel, balancedDesign }
   const task = useEngineTask();
-  const [preview, setPreview] = useState(null); // { design }
+  const [method, setMethod] = useState('quick'); // 'quick' (legacy greedy, nameplate) | 'optimised' (P4.1)
+  const [preview, setPreview] = useState(null); // { design, changed, label }
   const [applied, setApplied] = useState(null);
 
   // The proposal plus its before/after scans run in the engine worker, with progress and Cancel.
@@ -46,11 +48,16 @@ export default function LoadBalancePage() {
     setPreview(null); setApplied(null);
   }
 
-  function openPreview() { setPreview({ design: proposal.balancedDesign }); }
+  function openPreview() { setPreview({ design: proposal.balancedDesign, changed: proposal.changed, label: 'Quick' }); }
+  // Optimised rows are previewed and applied through the same mechanism as Quick.
+  function openOptimisedPreview(changed, label) {
+    setPreview({ design: applyPhaseBalance(design, changed), changed, label }); setApplied(null);
+  }
 
   function applyBalance() {
-    setDesign(d => applyPhaseBalance(d, proposal.changed));
-    setApplied(`Rebalanced ${proposal.changed.length} connection${proposal.changed.length === 1 ? '' : 's'} on ${txId}.`);
+    const changed = preview.changed;
+    setDesign(d => applyPhaseBalance(d, changed));
+    setApplied(`Rebalanced ${changed.length} connection${changed.length === 1 ? '' : 's'} on ${txId} (${preview.label}).`);
     setPreview(null);
     setProposal(null);
   }
@@ -78,15 +85,33 @@ export default function LoadBalancePage() {
           <label className="chk"><input type="radio" name="lbTestMode" checked={testMode === 'nightPeak'} onChange={() => setTestMode('nightPeak')} /> Night peak only (20:00)</label>
         </div>
 
-        <button className="primary" onClick={runPropose} disabled={task.running} style={{ marginTop: 8 }}>Propose balance</button>
-        <TaskProgress task={task} />
+        <div className="section-title" style={{ marginTop: 14 }}>Method</div>
+        <div className="grid g3">
+          <label className="chk"><input type="radio" name="lbMethod" checked={method === 'quick'} onChange={() => setMethod('quick')} /> Quick (nameplate)</label>
+          <label className="chk"><input type="radio" name="lbMethod" checked={method === 'optimised'} onChange={() => setMethod('optimised')} /> Optimised (moves vs benefit)</label>
+        </div>
+
+        {method === 'quick' && (
+          <>
+            <button className="primary" onClick={runPropose} disabled={task.running} style={{ marginTop: 8 }}>Propose balance</button>
+            <TaskProgress task={task} />
+          </>
+        )}
       </div>
+
+      {/* Stays mounted under a preview so Discard returns to the same table; re-created after Apply
+          (the design changed, so the old table no longer applies). */}
+      {method === 'optimised' && (
+        <div hidden={!!preview}>
+          <PhaseOptimiserCard key={applied || 'current'} design={design} txId={txId} testOpts={testOptsFor(testMode)} onPreview={openOptimisedPreview} />
+        </div>
+      )}
 
       {applied && (
         <div className="note" style={{ marginTop: 14 }}>Applied — {applied} Review on Network, Setup or Diagram.</div>
       )}
 
-      {proposal && !preview && (
+      {method === 'quick' && proposal && !preview && (
         <div style={{ marginTop: 18 }}>
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
@@ -136,7 +161,7 @@ export default function LoadBalancePage() {
       {preview && (
         <div className="card" style={{ marginTop: 18 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-            <h2 style={{ margin: 0 }}>Preview — rebalanced phases</h2>
+            <h2 style={{ margin: 0 }}>Preview — rebalanced phases ({preview.label}, {preview.changed.length} move{preview.changed.length === 1 ? '' : 's'})</h2>
             <span>
               <button className="primary" onClick={applyBalance}>Apply this design</button>{' '}
               <button className="mini" onClick={() => setPreview(null)}>Discard preview</button>

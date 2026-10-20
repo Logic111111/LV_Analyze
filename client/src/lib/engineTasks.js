@@ -12,7 +12,7 @@ import {
   computeBessHostingCapacity, computeSystemBessHostingCapacity, bessHostingBaseline,
   computeFeederSplitCandidates, searchDualFeederSplit, scoreDualFeederCandidate, makeTx, nextTransformerId,
   proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runDailyScan, protectionCheck, tapAdvisor,
-  reconductorAdvisor, fixItLadder
+  reconductorAdvisor, fixItLadder, optimisePhaseBalance
 } from './loadflow.js';
 import { buildReportHtml } from './report.js';
 
@@ -48,6 +48,10 @@ export const ENGINE_TASKS = {
     const afterMetrics = scanAndSummarize(balancedDesign, hours, solarMult, { onProgress: hooks.onProgress, stage: '2/2 Scanning the rebalanced design' });
     return { ...p, beforeMetrics, afterMetrics, balancedDesign };
   },
+
+  // Phase balancing v2 (P4.1): the Pareto table, with each row's scan metrics.
+  phaseBalanceOptimised: ({ design, txId, objective, kMax, hours, solarMult, restarts, iterations, seed }, hooks) =>
+    optimisePhaseBalance(design, txId, { objective, kMax, hours, solarMult, restarts, iterations, seed, onProgress: hooks.onProgress }),
 
   dailyScan: ({ design, year, loadMult, solarMult }, hooks) =>
     runDailyScan(design, year, { loadMult, solarMult, onProgress: hooks.onProgress, stage: 'Solving 24 hours' }),

@@ -18,10 +18,12 @@
 //   bessDispatch.js         BESS state of charge: sequential day simulation
 //   thermal.js              transformer hot spot and ageing (IEC 60076-7)
 //   lineModel.js            optional coupled 4×4 line impedance model
+//   random.js               seeded PRNG (mulberry32) for reproducible searches
 //   hosting.js              PV hosting capacity
 //   bess.js                 BESS hosting capacity
 //   advisors/feederSplit.js feeder split advisor
-//   advisors/phaseBalance.js load balance advisor
+//   advisors/phaseBalance.js load balance advisor (Quick, nameplate greedy)
+//   advisors/phaseOptimiser.js phase balancing v2 (objectives, local search, Pareto table)
 //   advisors/tapAdvisor.js  off-load tap advisor
 //   advisors/reconductor.js reconductoring advisor
 //   advisors/fixItLadder.js combined fix-it ladder
@@ -38,10 +40,12 @@ export * from './inverter.js';
 export * from './bessDispatch.js';
 export * from './thermal.js';
 export * from './lineModel.js';
+export * from './random.js';
 export * from './hosting.js';
 export * from './bess.js';
 export * from './advisors/feederSplit.js';
 export * from './advisors/phaseBalance.js';
+export * from './advisors/phaseOptimiser.js';
 export * from './advisors/tapAdvisor.js';
 export * from './advisors/reconductor.js';
 export * from './advisors/fixItLadder.js';

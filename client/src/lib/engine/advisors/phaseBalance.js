@@ -16,7 +16,7 @@ import { transformerOfPole } from '../model.js';
 // peak for load, midday for PV) — spreading either kind out by magnitude is the same practical
 // fix, regardless of sign. 3-phase connections are skipped — already balanced by definition.
 /** @param {Design} design @param {string} txId @returns {BalanceItem[]} */
-function balanceableConnections(design, txId) {
+export function balanceableConnections(design, txId) {
   const items = [];
   design.loads.forEach(l => {
     if (l.phase === 'ABC' || transformerOfPole(design, l.pole) !== txId) return;
