@@ -15,7 +15,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 ## Phase 0 — Safety net
 
 - [x] **P0.1** Test harness — Vitest in `client/` (`npm test`), Walkthrough Island fixture
-- [ ] **P0.2** Golden tests — every row of the brief's golden table, import-surface test, old-format design test, plus a full-precision (1e-9) regression lock
+- [x] **P0.2** Golden tests — every row of the brief's golden table, import-surface test, old-format design test, plus a full-precision (1e-9) regression lock
 - [ ] **P0.3** CI — GitHub Actions: install, ESLint, tests, client build, `node --check` on the server
 
 ## Phase 1 — Correctness fixes, engine structure, performance

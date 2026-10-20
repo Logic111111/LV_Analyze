@@ -1,11 +1,13 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { defaultDesign, normalizeDesign } from '../lib/loadflow.js';
+import { defaultDesign, withDefaults } from '../lib/loadflow.js';
 import { api } from '../api.js';
 
 const DesignContext = createContext(null);
 
 export function DesignProvider({ children }) {
-  const [design, setDesign] = useState(defaultDesign());
+  // Every way a design enters the app goes through withDefaults (see loadflow.js), so pages can
+  // rely on every field existing and old saved designs pick up new fields' off-by-default values.
+  const [design, setDesign] = useState(() => withDefaults(defaultDesign()));
   const [designId, setDesignId] = useState(null); // backend id of the currently loaded design, if any
   const [savedList, setSavedList] = useState([]);
   const [lastResults, setLastResults] = useState(null); // most recent Reports snapshot, used by AI Insights
@@ -29,7 +31,7 @@ export function DesignProvider({ children }) {
 
   const loadDesign = useCallback(async (id) => {
     const d = await api.getDesign(id);
-    setDesign({ ...defaultDesign(), ...normalizeDesign(d.design) });
+    setDesign(withDefaults(d.design));
     setDesignId(d.design.id);
     setLastResults(null);
     setLastHosting(null);
@@ -38,7 +40,7 @@ export function DesignProvider({ children }) {
   }, []);
 
   const newDesign = useCallback(() => {
-    setDesign(defaultDesign());
+    setDesign(withDefaults(defaultDesign()));
     setDesignId(null);
     setLastResults(null);
     setLastHosting(null);

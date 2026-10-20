@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
-import { defaultDesign, normalizeDesign } from '../lib/loadflow.js';
+import { withDefaults } from '../lib/loadflow.js';
 
 export default function DesignsPage() {
   const { design, savedList, saveDesign, loadDesign, newDesign, removeDesign } = useDesign();
@@ -42,7 +42,7 @@ export default function DesignsPage() {
       try {
         const loaded = JSON.parse(reader.result);
         if (!loaded.poles || (!loaded.txRating && !loaded.transformers)) throw new Error('This file does not look like a Feeder Island design.');
-        setDesign({ ...defaultDesign(), ...normalizeDesign(loaded) });
+        setDesign(withDefaults(loaded));
         setMsg('Imported "' + loaded.name + '" — click Save to add it to your account.');
       } catch (err) { alert('Import failed: ' + err.message); }
       e.target.value = '';

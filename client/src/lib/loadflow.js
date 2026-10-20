@@ -121,6 +121,40 @@ export function normalizeDesign(design) {
     }]
   };
 }
+// The one migration every entry point runs a design through (loading from the server, importing a
+// JSON file, starting a new one), so the rest of the app can assume every field exists. Rules:
+//   - normalizeDesign first (flat single-transformer format → transformers[]);
+//   - a missing scalar setting or curve takes defaultDesign()'s value — exactly what the app
+//     already did on load via `{ ...defaultDesign(), ...design }`, so results are unchanged;
+//   - a missing collection (poles/loads/pv/bess/openPoints) becomes an empty array, NOT the sample
+//     network's contents (the old spread silently injected the sample PV/loads into a design that
+//     simply lacked that key);
+//   - per-transformer and per-pole fields get the same fallbacks the solver and the Network page
+//     already apply (txXR 3, txGroundOhms 7.5 Ω, grounded false, groundOhms 20 Ω).
+// Only `undefined` counts as missing — a value that is present (even null) is never overwritten,
+// and the input is never mutated. Idempotent: withDefaults(withDefaults(d)) deep-equals
+// withDefaults(d). New fields added by later features get their (off-by-default) value here.
+const DESIGN_COLLECTIONS = ['poles', 'loads', 'pv', 'bess', 'openPoints'];
+export function withDefaults(design) {
+  const base = normalizeDesign(design || {});
+  const defaults = defaultDesign();
+  const out = { ...base };
+  Object.keys(defaults).forEach(k => {
+    if (DESIGN_COLLECTIONS.includes(k)) { if (!Array.isArray(out[k])) out[k] = []; }
+    else if (out[k] === undefined) out[k] = defaults[k];
+  });
+  out.transformers = out.transformers.map(t => ({
+    ...t,
+    name: t.name ?? t.id,
+    tap: t.tap ?? 2,
+    hvActual: t.hvActual ?? 11000,
+    txXR: t.txXR ?? 3,
+    txGroundOhms: t.txGroundOhms ?? 7.5
+  }));
+  out.poles = out.poles.map(p => ({ ...p, grounded: p.grounded ?? false, groundOhms: p.groundOhms ?? 20 }));
+  return out;
+}
+
 export function nextTransformerId(design) {
   let n = 2;
   while (design.transformers.some(t => t.id === 'TX' + n)) n++;
