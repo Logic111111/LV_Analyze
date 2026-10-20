@@ -293,13 +293,17 @@ function solveTxSubtree(design, tx, opts) {
     ? Number(design.txNoLoadW[tx.txRating])
     : txType.noLoadW;
   const busVoltPct = /** @type {import('./types.js').PhaseMap<number>} */ ({}); PHASES.forEach(ph => busVoltPct[ph] = C.abs(Vbus[ph]));
+  // |I| per phase through the transformer (the sum of every feeder root's current) — the true
+  // secondary current, which on an unbalanced transformer can be far above a balanced estimate
+  // from kVA.
+  const phaseCurrentA = /** @type {import('./types.js').PhaseMap<number>} */ ({}); PHASES.forEach(ph => phaseCurrentA[ph] = C.abs(Itot[ph]));
 
   const netKW = Stx.re / 1000, netKVAR = Stx.im / 1000;
   const flowDirection = /** @type {'import' | 'export'} */ (netKW >= 0 ? 'import' : 'export');
 
   return {
     converged, iterUsed, lastDelta, poleResults, totalLossW, lossByPole, groundLossW, groundLossByPole,
-    summary: { id: tx.id, name: tx.name, txKVA, txPct, flowDirection, netKW, netKVAR, busVoltPct, txZ, txLossW, txNoLoadW, V0 }
+    summary: { id: tx.id, name: tx.name, txKVA, txPct, flowDirection, netKW, netKVAR, busVoltPct, phaseCurrentA, txZ, txLossW, txNoLoadW, V0 }
   };
 }
 

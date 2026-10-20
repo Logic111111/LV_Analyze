@@ -176,6 +176,7 @@
  * @property {number} netKW
  * @property {number} netKVAR
  * @property {PhaseMap<number>} busVoltPct LV bus |V| per phase, V (historical name).
+ * @property {PhaseMap<number>} phaseCurrentA |I| per phase through the transformer, A.
  * @property {{ r: number, x: number, z: number }} txZ
  * @property {number} txLossW   Copper loss, W.
  * @property {number} txNoLoadW Core loss, W.

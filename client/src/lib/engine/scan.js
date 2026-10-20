@@ -72,16 +72,21 @@ export function summarizeScan(snapshots) {
     lossKwh += systemLossW(res).totalLossW / 1000;
     res.transformers.forEach(t => {
       let s = txStats[t.id];
-      if (!s) s = txStats[t.id] = { id: t.id, name: t.name, peakPct: 0, peakKva: 0, minVPct: Infinity, maxVPct: -Infinity, lossKwh: 0 };
+      if (!s) s = txStats[t.id] = { id: t.id, name: t.name, peakPct: 0, peakKva: 0, txMaxPhaseCurrentA: 0, minVPct: Infinity, maxVPct: -Infinity, lossKwh: 0 };
       if (t.txPct > s.peakPct) s.peakPct = t.txPct;
       if (t.txKVA > s.peakKva) s.peakKva = t.txKVA;
+      PHASES.forEach(ph => { if (t.phaseCurrentA[ph] > s.txMaxPhaseCurrentA) s.txMaxPhaseCurrentA = t.phaseCurrentA[ph]; });
       PHASES.forEach(ph => { const v = t.busVoltPct[ph]; if (v < s.minVPct) s.minVPct = v; if (v > s.maxVPct) s.maxVPct = v; });
       s.lossKwh += (t.txLossW + t.txNoLoadW) / 1000;
     });
   });
-  // Approximate secondary-side line current from peak kVA (balanced-equivalent, 415V line-line) —
-  // the solver doesn't otherwise surface a single scalar "transformer current", only per-pole
-  // per-phase currents, so this is the same kind of estimate a planner would do by hand.
+  // Two transformer-current figures, reported side by side:
+  //   - txMaxPhaseCurrentA: the solver's true worst phase current at the transformer over the
+  //     scanned hours (max |I| over phases A/B/C and hours) — the primary figure, and the one to
+  //     compare against the transformer's rated current or LV fuse;
+  //   - peakCurrentA: the balanced-equivalent estimate from peak kVA, kVA·1000 / (√3·415 V) — kept
+  //     because it's what a planner computes by hand. On an unbalanced transformer it can
+  //     understate the worst phase by a factor of two or more, so it must never stand alone.
   const transformers = Object.values(txStats).map(s => ({ ...s, peakCurrentA: s.peakKva * 1000 / (Math.sqrt(3) * 415) }));
   const converged = snapshots.every(res => res.converged);
   return { voltageViolationCount, thermalViolationCount, txOverloadViolationCount, lossKwh, converged, transformers };

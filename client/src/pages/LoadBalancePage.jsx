@@ -4,6 +4,7 @@ import { useTheme } from '../context/ThemeContext.jsx';
 import { proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runSnapshot, DAILY_HOURS } from '../lib/loadflow.js';
 import { buildDiagramSVG } from '../lib/diagram.js';
 import { ConvergenceWarning } from '../components/Convergence.jsx';
+import { txCurrentSummary } from '../lib/format.js';
 
 function testOptsFor(testMode) {
   if (testMode === 'solarPeak') return { hours: [12], solarMult: 1, periodLabel: 'at 12:00 (solar peak)' };
@@ -102,7 +103,7 @@ export default function LoadBalancePage() {
               {' '}after: A {proposal.after.A.toFixed(1)} / B {proposal.after.B.toFixed(1)} / C {proposal.after.C.toFixed(1)}
             </p>
             <p className="hint" style={{ marginBottom: 4 }}>Tx loading — before: {txSummary(proposal.beforeMetrics.transformers, 'peakPct', '%')} · after: {txSummary(proposal.afterMetrics.transformers, 'peakPct', '%')}</p>
-            <p className="hint" style={{ marginBottom: 4 }}>Tx current — before: {txSummary(proposal.beforeMetrics.transformers, 'peakCurrentA', 'A')} · after: {txSummary(proposal.afterMetrics.transformers, 'peakCurrentA', 'A')}</p>
+            <p className="hint" style={{ marginBottom: 4 }}>Tx max phase current — before: {txCurrentSummary(proposal.beforeMetrics.transformers)} · after: {txCurrentSummary(proposal.afterMetrics.transformers)}</p>
             <p className="hint" style={{ marginBottom: 0 }}>Tx bus voltage — before: {txVoltageBand(proposal.beforeMetrics.transformers)} · after: {txVoltageBand(proposal.afterMetrics.transformers)}</p>
             <ConvergenceWarning show={!proposal.beforeMetrics.converged || !proposal.afterMetrics.converged}>
               One or more scanned hours did not converge ({!proposal.beforeMetrics.converged ? 'before' : ''}{!proposal.beforeMetrics.converged && !proposal.afterMetrics.converged ? ' and ' : ''}{!proposal.afterMetrics.converged ? 'after' : ''} rebalancing) — treat the comparison with caution.

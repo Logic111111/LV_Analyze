@@ -8,6 +8,7 @@ import {
 } from '../lib/loadflow.js';
 import { buildDiagramSVG } from '../lib/diagram.js';
 import { ConvergenceWarning } from '../components/Convergence.jsx';
+import { txCurrentSummary } from '../lib/format.js';
 
 const DUAL_SHORTLIST_K = 8;
 const tick = () => new Promise(r => setTimeout(r, 0));
@@ -418,7 +419,7 @@ export default function FeederSplitPage() {
             {' '}{quickResult.lossLabel.toLowerCase()}: {quickResult.candidate.lossKwh.toFixed(2)}
           </p>
           <p className="hint" style={{ marginBottom: 8 }}>
-            Tx loading: {txSummary(quickResult.candidate.transformers, 'peakPct', '%')} · Tx current: {txSummary(quickResult.candidate.transformers, 'peakCurrentA', 'A')} · Tx bus voltage: {txVoltageBand(quickResult.candidate.transformers)}
+            Tx loading: {txSummary(quickResult.candidate.transformers, 'peakPct', '%')} · Tx max phase current: {txCurrentSummary(quickResult.candidate.transformers)} · Tx bus voltage: {txVoltageBand(quickResult.candidate.transformers)}
           </p>
           <ConvergenceWarning show={!quickResult.candidate.converged}>One or more scanned hours of this evaluation did not converge — treat its figures with caution.</ConvergenceWarning>
           <button className="mini" onClick={previewQuick}>Preview</button>
@@ -438,21 +439,21 @@ export default function FeederSplitPage() {
               {!results.baseline.converged && <span style={{ color: 'var(--bad)' }}> — one or more hours did not fully converge</span>}
             </p>
             <p className="hint" style={{ marginBottom: 0 }}>
-              Tx loading: {txSummary(results.baseline.transformers, 'peakPct', '%')} · Tx current: {txSummary(results.baseline.transformers, 'peakCurrentA', 'A')} · Tx bus voltage: {txVoltageBand(results.baseline.transformers)}
+              Tx loading: {txSummary(results.baseline.transformers, 'peakPct', '%')} · Tx max phase current: {txCurrentSummary(results.baseline.transformers)} · Tx bus voltage: {txVoltageBand(results.baseline.transformers)}
             </p>
           </div>
 
           <div className="card" style={{ marginTop: 14 }}>
-            <p className="hint">Ranked best-to-worst{results.mode === 'single' ? <> for feeder <b>{results.feederName}</b></> : <> for feeders <b>{results.feederA}</b> &amp; <b>{results.feederB}</b></>}, tested {results.periodLabel}. Voltage violations drive the ranking, network loss is the tie-breaker; the per-transformer columns (every transformer in the resulting design, not just the new one) are reported for context and don't affect the ranking. Click Preview to see the resulting network before applying anything.</p>
+            <p className="hint">Ranked best-to-worst{results.mode === 'single' ? <> for feeder <b>{results.feederName}</b></> : <> for feeders <b>{results.feederA}</b> &amp; <b>{results.feederB}</b></>}, tested {results.periodLabel}. Voltage violations drive the ranking, network loss is the tie-breaker; the per-transformer columns (every transformer in the resulting design, not just the new one) are reported for context and don't affect the ranking. Transformer current is the true worst phase current from the load flow; the balanced-equivalent figure (peak kVA ÷ (√3 × 415 V)) beside it understates an unbalanced transformer. Click Preview to see the resulting network before applying anything.</p>
             <ConvergenceWarning show={results.candidates.some(c => !c.converged)}>
               {results.candidates.filter(c => !c.converged).length} candidate(s) had one or more scanned hours that did not converge — marked “not converged” below; their figures are unreliable.
             </ConvergenceWarning>
             <div className="tbl-wrap"><table>
               <thead>
                 {results.mode === 'single' ? (
-                  <tr><th>Rank</th><th>Cut pole</th><th>Connector (m)</th><th>Poles moved</th><th>Voltage violations</th><th>{results.lossLabel}</th><th>Thermal</th><th>Tx overload</th><th>Tx loading (peak)</th><th>Tx current (peak)</th><th>Tx bus voltage</th><th></th></tr>
+                  <tr><th>Rank</th><th>Cut pole</th><th>Connector (m)</th><th>Poles moved</th><th>Voltage violations</th><th>{results.lossLabel}</th><th>Thermal</th><th>Tx overload</th><th>Tx loading (peak)</th><th>Tx max phase current (balanced-equivalent)</th><th>Tx bus voltage</th><th></th></tr>
                 ) : (
-                  <tr><th>Rank</th><th>Cut A</th><th>Connector A (m)</th><th>Cut B</th><th>Connector B (m)</th><th>Voltage violations</th><th>{results.lossLabel}</th><th>Thermal</th><th>Tx overload</th><th>Tx loading (peak)</th><th>Tx current (peak)</th><th>Tx bus voltage</th><th></th></tr>
+                  <tr><th>Rank</th><th>Cut A</th><th>Connector A (m)</th><th>Cut B</th><th>Connector B (m)</th><th>Voltage violations</th><th>{results.lossLabel}</th><th>Thermal</th><th>Tx overload</th><th>Tx loading (peak)</th><th>Tx max phase current (balanced-equivalent)</th><th>Tx bus voltage</th><th></th></tr>
                 )}
               </thead>
               <tbody>
@@ -474,7 +475,7 @@ export default function FeederSplitPage() {
                     <td>{c.thermalViolationCount}</td>
                     <td>{c.txOverloadViolationCount}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>{txSummary(c.transformers, 'peakPct', '%')}</td>
-                    <td style={{ whiteSpace: 'nowrap' }}>{txSummary(c.transformers, 'peakCurrentA', 'A')}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{txCurrentSummary(c.transformers)}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>{txVoltageBand(c.transformers)}</td>
                     <td><button className="mini" onClick={() => previewCandidate(c)}>Preview</button></td>
                   </tr>

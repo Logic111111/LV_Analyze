@@ -14,3 +14,11 @@ export function hostingLimitText(row, capLabel) {
   const where = d.phase && d.phase !== '-' ? `${d.pole} ${d.phase}` : d.pole;
   return `${d.type} at ${where}, ${hourLabel(d.hour)}`;
 }
+
+// Transformer current over a scan, one entry per transformer: the solver's true worst phase
+// current first, then the balanced-equivalent estimate from peak kVA (kVA·1000 / (√3·415 V)),
+// labelled — e.g. "TX 121 A (bal.-eq. 54 A)". See summarizeScan in engine/scan.js for why both.
+export function txCurrentSummary(transformers) {
+  if (!transformers || !transformers.length) return '—';
+  return transformers.map(t => `${t.name || t.id} ${t.txMaxPhaseCurrentA.toFixed(0)} A (bal.-eq. ${t.peakCurrentA.toFixed(0)} A)`).join(' / ');
+}
