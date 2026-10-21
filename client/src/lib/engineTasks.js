@@ -14,7 +14,7 @@ import {
   proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runDailyScan, protectionCheck, tapAdvisor,
   reconductorAdvisor, fixItLadder, optimisePhaseBalance, voltageSensitivity, linearHostingEstimateKw, monteCarloStudy,
   runSnapshotAt, compareScenarios, collectIssues, traceHostingSearch, explainHosting, compareMeasured, designSummary,
-  balanceExactDP, balanceOptimise, hostingMaxTotalSLP, hostingFairShare, evaluateDesign, withTxLimitRule, HOSTING_TEST_HOURS, bessLossOptimal, dualFeederOptimise
+  balanceExactDP, balanceOptimise, hostingMaxTotalSLP, hostingFairShare, evaluateDesign, withTxLimitRule, HOSTING_TEST_HOURS, bessLossOptimal, dualFeederOptimise, reconductorOptimise
 } from './loadflow.js';
 import { buildReportHtml } from './report.js';
 
@@ -89,6 +89,11 @@ export const ENGINE_TASKS = {
     };
   },
 
+  // O6: a conductor for every span (enumeration / branch-and-bound / annealing).
+  reconductorOptimise: ({ design, years, budgetEvaluations, seed }, hooks) => {
+    const { solution: _s, ...out } = reconductorOptimise(design, { years, budgetEvaluations, seed, onProgress: hooks.onProgress });
+    return out;
+  },
   // O4: BESS sizes for minimum daily loss.
   bessLossOptimal: ({ design, restarts, budget, seed, caps }, hooks) => {
     const { solution: _s, ...out } = bessLossOptimal(design, { restarts, budget, seed, caps, onProgress: hooks.onProgress });

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
 import { applyReconductor, describeReconductor, runSnapshotAt, usableConductorCodes } from '../lib/loadflow.js';
+import ReconductorOptCard from '../components/ReconductorOptCard.jsx';
 import SldPreview from '../components/SldPreview.jsx';
 import TaskProgress from '../components/TaskProgress.jsx';
 import { ConvergenceWarning } from '../components/Convergence.jsx';
@@ -96,6 +97,8 @@ export default function ReconductorPage() {
           )}
         </div>
       )}
+
+      {!preview && <ReconductorOptCard design={design} years={checkHorizon && Number(horizon) > 0 ? [0, Math.round(Number(horizon))] : [0]} onPreview={(c) => { setApplied(''); setPreview(c); }} />}
 
       {preview && previewView && (
         <div className="card" style={{ marginTop: 14 }}>

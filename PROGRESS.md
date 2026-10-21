@@ -189,7 +189,16 @@ method is a new function with a certificate (`exact`, `lp-bound` or `heuristic`)
     the cap forced down, the heuristic equals the 144-pair exhaustive optimum and is never worse
     than the legacy 3×3 shortlist.
   - Feeder Split gets a search choice (legacy shortlist stays the default) and a certificate.
-- [ ] **O6** Reconductoring as an optimisation
+- [x] **O6** Reconductoring as an optimisation (`opt/reconductorOpt.js`, Reconductor → "Optimise
+  every span together").
+  - Upgrade-only choice per span. Ranked by violations, then capex if every candidate has a cost,
+    otherwise kWh (with a note), then spans changed.
+  - Method: enumeration when the combinations are ≤ 5 000; otherwise branch-and-bound from the
+    transformer outward, bounded by the all-lowest-R completion. Annealing after the budget.
+  - Tests (two test-only conductors added to the fixture): enumeration and branch-and-bound
+    agree with and without costs; with costs the optimum is never worse than the legacy advisor.
+    The annealing fallback is deterministic.
+  - The tap advisor stays exhaustive (already exact).
 - [ ] **O7** Optimality badges, explanations, report section
 - [ ] **O8** Tests, `npm run bench:opt`, README
 
