@@ -1259,6 +1259,45 @@ within 1e-9.
 
 ## Phase verification log
 
+**Phases 5–7 and the Optimisation Upgrade — final verification (2026-10-21).**
+- **Checks.** All on Node 22:
+  - lint: 0 problems; typecheck: 0 errors; client build OK (main chunk 211 kB, the worker and
+    every page in their own chunks, plus a generated `sw.js`).
+  - Client tests: 485 in 59 files, all passing — every golden, the 1e-9 reference lock, and every
+    O-golden.
+  - Server tests: 27 (node:test + supertest), plus `node --check` on every server file.
+- **Benchmarks.**
+  - `npm run bench`: 50-pole snapshot 3.8–4.1 ms (budget 50 ms).
+  - `npm run bench:opt`: every optimiser within its budget (table in the Performance log).
+  - OpenDSS cross-check: all 7 cases within 0.21 mV.
+- **Browser, mocked API** (headless Edge, `smoke.mjs`): 93 checks over all 22 tabs.
+  - Two failed in the combined run and pass on their own. Both are test-order effects: an earlier
+    section applies a rebalance, or reloads the page.
+  - The mocked harness doesn't stub the P7.3–P7.5 endpoints; their 401s are filtered there and
+    covered by the real-API runs below.
+- **Browser, real API** (in-memory repository): P7.3 undo/versions/diff/restore/duplicate,
+  P7.4 org/roles/workflow/audit, P7.5 sessions and log out everywhere, P7.7 AI tool loop with a
+  scripted model.
+- **Optimiser UI** (Load Balance DP and load-flow, Hosting comparison, BESS loss, dual-feeder,
+  reconductor, report section): 21 checks pass. These cover goldens on screen, badges, Explain,
+  Preview, 390 px with no horizontal scroll, and dark theme.
+- **Accessibility.** axe-core (WCAG 2.1 A/AA): 0 violations on all 22 tabs in both themes, and
+  0 on every optimiser and AI result state in both themes.
+- **Docker** (throwaway stack: project `fi_verify`, port 18080, its own volume; the running
+  `lv_analyze` stack was not touched):
+  - Both images built from the repository root; MySQL 8.4 healthy.
+  - Migrations 001–004 applied on real MySQL. A restart applied nothing (idempotent). All nine
+    tables are present.
+  - nginx: `sw.js`, the manifest and `index.html` are `no-cache`; `/assets/` is immutable.
+  - On the containers: the PWA run passes 13/13 (service worker, offline start, offline
+    records, auto-sync with conflict, "send mine anyway"), and P7.3/P7.4/P7.5 pass in the browser.
+  - Six simultaneous field syncs on one version serialise under the row lock: 2 commit, 4 answer
+    409 for the client to retry, no lost update.
+  - AI Insights without a key answers 503.
+  - Torn down with `down -v --rmi local`: containers, volume, network and images removed.
+- **Not verified:** a live Anthropic API call (no key here), and the IEEE European LV Test Feeder
+  (files not provided).
+
 **Phase 4 (2026-10-20).**
 - **Checks.** Lint, typecheck, the full client suite, the build and the server tests all pass
   (counts in the final summary). Every golden and the 1e-9 reference lock are unchanged.
@@ -1312,8 +1351,8 @@ stack and the database were not touched. Results:
   some uses. The map editor uses Leaflet's own API (BSD-2) instead, with identical behaviour.
   Switching to react-leaflet later is easy if your organisation accepts that licence.
 
-1. Docker images run Node 20, which is end-of-life. OK to move both Dockerfiles to `node:22-alpine`
-   (would happen alongside P7.1, when both images are rebuilt anyway)?
+1. ~~Docker images run Node 20.~~ Done in P7.1: both images are on `node:22-alpine` (verified by
+   the throwaway-stack build on 2026-10-21).
 2. `walkthrough/` (containing `walkthrough-island.json`) is untracked. It matches the test fixture
    exactly (checked). Should it be committed (e.g. as `docs/walkthrough/`), or left out of git?
 3. **Hosting goldens changed (P1.3 fix 1).** Several hosting values in the brief's golden table
