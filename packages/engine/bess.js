@@ -77,7 +77,7 @@ function independentBess(design, cap, baseline, hooks, stage) {
   design.poles.forEach(p => {
     PHASES.forEach(phase => {
       const best = findMaxBess(design, p.id, phase, cap, [], baseline);
-      if (best.kva > 0.05) results.push({ pole: p.id, phase, kva: best.kva, limit: best.limit, limitDetail: best.limitDetail });
+      if (best.kva > 0.05) results.push({ pole: p.id, phase, kva: best.kva, limit: best.limit, limitDetail: best.limitDetail, ...(best.nonMonotonic ? { nonMonotonic: best.nonMonotonic } : {}) });
       if (hooks.onProgress) hooks.onProgress({ stage, done: ++done, total });
     });
   });

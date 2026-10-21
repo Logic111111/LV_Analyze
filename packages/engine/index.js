@@ -82,3 +82,4 @@ export * from './opt/evaluate.js';
 export * from './opt/pareto.js';
 export * from './opt/balanceDP.js';
 export * from './opt/balanceOptimise.js';
+export * from './opt/hostingOpt.js';

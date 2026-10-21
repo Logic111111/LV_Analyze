@@ -133,9 +133,25 @@ method is a new function with a certificate (`exact`, `lp-bound` or `heuristic`)
     worker with progress and cancel, show certificate badges and an "Explain" section (why the
     answer differs from the greedy), a move-budget table, a Pareto chart (moves vs kWh,
     triangles = no violations) and Preview/Apply. Quick (greedy) stays the default.
-- [ ] **O3.1** Bisection safeguards (monotonicity probe)
-- [ ] **O3.2** Maximum simultaneous hosting (SLP)
-- [ ] **O3.3** Fair-share hosting
+- [x] **O3.1** Bisection safeguards.
+  - Floor-to-grid, non-converged = infeasible and baseline-relative judging were already in
+    place from P1.3.
+  - New: a monotonicity probe. Eight sizes in (answer, cap] are tested; if one passes, the search
+    refines above it and flags `nonMonotonic`.
+  - The reported limit is the failure just above the answer, identical to before when no probe
+    passes. Every legacy hosting golden is unchanged.
+  - Cost: the 50-pole independent hosting search goes from 6.5 s to 9.4 s, in the worker.
+- [x] **O3.2** Maximum simultaneous hosting by SLP (`opt/hostingOpt.js`). Balanced fixture, test
+  hours 09–15:
+  - import-only: **149.50 kVA** verified (golden ≥ 149.0; prototype 149.45). Allocation: P1-A
+    39.10, P1-B 42.40, P1-C 40.70, P2-A 11.15, P2-C 9.60, P3-A 3.30, P3-C 3.25. LP estimate 149.63
+    (gap 0.09 %). 63 ms.
+  - both directions: **104.30 kVA** (golden ≥ 103.80).
+  - BESS: **94.05 kVA** (≥ the legacy queue's 69.95).
+  - Everything re-verified independently in the tests.
+- [x] **O3.3** Fair-share hosting: **2.938 kVA** at each of 9 locations, 26.44 kVA total (prompt
+  2.94 ±0.02 / 26.43). The 0.01 kVA difference in the total follows the P1.3 hosting fixes, like
+  the queue's 111.75 → 111.65.
 - [ ] **O3.4** All three hosting answers side by side
 - [x] **O3.5** Transformer reverse-flow limit.
   - `design.standards.txLimitBothDirections` defaults to off (absent = the import-only rule), so

@@ -13,7 +13,7 @@ import { simulateBessDay } from './bessDispatch.js';
  * @typedef {'cap' | 'violation' | 'nonConvergence' | 'collapse'} HostingLimit
  */
 /** @typedef {{ hour: number } & Partial<Violation>} HostingLimitDetail */
-/** @typedef {{ pole: string, phase: import('./types.js').Phase, kva: number, limit: HostingLimit, limitDetail: HostingLimitDetail | null }} HostingRow */
+/** @typedef {{ pole: string, phase: import('./types.js').Phase, kva: number, limit: HostingLimit, limitDetail: HostingLimitDetail | null, nonMonotonic?: { firstBoundaryKva: number, probePassKva: number, kva: number } }} HostingRow */
 /** @typedef {{ reason: 'violation' | 'nonConvergence' | 'collapse', detail: HostingLimitDetail }} HostingFailure */
 
 /* ============================================================
@@ -28,8 +28,7 @@ const floorToStep = (kva) => Math.floor(kva * STEPS_PER_KVA + 1e-9) / STEPS_PER_
 
 /**
  * Largest size in [0, cap], on the 0.05 kVA grid, that passes `test` — shared by the PV and BESS
- * searches. Assumes feasibility is monotonic in size (a bigger injection only moves voltages
- * further and loads spans harder), which is what makes a binary search valid at all.
+ * searches.
  *
  * Every size it reports has passed `test` (full load flows) or lies below one that has:
  *   1. The cap itself is tested first. If it passes, the answer is the cap — a policy cap is
@@ -41,44 +40,79 @@ const floorToStep = (kva) => Math.floor(kva * STEPS_PER_KVA + 1e-9) / STEPS_PER_
  *      best tested size, which in practice often failed.)
  *   3. The next grid step up is tried once, and reported only if it passes — so the result is
  *      the largest grid step that passes, not one step short of it.
- * @param {(kva: number) => boolean} test
+ *   4. Monotonicity probe (O3.1). Bisection assumes the feasible sizes are one interval from 0.
+ *      That fails when, say, an injection first relieves a pre-existing problem and only later
+ *      creates its own: the feasible set can be [0, a] ∪ [b, c], and bisection stops at a.
+ *      So 8 evenly spaced sizes in (answer, cap] are probed (from the top down; the cap is already
+ *      known to fail). If none passes — every monotonic case, every legacy golden — the answer
+ *      stands exactly as before. If one does, the search bisects between the highest passing
+ *      probe and the next failing size above it, and `info.nonMonotonic` records both boundaries.
+ * @param {(kva: number, phase: 'search' | 'probe' | 'refine') => boolean} test
  * @param {number} cap
+ * @param {{ probe?: boolean, nonMonotonic?: { firstBoundaryKva: number, probePassKva: number, kva: number } }} [info]
  * @returns {number} kVA
  */
-export function searchMaxKva(test, cap) {
+export function searchMaxKva(test, cap, info = {}) {
   if (!(cap > 0)) return 0;
-  if (test(cap)) return floorToStep(cap);
-  let lo = 0, hi = cap, best = 0;
-  const iters = Math.max(7, Math.ceil(Math.log2(Math.max(cap, 0.01) / 0.02)) + 1);
-  for (let iter = 0; iter < iters; iter++) {
-    const mid = (lo + hi) / 2;
-    if (test(mid)) { best = mid; lo = mid; } else { hi = mid; }
+  if (test(cap, 'search')) return floorToStep(cap);
+  const bisect = (/** @type {number} */ lo0, /** @type {number} */ hi0, /** @type {'search' | 'refine'} */ phase) => {
+    let lo = lo0, hi = hi0, best = lo0;
+    const iters = Math.max(7, Math.ceil(Math.log2(Math.max(hi0 - lo0, 0.01) / 0.02)) + 1);
+    for (let iter = 0; iter < iters; iter++) {
+      const mid = (lo + hi) / 2;
+      if (test(mid, phase)) { best = mid; lo = mid; } else { hi = mid; }
+    }
+    let kva = floorToStep(best);
+    // `hi` is now the smallest size known to fail; a step at or above it can't pass.
+    const next = (Math.round(kva * STEPS_PER_KVA) + 1) / STEPS_PER_KVA;
+    if (next < hi && test(next, phase)) kva = next;
+    return kva;
+  };
+  const kva = bisect(0, cap, 'search');
+  if (info.probe === false) return kva;
+  /** @type {number[]} */
+  const probes = [];
+  for (let j = 7; j >= 1; j--) {
+    const s = floorToStep(kva + (cap - kva) * j / 8);
+    if (s > kva && s < cap && !probes.includes(s)) probes.push(s);
   }
-  const kva = floorToStep(best);
-  // `hi` is now the smallest size known to fail; a step at or above it can't pass.
-  const next = (Math.round(kva * STEPS_PER_KVA) + 1) / STEPS_PER_KVA;
-  if (next < hi && test(next)) return next;
+  let upper = cap;
+  for (const s of probes) {
+    if (test(s, 'probe')) {
+      const found = bisect(s, upper, 'refine');
+      info.nonMonotonic = { firstBoundaryKva: kva, probePassKva: s, kva: found };
+      return found;
+    }
+    upper = s;
+  }
   return kva;
 }
 
 /**
  * searchMaxKva with a per-size `check` that says *why* a size fails (null = it passes), returning
- * the size and what limited it. The most recent failure is always the tightest bound — the
- * bisection only ever lowers its upper bound on a failure, and the final one-step-up probe sits
- * below that bound — so it's the one reported.
+ * the size and what limited it: the failure at the smallest failing size above the answer — the
+ * tightest bound. (Without a non-monotonic region that is also the most recent failure of the
+ * bisection, which is what this reported before the probe existed; the probes all sit above it.)
+ * `nonMonotonic` is set when the probe found a feasible region above the first boundary (O3.1).
  * @param {(kva: number) => HostingFailure | null} check
  * @param {number} cap
- * @returns {{ kva: number, limit: HostingLimit, limitDetail: HostingLimitDetail | null }}
+ * @returns {{ kva: number, limit: HostingLimit, limitDetail: HostingLimitDetail | null, nonMonotonic?: { firstBoundaryKva: number, probePassKva: number, kva: number } }}
  */
 export function searchWithLimit(check, cap) {
-  /** @type {HostingFailure | null} */
-  let last = null;
+  /** @type {{ size: number, f: HostingFailure }[]} */
+  const failures = [];
+  /** @type {{ nonMonotonic?: { firstBoundaryKva: number, probePassKva: number, kva: number } }} */
+  const info = {};
   const kva = searchMaxKva(size => {
     const f = check(size);
-    if (f) { last = f; return false; }
+    if (f) { failures.push({ size, f }); return false; }
     return true;
-  }, cap);
-  return { kva, limit: last ? last.reason : 'cap', limitDetail: last ? last.detail : null };
+  }, cap, info);
+  /** @type {HostingFailure | null} */
+  let last = null, at = Infinity;
+  failures.forEach(x => { if (x.size > kva - 1e-9 && x.size <= at) { at = x.size; last = x.f; } });
+  const out = { kva, limit: /** @type {HostingLimit} */ (last ? /** @type {HostingFailure} */ (last).reason : 'cap'), limitDetail: last ? /** @type {HostingFailure} */ (last).detail : null };
+  return info.nonMonotonic ? { ...out, nonMonotonic: info.nonMonotonic } : out;
 }
 
 /* ------------------------------------------------------------
@@ -217,7 +251,7 @@ function independentPV(design, cap, baseline, hooks, stage) {
   design.poles.forEach(p => {
     PHASES.forEach(phase => {
       const best = findMaxPV(design, p.id, phase, cap, [], baseline);
-      if (best.kva > 0.05) results.push({ pole: p.id, phase, kva: best.kva, limit: best.limit, limitDetail: best.limitDetail });
+      if (best.kva > 0.05) results.push({ pole: p.id, phase, kva: best.kva, limit: best.limit, limitDetail: best.limitDetail, ...(best.nonMonotonic ? { nonMonotonic: best.nonMonotonic } : {}) });
       if (hooks.onProgress) hooks.onProgress({ stage, done: ++done, total });
     });
   });
