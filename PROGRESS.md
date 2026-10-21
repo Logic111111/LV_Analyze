@@ -101,7 +101,13 @@ method is a new function with a certificate (`exact`, `lp-bound` or `heuristic`)
   module split (`packages/engine`) and the Web Worker runner (`useEngineTask` / `engineTasks.js`)
 - [x] **O1.1** Seeded PRNG helpers (`opt/prng.js`)
 - [x] **O1.2** LP solver (`opt/lp.js`)
-- [ ] **O1.3** Linearised network model (semi-analytic Jacobian)
+- [x] **O1.3** Linearised network model (semi-analytic Jacobian, `opt/sensitivity.js`). The sweep
+  is linearised (phase drop, the shared neutral drop, transformer drop) with four rounds of
+  constant-power load response. It matches central finite differences within 0.2 % on the
+  fixture at 12:00 and 20:00 and within 1.5 % on the 50-pole feeder. Predictions for ±1 kVA are
+  within 0.2 V of full load flows. Cost: 41–56 ms for all 150 locations of the 50-pole feeder,
+  against 600 ms for finite differences. Earthed poles, coupled spans, ZIP loads and smart
+  inverters fall back to finite differences.
 - [ ] **O1.4** `evaluateDesign` with an LRU cache and canonical signatures
 - [ ] **O1.5** Pareto archive
 - [x] **O1.6** Common result shape (`opt/result.js`)

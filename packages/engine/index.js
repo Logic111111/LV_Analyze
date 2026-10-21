@@ -77,3 +77,4 @@ export * from './advisors/fixItLadder.js';
 export * from './opt/prng.js';
 export * from './opt/result.js';
 export * from './opt/lp.js';
+export * from './opt/sensitivity.js';
