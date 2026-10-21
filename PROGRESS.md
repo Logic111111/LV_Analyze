@@ -108,8 +108,10 @@ method is a new function with a certificate (`exact`, `lp-bound` or `heuristic`)
   within 0.2 V of full load flows. Cost: 41–56 ms for all 150 locations of the 50-pole feeder,
   against 600 ms for finite differences. Earthed poles, coupled spans, ZIP loads and smart
   inverters fall back to finite differences.
-- [ ] **O1.4** `evaluateDesign` with an LRU cache and canonical signatures
-- [ ] **O1.5** Pareto archive
+- [x] **O1.4** `evaluateDesign` with an LRU cache and canonical signatures (`opt/evaluate.js`).
+  The signature drops ids and sorts connections: the fixture's 40 raw single moves are 20
+  distinct designs. The legacy sanity goldens are reproduced (19.156 / 13.288 kWh).
+- [x] **O1.5** Pareto archive (`opt/pareto.js`)
 - [x] **O1.6** Common result shape (`opt/result.js`)
 - [ ] **O2.1** Exact balancing by dynamic programming
 - [ ] **O2.2** Balancing on the load-flow goal (exact levels, then SA + tabu)
