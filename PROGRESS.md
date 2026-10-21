@@ -181,7 +181,14 @@ method is a new function with a certificate (`exact`, `lp-bound` or `heuristic`)
     starts end within 0.15 %.
   - The legacy column is renamed "marginal loss saving at zero size (local slope)". The legacy
     queue's order is unchanged.
-- [ ] **O5** Dual-feeder split without missing the best pair
+- [x] **O5** Dual-feeder split without missing the best pair (`opt/dualFeederOpt.js`).
+  - Every pair is scored when |A|·|B| ≤ 400 (exact). Above that: the legacy shortlist, then
+    local improvement around the best 3 pairs (one pole up or down either feeder), then 20
+    seeded random pairs, with coverage reported.
+  - Test network: two 12-pole feeders meeting at an open point (`fixtures/twoFeeders.js`). With
+    the cap forced down, the heuristic equals the 144-pair exhaustive optimum and is never worse
+    than the legacy 3×3 shortlist.
+  - Feeder Split gets a search choice (legacy shortlist stays the default) and a certificate.
 - [ ] **O6** Reconductoring as an optimisation
 - [ ] **O7** Optimality badges, explanations, report section
 - [ ] **O8** Tests, `npm run bench:opt`, README

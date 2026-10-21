@@ -14,7 +14,7 @@ import {
   proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runDailyScan, protectionCheck, tapAdvisor,
   reconductorAdvisor, fixItLadder, optimisePhaseBalance, voltageSensitivity, linearHostingEstimateKw, monteCarloStudy,
   runSnapshotAt, compareScenarios, collectIssues, traceHostingSearch, explainHosting, compareMeasured, designSummary,
-  balanceExactDP, balanceOptimise, hostingMaxTotalSLP, hostingFairShare, evaluateDesign, withTxLimitRule, HOSTING_TEST_HOURS, bessLossOptimal
+  balanceExactDP, balanceOptimise, hostingMaxTotalSLP, hostingFairShare, evaluateDesign, withTxLimitRule, HOSTING_TEST_HOURS, bessLossOptimal, dualFeederOptimise
 } from './loadflow.js';
 import { buildReportHtml } from './report.js';
 
@@ -36,6 +36,11 @@ export const ENGINE_TASKS = {
     computeFeederSplitCandidates(design, rootPoleId, txSpec, siteSpec, hours, solarMult, hooks),
   feederSplitDual: ({ design, openPointId, txSpec, cond, hours, solarMult, shortlistK }, hooks) =>
     searchDualFeederSplit(design, openPointId, txSpec, cond, hours, solarMult, { shortlistK, onProgress: hooks.onProgress }),
+  // O5: every pair within the cap (exact), else shortlist + local improvement + random sample.
+  feederSplitDualOptimised: ({ design, openPointId, txSpec, cond, hours, solarMult }, hooks) => {
+    const { solution: _s, ...out } = dualFeederOptimise(design, openPointId, txSpec, cond, { hours, solarMult, onProgress: hooks.onProgress });
+    return out;
+  },
   // No search: both cuts sit exactly at the open point's own poles (0 m connectors).
   feederSplitAtOpenPoint: ({ design, openPointId, txSpec, cond, hours, solarMult }) => {
     const op = design.openPoints.find(o => o.id === openPointId);

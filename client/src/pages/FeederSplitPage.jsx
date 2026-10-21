@@ -9,6 +9,7 @@ import SldPreview from '../components/SldPreview.jsx';
 import { ConvergenceWarning } from '../components/Convergence.jsx';
 import { txCurrentSummary } from '../lib/format.js';
 import TaskProgress from '../components/TaskProgress.jsx';
+import OptimiserCertificate from '../components/OptimiserCertificate.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
 import MultiCriteriaView from '../components/MultiCriteriaView.jsx';
 
@@ -84,6 +85,7 @@ export default function FeederSplitPage() {
 
   const [dualOpenPointId, setDualOpenPointId] = useState(openPoints[0]?.id || '');
   const [dualCond, setDualCond] = useState('70ABC');
+  const [dualSearch, setDualSearch] = useState('shortlist'); // 'shortlist' (legacy, default) | 'optimised' (O5)
   const dualOpenPointObj = openPoints.find(o => o.id === dualOpenPointId) || null;
 
   const [results, setResults] = useState(null); // { ...computed, mode: 'single'|'dual', cond, testMode }
@@ -140,7 +142,9 @@ export default function FeederSplitPage() {
     if (!dualOpenPointId) { alert('Add a common open point on the Network page first.'); return; }
     setPreview(null); setApplied(null); setQuickResult(null);
     const { hours, solarMult, periodLabel, lossLabel } = testOptsFor(testMode);
-    const r = await task.run('feederSplitDual', { design, openPointId: dualOpenPointId, txSpec, cond: dualCond, hours, solarMult, shortlistK: DUAL_SHORTLIST_K }, 'Searching cut points near the open point');
+    const r = dualSearch === 'optimised'
+      ? await task.run('feederSplitDualOptimised', { design, openPointId: dualOpenPointId, txSpec, cond: dualCond, hours, solarMult }, 'Searching every pair of cut points (or as many as the cap allows)')
+      : await task.run('feederSplitDual', { design, openPointId: dualOpenPointId, txSpec, cond: dualCond, hours, solarMult, shortlistK: DUAL_SHORTLIST_K }, 'Searching cut points near the open point');
     if (!r.ok) return;
     setResults({ ...r.result, mode: 'dual', cond: dualCond, testMode, periodLabel, lossLabel, usedOpenPointId: dualOpenPointId });
   }
@@ -335,6 +339,10 @@ export default function FeederSplitPage() {
               Place new transformer at {dualOpenPointObj ? `${dualOpenPointObj.poleA} & ${dualOpenPointObj.poleB}` : 'this open point'} (0m connectors, no search)
             </button>{' '}
             <button className="ghost" onClick={runDual} disabled={task.running} style={{ marginTop: 8 }}>Or search nearby cut points instead</button>
+            <div className="grid g3" style={{ marginTop: 8 }}>
+              <label className="chk"><input type="radio" name="dualSearch" checked={dualSearch === 'shortlist'} onChange={() => setDualSearch('shortlist')} /> Search: shortlist {DUAL_SHORTLIST_K} per side (legacy)</label>
+              <label className="chk"><input type="radio" name="dualSearch" checked={dualSearch === 'optimised'} onChange={() => setDualSearch('optimised')} /> Search: every pair, or shortlist + local improvement above 400 pairs</label>
+            </div>
           </>
         )}
         <TaskProgress task={task} />
@@ -382,6 +390,7 @@ export default function FeederSplitPage() {
           </div>
 
           <div className="card" style={{ marginTop: 14 }}>
+            {results.certificate && <OptimiserCertificate result={results} space={`${results.totalPairs} cut-point pairs (${results.coveragePct.toFixed(1)} % scored with full load flows)`} why="the legacy search shortlists each feeder's cuts on their own, then pairs them; a cut that is mediocre alone can be the best partner for the other side, so the best pair can be missed." />}
             <p className="hint">Ranked best-to-worst{results.mode === 'single' ? <> for feeder <b>{results.feederName}</b></> : <> for feeders <b>{results.feederA}</b> &amp; <b>{results.feederB}</b></>}, tested {results.periodLabel}. Voltage violations drive the ranking, network loss is the tie-breaker; the per-transformer columns (every transformer in the resulting design, not just the new one) are reported for context and don't affect the ranking. Transformer current is the true worst phase current from the load flow; the balanced-equivalent figure (peak kVA ÷ (√3 × 415 V)) beside it understates an unbalanced transformer. Click Preview to see the resulting network before applying anything.</p>
             <ConvergenceWarning show={results.candidates.some(c => !c.converged)}>
               {results.candidates.filter(c => !c.converged).length} candidate(s) had one or more scanned hours that did not converge — marked “not converged” below; their figures are unreliable.

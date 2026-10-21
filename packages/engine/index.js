@@ -84,3 +84,4 @@ export * from './opt/balanceDP.js';
 export * from './opt/balanceOptimise.js';
 export * from './opt/hostingOpt.js';
 export * from './opt/bessOpt.js';
+export * from './opt/dualFeederOpt.js';
