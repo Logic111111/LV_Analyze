@@ -1,4 +1,4 @@
-import { getTransformerType, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh, pvHostingBaseline, bessHostingBaseline, faultLevels, protectionCheck, C, describeReconductor, standardsOf, inverterSettings, transformerAgeing, thermalSettings, SCENARIO_ROWS, economicsOf, capexOf, optionEconomics } from './loadflow.js';
+import { getTransformerType, TAPS, runSnapshot, runDailyScan, transformerOfPole, isTransformerId, systemLossW, dailyEnergyLossKwh, pvHostingBaseline, bessHostingBaseline, faultLevels, protectionCheck, C, describeReconductor, standardsOf, inverterSettings, transformerAgeing, thermalSettings, SCENARIO_ROWS, economicsOf, capexOf, optionEconomics, certificateLabel } from './loadflow.js';
 import { buildSldScene } from './sld/scene.js';
 import { sceneToSvg } from './sld/svg.js';
 import { hostingLimitText, vufText } from './format.js';
@@ -357,6 +357,20 @@ function monteCarloSectionBody(r) {
     </div>
     ${hot.length ? `<h3>Most likely violation locations</h3>${table(['Pole / phase', 'Probability'], hot.map(h => [esc(h.at), (h.p * 100).toFixed(1) + ' %']))}` : '<p>No pole-phase had a violation in any run.</p>'}`;
 }
+// O7: the latest run of each optimiser with its certificate (what was proven, bounded or found).
+const OPT_ORDER = ['balanceDP', 'balanceLoadflow', 'hosting', 'bessLoss', 'dualFeeder', 'reconductor'];
+function optimisationSectionBody(opt) {
+  const keys = OPT_ORDER.filter(k => opt && opt[k]);
+  if (!keys.length) return '<p class="empty">No optimiser has been run — use the optimised methods on Load Balance, Solar Hosting, BESS Hosting, Feeder Split or Reconductor, then regenerate this report.</p>';
+  const rows = keys.map(k => {
+    const o = opt[k];
+    return [esc(o.title), esc(o.headline), '<b>' + esc(certificateLabel(o)) + '</b>', esc(o.method) + '<br><span class="hint">' + Number(o.evaluations).toLocaleString('en') + ' evaluations, ' + (o.ms / 1000).toFixed(1) + ' s</span>'];
+  });
+  const notes = keys.flatMap(k => (opt[k].notes || []).map(n => '<li>' + esc(opt[k].title) + ': ' + esc(n) + '</li>'));
+  return table(['Optimiser', 'Result', 'Certificate', 'Search'], rows)
+    + '<p class="hint">Exact optimum: the whole search space was covered, or the method is a proof. Within x % of bound: verified answer and an optimistic linear estimate. Best found: seeded randomised search; restart agreement is evidence, not proof. Every load-flow-based answer was verified with full load flows (converged) at every checked hour and year.</p>'
+    + (notes.length ? '<ul>' + notes.join('') + '</ul>' : '');
+}
 function economicsSectionBody(design, extras) {
   const e = economicsOf(design);
   if (!(e.lossCostLkrPerKwh > 0)) return '<p class="empty">Economics not set — enter the energy cost of losses (and optionally the discount rate, study period and unit costs) under Setup → Economics to see LKR figures.</p>';
@@ -511,7 +525,7 @@ export function buildReportHtml(design, res, hosting, daily, bessHosting, extras
     ['Scenarios comparison', scenariosSectionBody(extras.scenarios)],
     ['Probabilistic planning (Monte Carlo)', monteCarloSectionBody(extras.monteCarlo)],
     ['Economics', economicsSectionBody(design, extras)],
-    ...(extras.optimisationHtml ? [['Optimisation', extras.optimisationHtml]] : [])
+    ['Optimisation', extras.optimisationHtml || optimisationSectionBody(extras.optimisation)]
   ];
   const sid = (t) => 's-' + t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const logo = typeof design.logo === 'string' && /^data:image\/(png|jpeg|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(design.logo) ? `<img class="logo" src="${design.logo}" alt="Logo">` : '';

@@ -3,6 +3,8 @@ import TaskProgress from './TaskProgress.jsx';
 import CsvButton from './CsvButton.jsx';
 import OptimiserCertificate from './OptimiserCertificate.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
+import { optSummary } from '../lib/optSummary.js';
+import { useDesign } from '../context/DesignContext.jsx';
 
 // BESS sizing for losses (O4): the battery sizes that minimise the daily network loss with no new
 // or worsened violation in any hour — not the most battery that fits (the legacy queue above).
@@ -13,9 +15,13 @@ export default function BessLossCard({ design }) {
   const [cap, setCap] = useState('');
   const [res, setRes] = useState(null);
   const task = useEngineTask();
+  const { recordOptimisation } = useDesign();
   async function run() {
     const r = await task.run('bessLossOptimal', { design, restarts: Number(restarts) || 1, budget: Number(budget) || 10, seed: Number(seed) || 1, caps: cap === '' ? undefined : Math.max(0, Number(cap)) }, 'Sizing batteries for minimum loss');
-    if (r.ok) setRes(r.result);
+    if (!r.ok) return;
+    setRes(r.result);
+    const x = r.result;
+    recordOptimisation('bessLoss', optSummary('BESS sizes for minimum loss', `${x.lossKwh.toFixed(3)} kWh/day with ${x.totalKva.toFixed(2)} kVA (none: ${x.baselineLossKwh.toFixed(3)}; legacy queue ${x.legacy.totalKva.toFixed(2)} kVA: ${x.legacy.lossKwh.toFixed(3)})`, x));
   }
   return (
     <div className="card" style={{ marginTop: 14 }}>

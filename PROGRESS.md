@@ -199,7 +199,13 @@ method is a new function with a certificate (`exact`, `lp-bound` or `heuristic`)
     agree with and without costs; with costs the optimum is never worse than the legacy advisor.
     The annealing fallback is deterministic.
   - The tap advisor stays exhaustive (already exact).
-- [ ] **O7** Optimality badges, explanations, report section
+- [x] **O7** Optimality badges, explanations, report section.
+  - Every optimiser card shows a certificate badge ("Exact optimum", "Within x % of bound",
+    "Best found (x/N restarts agree)" — the text carries the meaning) and an "Explain this
+    result" section: what was searched, the evaluations and time, the certificate logic, why the
+    answer differs from the legacy method, verification and notes.
+  - Each run is recorded (DesignContext `lastOptimisation`), and the comprehensive report gets an
+    "Optimisation" section listing results and certificates.
 - [ ] **O8** Tests, `npm run bench:opt`, README
 
 **Legacy goldens in the O-prompt vs this code.** The O-prompt's legacy figures were measured

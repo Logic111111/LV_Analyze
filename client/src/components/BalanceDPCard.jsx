@@ -3,6 +3,8 @@ import TaskProgress from './TaskProgress.jsx';
 import CsvButton from './CsvButton.jsx';
 import OptimiserCertificate from './OptimiserCertificate.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
+import { optSummary } from '../lib/optSummary.js';
+import { useDesign } from '../context/DesignContext.jsx';
 
 // Exact phase balancing (O2.1): dynamic programming gives, for every move budget, the smallest
 // possible spread between the phase totals — a proof, not a search. A linear goal: rows are
@@ -15,12 +17,15 @@ export default function BalanceDPCard({ design, txId, onPreview }) {
   const [result, setResult] = useState(null);
   const [sel, setSel] = useState(null);
   const task = useEngineTask();
+  const { recordOptimisation } = useDesign();
 
   async function run() {
     const r = await task.run('balanceExactDP', { design, txId, objective, maxMoves: Number(maxMoves) || 0 }, 'Exact balancing (dynamic programming)');
     if (!r.ok) return;
     setResult(r.result);
     setSel(r.result.table.length - 1);
+    const g = r.result.table[r.result.table.length - 1];
+    recordOptimisation('balanceDP', optSummary(`Exact phase balance (${r.result.objective === 'impedanceWeighted' ? 'impedance-weighted' : 'nameplate'})`, `Smallest spread ${g.spread} with ${g.moves} moves; by move budget 0…${g.k}: ${r.result.table.map(t => t.spread).join(', ')}`, r.result));
   }
   const unit = result && result.objective === 'impedanceWeighted' ? 'kVA·(|Z|/|Z₁|)' : 'kVA';
   const row = result && sel != null ? result.table[sel] : null;

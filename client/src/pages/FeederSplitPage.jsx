@@ -10,6 +10,7 @@ import { ConvergenceWarning } from '../components/Convergence.jsx';
 import { txCurrentSummary } from '../lib/format.js';
 import TaskProgress from '../components/TaskProgress.jsx';
 import OptimiserCertificate from '../components/OptimiserCertificate.jsx';
+import { optSummary } from '../lib/optSummary.js';
 import { useEngineTask } from '../hooks/useEngineTask.js';
 import MultiCriteriaView from '../components/MultiCriteriaView.jsx';
 
@@ -59,7 +60,7 @@ function testOptsFor(testMode) {
 }
 
 export default function FeederSplitPage() {
-  const { design, setDesign } = useDesign();
+  const { design, setDesign, recordOptimisation } = useDesign();
   const trees = feederTrees(design);
   const base = design.transformers[0];
   const openPoints = design.openPoints;
@@ -147,6 +148,10 @@ export default function FeederSplitPage() {
       : await task.run('feederSplitDual', { design, openPointId: dualOpenPointId, txSpec, cond: dualCond, hours, solarMult, shortlistK: DUAL_SHORTLIST_K }, 'Searching cut points near the open point');
     if (!r.ok) return;
     setResults({ ...r.result, mode: 'dual', cond: dualCond, testMode, periodLabel, lossLabel, usedOpenPointId: dualOpenPointId });
+    if (r.result.certificate && r.result.candidates[0]) {
+      const c = r.result.candidates[0];
+      recordOptimisation('dualFeeder', optSummary('Dual-feeder split', `Best pair ${c.poleA} & ${c.poleB}: ${c.voltageViolationCount} voltage violations, ${c.lossKwh.toFixed(2)} kWh ${periodLabel}; ${r.result.coveragePct.toFixed(1)} % of ${r.result.totalPairs} pairs scored`, r.result));
+    }
   }
 
   // No search needed — the two cuts are fixed at the open point's own poles, so this is one

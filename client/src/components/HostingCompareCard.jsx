@@ -4,6 +4,8 @@ import CsvButton from './CsvButton.jsx';
 import OptimiserCertificate, { CertificateBadge } from './OptimiserCertificate.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
 import { standardsOf } from '../lib/loadflow.js';
+import { optSummary } from '../lib/optSummary.js';
+import { useDesign } from '../context/DesignContext.jsx';
 
 // "How much more PV?" has three honest answers (O3.4), shown side by side: the first-come queue
 // (legacy), the maximum total (SLP, O3.2) and the fair share (O3.3). Each answers a different
@@ -21,11 +23,15 @@ export default function HostingCompareCard({ design }) {
   const [cap, setCap] = useState('');
   const [res, setRes] = useState(null);
   const task = useEngineTask();
+  const { recordOptimisation } = useDesign();
 
   async function run() {
     const capKva = cap === '' ? null : Math.max(0, Number(cap));
     const r = await task.run('hostingCompare', { design, txLimitBothDirections: both, capKva }, 'Comparing the three hosting answers');
-    if (r.ok) setRes({ ...r.result, capKva });
+    if (!r.ok) return;
+    setRes({ ...r.result, capKva });
+    const x = r.result;
+    recordOptimisation('hosting', optSummary('PV hosting: queue, maximum total, fair share', `Queue ${x.queue.totalKva.toFixed(2)} kVA; maximum total ${x.slp.totalKva.toFixed(2)} kVA (LP estimate ${x.slp.bound != null ? x.slp.bound.toFixed(2) : '—'}); fair share ${x.fair.sizeKva.toFixed(3)} kVA × ${x.fair.locations.length} = ${x.fair.totalKva.toFixed(2)} kVA${x.txLimitBothDirections ? ' (transformer limit both ways)' : ''}`, x.slp));
   }
   const totals = res ? { queue: res.queue.totalKva, slp: res.slp.totalKva, fair: res.fair.totalKva } : null;
   const rows = res ? [...new Set([...res.queue.allocation, ...res.slp.allocation, ...res.fair.allocation].map(loc))].sort().map(k => ({

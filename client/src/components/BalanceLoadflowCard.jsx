@@ -4,6 +4,8 @@ import CsvButton from './CsvButton.jsx';
 import ChartCanvas from './ChartCanvas.jsx';
 import OptimiserCertificate from './OptimiserCertificate.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
+import { optSummary } from '../lib/optSummary.js';
+import { useDesign } from '../context/DesignContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import { CHART_PALETTES, themedScales } from '../lib/chartTheme.js';
 
@@ -26,6 +28,7 @@ export default function BalanceLoadflowCard({ design, txId, testOpts, onPreview 
   const [result, setResult] = useState(null);
   const [sel, setSel] = useState(null);
   const task = useEngineTask();
+  const { recordOptimisation } = useDesign();
 
   async function run() {
     const r = await task.run('balanceOptimise', {
@@ -35,6 +38,10 @@ export default function BalanceLoadflowCard({ design, txId, testOpts, onPreview 
     if (!r.ok) return;
     setResult({ ...r.result, periodLabel: testOpts.periodLabel });
     setSel(r.result.recommended ? 'rec' : r.result.table.length - 1);
+    const rec = r.result.recommended;
+    recordOptimisation('balanceLoadflow', optSummary('Phase balance on the load-flow goal', rec
+      ? `Recommended ${rec.moves} move(s): ${rec.changed.map(c => `${c.pole} ${c.id} ${c.from}→${c.to}`).join(', ') || 'none'}; ${rec.totalViolations} violation-hours, ${rec.lossKwh.toFixed(3)} kWh/day (today ${r.result.today.totalViolations} / ${r.result.today.lossKwh.toFixed(3)}; greedy ${r.result.legacy.moves} moves / ${r.result.legacy.lossKwh.toFixed(3)})`
+      : `No zero-violation arrangement within ${r.result.maxMoves} moves`, r.result));
   }
   const toggleYear = (y) => setYears(ys => (ys.includes(y) ? ys.filter(x => x !== y) : [...ys, y].sort((a, b) => a - b)));
   const picked = !result ? null : sel === 'rec' ? result.recommended : typeof sel === 'string' && sel.startsWith('alt') ? result.alternatives[Number(sel.slice(3))] : result.table[sel] && result.table[sel].bestWithin;

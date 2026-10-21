@@ -43,6 +43,10 @@ export function DesignProvider({ children }) {
   const [lastFixIt, setLastFixIt] = useState(null); // most recent fix-it ladder run (P2.6)
   const [lastScenarios, setLastScenarios] = useState(null); // most recent scenario comparison (P5.4), for the report
   const [lastMonteCarlo, setLastMonteCarlo] = useState(null); // most recent Monte Carlo study (P4.4), for the report
+  // The latest run of each optimiser (O7), summarised for the report's Optimisation section:
+  // key → { title, headline, method, certificate, gapPct, restartsFoundBest, evaluations, ms, notes }.
+  const [lastOptimisation, setLastOptimisation] = useState({});
+  const recordOptimisation = useCallback((key, summary) => setLastOptimisation(o => ({ ...o, [key]: summary })), []);
 
   const refreshSavedList = useCallback(async () => {
     try { const d = await api.listDesigns(); setSavedList(d.designs); }
@@ -81,6 +85,7 @@ export function DesignProvider({ children }) {
     setLastFixIt(null);
     setLastScenarios(null);
     setLastMonteCarlo(null);
+    setLastOptimisation({});
   }, [resetDesign]);
 
   // A blank design, or a built one (the new-design wizard, P5.8).
@@ -97,6 +102,7 @@ export function DesignProvider({ children }) {
     setLastFixIt(null);
     setLastScenarios(null);
     setLastMonteCarlo(null);
+    setLastOptimisation({});
   }, [resetDesign]);
 
   const removeDesign = useCallback(async (id) => {
@@ -112,7 +118,7 @@ export function DesignProvider({ children }) {
       saveDesign, loadDesign, newDesign, removeDesign,
       lastResults, setLastResults, lastHosting, setLastHosting, lastBessHosting, setLastBessHosting, lastDaily, setLastDaily,
       lastTapAdvice, setLastTapAdvice, lastReconductor, setLastReconductor, lastFixIt, setLastFixIt,
-      lastScenarios, setLastScenarios, lastMonteCarlo, setLastMonteCarlo
+      lastScenarios, setLastScenarios, lastMonteCarlo, setLastMonteCarlo, lastOptimisation, recordOptimisation
     }}>
       {children}
     </DesignContext.Provider>

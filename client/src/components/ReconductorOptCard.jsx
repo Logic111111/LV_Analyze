@@ -3,6 +3,8 @@ import TaskProgress from './TaskProgress.jsx';
 import OptimiserCertificate from './OptimiserCertificate.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
 import { describeReconductor } from '../lib/loadflow.js';
+import { optSummary } from '../lib/optSummary.js';
+import { useDesign } from '../context/DesignContext.jsx';
 
 // Reconductoring as an optimisation (O6): a conductor for every span at once — keep, or upgrade
 // to a lower-R library conductor — by enumeration, branch-and-bound, or annealing when the
@@ -12,9 +14,13 @@ export default function ReconductorOptCard({ design, years, onPreview }) {
   const [seed, setSeed] = useState(1);
   const [res, setRes] = useState(null);
   const task = useEngineTask();
+  const { recordOptimisation } = useDesign();
   async function run() {
     const r = await task.run('reconductorOptimise', { design, years, budgetEvaluations: Math.max(1, Number(budget) || 1), seed: Number(seed) || 1 }, 'Optimising conductors for every span');
-    if (r.ok) setRes(r.result);
+    if (!r.ok) return;
+    setRes(r.result);
+    const b = r.result.best;
+    recordOptimisation('reconductor', optSummary('Reconductoring, every span together', `${b.changes.length ? describeReconductor(b.changes) : 'keep every conductor'}: ${b.totalViolations} violation-hours (now ${r.result.baseline.totalViolations}), ${b.lossKwh.toFixed(3)} kWh/day${b.capex != null ? `, capex ${Math.round(b.capex)}` : ''}`, r.result));
   }
   const b = res && res.best;
   return (
