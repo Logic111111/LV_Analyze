@@ -206,7 +206,14 @@ method is a new function with a certificate (`exact`, `lp-bound` or `heuristic`)
     answer differs from the legacy method, verification and notes.
   - Each run is recorded (DesignContext `lastOptimisation`), and the comprehensive report gets an
     "Optimisation" section listing results and certificates.
-- [ ] **O8** Tests, `npm run bench:opt`, README
+- [x] **O8** Tests, `npm run bench:opt`, README.
+  - Tests: unit tests for every toolkit module (KKT checks for the LP; Jacobian against finite
+    differences), every O-golden plus the legacy goldens, and determinism tests for the seeded
+    methods.
+  - Browser checks of every optimiser card (worker, badges, Explain, Preview, 390 px, dark theme).
+  - Benchmarks: `npm run bench:opt` (see the Performance log).
+  - README: "How the optimisers work", plus an update for P7 (architecture, migrations,
+    sessions, configuration table, OpenDSS check, field mode).
 
 **Legacy goldens in the O-prompt vs this code.** The O-prompt's legacy figures were measured
 before the Phase 1 fixes. Since P1.3 (see "Golden-value notes"), the legacy system PV queue on the
@@ -1355,3 +1362,24 @@ Where the time went:
 
 The 50 ms snapshot budget is met with a wide margin. A 24 h scan is now about 50 ms on this machine,
 but slower client hardware can push it past the 100 ms UI rule, so scans still move to the worker in P1.5.
+
+### Optimisers (`npm run bench:opt`, Node 22, this machine)
+
+| Case | Time | Budget | Result |
+|---|---|---|---|
+| O2.1 exact DP balance, fixture, K ≤ 9 | 4 ms | 200 ms | 22.5, 15, 7, 4, 1.5, 1.5, 0.5 … (5 256 states) |
+| O2.1 exact DP balance, 50-pole feeder, K ≤ 10 | 0.46 s | — | 0.5 kVA, 1.6 M states |
+| O2.2 load-flow balance, exhaustive levels 1–3 | 4.8 s | 10 s | 20/2/12.579 · 174/33/11.749 · 874/227/11.246 |
+| O2.2 annealing only, 20 restarts × 3 000 evaluations | 4.0 s | — | 11.246 kWh, 20/20 restarts |
+| O1.3 Jacobian, semi-analytic, 150 locations | 43 ms | — | (finite differences: 519 ms) |
+| O3.2 SLP maximum hosting, balanced fixture | 37 ms | 30 s | 149.50 kVA, gap 0.09 % |
+| O3.2 SLP, limit in both directions | 26 ms | 30 s | 104.30 kVA |
+| O3.2 SLP, BESS | 22 ms | 30 s | 94 kVA (legacy queue 69.95) |
+| O3.3 fair share | 8 ms | — | 2.938 kVA × 9 |
+| O3.2 SLP maximum hosting, 50-pole feeder | 12.7 s | — | 255 kVA verified, gap 23 % (154 pre-existing violation-hours) |
+| O4 BESS sizes for minimum loss | 2.5 s | — | 12.527 kWh/day |
+| O5 dual-feeder split, 144 pairs, 24 h | 3.5 s | — | exact |
+| O6 reconductor optimisation, fixture | 10 ms | — | exact |
+
+The O3.1 monotonicity probe raises the 50-pole independent hosting search from 6.5 s to 9.4 s,
+in the worker; every legacy hosting result is unchanged.
