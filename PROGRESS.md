@@ -113,8 +113,26 @@ method is a new function with a certificate (`exact`, `lp-bound` or `heuristic`)
   distinct designs. The legacy sanity goldens are reproduced (19.156 / 13.288 kWh).
 - [x] **O1.5** Pareto archive (`opt/pareto.js`)
 - [x] **O1.6** Common result shape (`opt/result.js`)
-- [ ] **O2.1** Exact balancing by dynamic programming
-- [ ] **O2.2** Balancing on the load-flow goal (exact levels, then SA + tabu)
+- [x] **O2.1** Exact balancing by dynamic programming (`opt/balanceDP.js`).
+  - Golden reproduced: minimum nameplate spread for K = 0…9 is 22.5, 15, 7, 4, 1.5, 1.5, 0.5,
+    0.5, 0.5, 0.5 kVA. The 0.5 kVA global minimum needs 6 moves; the legacy greedy gives 1.0 with 9.
+  - 5 256 states in 4 ms. The prompt's "about 29 900" counted states per move count; here only the
+    fewest moves per (sumA, sumB) is kept, which loses nothing.
+  - Impedance-weighted goal: 0.05 resolution with an n × res / 2 rounding bound.
+  - Above the 2 M state cap the resolution is coarsened, with a note.
+- [x] **O2.2** Balancing on the load-flow goal (`opt/balanceOptimise.js`).
+  - Goldens reproduced exactly (years 0 and 5, full day):
+    - 1 move: 20 designs, 2 feasible, 12.579 kWh (P3 EV A→B);
+    - 2 moves: 174 / 33 / 11.749;
+    - 3 moves: 874 / 227 / 11.246.
+  - Exhaustive levels 1–3: 3.95 s in Node (budget 10 s).
+  - Annealing alone (exact levels off, 20 seeded restarts, 3 000 evaluations each) reaches 11.246
+    in 20/20 restarts (required ≥ 15).
+  - Recommended: 1 move; best loss with +1 and +2 moves shown. Deterministic per seed.
+  - UI: Load Balance → method "Exact balance (DP)" and "Optimised on load flow". Both run in the
+    worker with progress and cancel, show certificate badges and an "Explain" section (why the
+    answer differs from the greedy), a move-budget table, a Pareto chart (moves vs kWh,
+    triangles = no violations) and Preview/Apply. Quick (greedy) stays the default.
 - [ ] **O3.1** Bisection safeguards (monotonicity probe)
 - [ ] **O3.2** Maximum simultaneous hosting (SLP)
 - [ ] **O3.3** Fair-share hosting

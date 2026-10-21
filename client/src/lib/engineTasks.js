@@ -13,7 +13,8 @@ import {
   computeFeederSplitCandidates, searchDualFeederSplit, scoreDualFeederCandidate, makeTx, nextTransformerId,
   proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runDailyScan, protectionCheck, tapAdvisor,
   reconductorAdvisor, fixItLadder, optimisePhaseBalance, voltageSensitivity, linearHostingEstimateKw, monteCarloStudy,
-  runSnapshotAt, compareScenarios, collectIssues, traceHostingSearch, explainHosting, compareMeasured, designSummary
+  runSnapshotAt, compareScenarios, collectIssues, traceHostingSearch, explainHosting, compareMeasured, designSummary,
+  balanceExactDP, balanceOptimise
 } from './loadflow.js';
 import { buildReportHtml } from './report.js';
 
@@ -53,6 +54,12 @@ export const ENGINE_TASKS = {
   // Phase balancing v2 (P4.1): the Pareto table, with each row's scan metrics.
   phaseBalanceOptimised: ({ design, txId, objective, kMax, hours, solarMult, restarts, iterations, seed }, hooks) =>
     optimisePhaseBalance(design, txId, { objective, kMax, hours, solarMult, restarts, iterations, seed, onProgress: hooks.onProgress }),
+
+  // Optimisation Upgrade O2: exact balancing (dynamic programming) and balancing on the load-flow
+  // goal (exhaustive levels, then annealing + tabu).
+  balanceExactDP: ({ design, txId, objective, maxMoves }) => balanceExactDP(design, txId, { objective, maxMoves }),
+  balanceOptimise: ({ design, txId, years, hours, solarMult, maxMoves, exactCap, restarts, budget, seed }, hooks) =>
+    balanceOptimise(design, txId, { years, hours, solarMult, maxMoves, exactCap, restarts, budget, seed, onProgress: hooks.onProgress }),
 
   // Voltage sensitivity matrix (P4.2) at one operating point.
   voltageSensitivity: ({ design, year, hour, loadMult, solarMult }, hooks) =>

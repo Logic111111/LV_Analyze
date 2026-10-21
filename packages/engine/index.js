@@ -80,3 +80,5 @@ export * from './opt/lp.js';
 export * from './opt/sensitivity.js';
 export * from './opt/evaluate.js';
 export * from './opt/pareto.js';
+export * from './opt/balanceDP.js';
+export * from './opt/balanceOptimise.js';

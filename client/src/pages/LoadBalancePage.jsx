@@ -8,6 +8,8 @@ import { txCurrentSummary } from '../lib/format.js';
 import TaskProgress from '../components/TaskProgress.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
 import PhaseOptimiserCard from '../components/PhaseOptimiserCard.jsx';
+import BalanceDPCard from '../components/BalanceDPCard.jsx';
+import BalanceLoadflowCard from '../components/BalanceLoadflowCard.jsx';
 import { useT } from '../i18n/i18n.jsx';
 
 function testOptsFor(testMode) {
@@ -37,7 +39,7 @@ export default function LoadBalancePage() {
   const [testMode, setTestMode] = useState('daily');
   const [proposal, setProposal] = useState(null); // { items, before, after, changed, beforeMetrics, afterMetrics, periodLabel, balancedDesign }
   const task = useEngineTask();
-  const [method, setMethod] = useState('quick'); // 'quick' (legacy greedy, nameplate) | 'optimised' (P4.1)
+  const [method, setMethod] = useState('quick'); // 'quick' (legacy greedy, the default) | 'optimised' (P4.1) | 'dp' (O2.1) | 'loadflow' (O2.2)
   const [preview, setPreview] = useState(null); // { design, changed, label }
   const [applied, setApplied] = useState(null);
 
@@ -91,6 +93,8 @@ export default function LoadBalancePage() {
         <div className="grid g3">
           <label className="chk"><input type="radio" name="lbMethod" checked={method === 'quick'} onChange={() => setMethod('quick')} /> Quick (nameplate)</label>
           <label className="chk"><input type="radio" name="lbMethod" checked={method === 'optimised'} onChange={() => setMethod('optimised')} /> Optimised (moves vs benefit)</label>
+          <label className="chk"><input type="radio" name="lbMethod" checked={method === 'dp'} onChange={() => setMethod('dp')} /> Exact balance (DP)</label>
+          <label className="chk"><input type="radio" name="lbMethod" checked={method === 'loadflow'} onChange={() => setMethod('loadflow')} /> Optimised on load flow</label>
         </div>
 
         {method === 'quick' && (
@@ -106,6 +110,17 @@ export default function LoadBalancePage() {
       {method === 'optimised' && (
         <div hidden={!!preview}>
           <PhaseOptimiserCard key={applied || 'current'} design={design} txId={txId} testOpts={testOptsFor(testMode)} onPreview={openOptimisedPreview} />
+        </div>
+      )}
+
+      {method === 'dp' && (
+        <div hidden={!!preview}>
+          <BalanceDPCard key={applied || 'current'} design={design} txId={txId} onPreview={openOptimisedPreview} />
+        </div>
+      )}
+      {method === 'loadflow' && (
+        <div hidden={!!preview}>
+          <BalanceLoadflowCard key={applied || 'current'} design={design} txId={txId} testOpts={testOptsFor(testMode)} onPreview={openOptimisedPreview} />
         </div>
       )}
 
