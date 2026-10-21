@@ -152,7 +152,15 @@ method is a new function with a certificate (`exact`, `lp-bound` or `heuristic`)
 - [x] **O3.3** Fair-share hosting: **2.938 kVA** at each of 9 locations, 26.44 kVA total (prompt
   2.94 ±0.02 / 26.43). The 0.01 kVA difference in the total follows the P1.3 hosting fixes, like
   the queue's 111.75 → 111.65.
-- [ ] **O3.4** All three hosting answers side by side
+- [x] **O3.4** All three hosting answers side by side (Solar Hosting → "Three answers to how much
+  more PV?").
+  - First-come queue (legacy), maximum total (SLP) and fair share are shown with totals,
+    certificate badges and a one-sentence question each, plus an allocation table and CSV.
+  - The "why capacities interact" example is generated live from the design (the location the
+    optimum loads most beyond its stand-alone limit, with its pole's other phases).
+  - Includes a per-location cap and the both-directions transformer rule, reverse-flow warnings
+    per allocation, the optimiser steps and an Explain section. Runs in the worker.
+  - The independent table flags `nonMonotonic` rows.
 - [x] **O3.5** Transformer reverse-flow limit.
   - `design.standards.txLimitBothDirections` defaults to off (absent = the import-only rule), so
     no legacy result changes. The checkbox is in Setup → Standards.

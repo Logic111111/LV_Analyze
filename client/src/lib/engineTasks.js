@@ -14,7 +14,7 @@ import {
   proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runDailyScan, protectionCheck, tapAdvisor,
   reconductorAdvisor, fixItLadder, optimisePhaseBalance, voltageSensitivity, linearHostingEstimateKw, monteCarloStudy,
   runSnapshotAt, compareScenarios, collectIssues, traceHostingSearch, explainHosting, compareMeasured, designSummary,
-  balanceExactDP, balanceOptimise
+  balanceExactDP, balanceOptimise, hostingMaxTotalSLP, hostingFairShare, evaluateDesign, withTxLimitRule, HOSTING_TEST_HOURS
 } from './loadflow.js';
 import { buildReportHtml } from './report.js';
 
@@ -60,6 +60,29 @@ export const ENGINE_TASKS = {
   balanceExactDP: ({ design, txId, objective, maxMoves }) => balanceExactDP(design, txId, { objective, maxMoves }),
   balanceOptimise: ({ design, txId, years, hours, solarMult, maxMoves, exactCap, restarts, budget, seed }, hooks) =>
     balanceOptimise(design, txId, { years, hours, solarMult, maxMoves, exactCap, restarts, budget, seed, onProgress: hooks.onProgress }),
+
+  // O3.4: the three PV hosting answers side by side — the legacy queue, the SLP maximum total and
+  // the fair share — with each allocation's peak reverse-flow loading and a live example of why
+  // capacities interact.
+  hostingCompare: ({ design, txLimitBothDirections, capKva }, hooks) => {
+    const step = (stage) => (p) => hooks.onProgress && hooks.onProgress({ ...p, stage: `${stage}: ${p.stage}` });
+    const d = withTxLimitRule(design, txLimitBothDirections);
+    const q = computeSystemHostingCapacity(d, { onProgress: step('1/3 Queue') });
+    const queue = { totalKva: q.totalKva, allocation: q.results.filter(r => r.achievableKva > 0).map(r => ({ pole: r.pole, phase: r.phase, kva: r.achievableKva })) };
+    const slp = hostingMaxTotalSLP(design, { txLimitBothDirections, caps: capKva ?? undefined, onProgress: step('2/3 Maximum total') });
+    const fair = hostingFairShare(design, { txLimitBothDirections, cap: capKva ?? 100, onProgress: step('3/3 Fair share') });
+    const fairAlloc = fair.locations.map(l => ({ ...l, kva: fair.sizeKva }));
+    const rev = (alloc) => evaluateDesign(d, { hours: HOSTING_TEST_HOURS, extraPV: alloc }).reverseFlowMax;
+    // The location the optimum loads most beyond what it could take alone.
+    const alone = new Map(q.results.map(r => [r.pole + '|' + r.phase, r.independentKva]));
+    const ex = slp.allocation.map(a => ({ ...a, aloneKva: alone.get(a.pole + '|' + a.phase) ?? 0 })).sort((a, b) => (b.kva - b.aloneKva) - (a.kva - a.aloneKva))[0];
+    const example = ex && ex.kva > ex.aloneKva + 0.5 ? { ...ex, neighbours: slp.allocation.filter(a => a.pole === ex.pole && a.phase !== ex.phase) } : null;
+    const { solution: _s, ...slpOut } = slp;
+    return {
+      txLimitBothDirections: !!txLimitBothDirections, queue, slp: slpOut, fair: { ...fair, allocation: fairAlloc }, example,
+      reverse: { queue: rev(queue.allocation), slp: rev(slp.allocation), fair: rev(fairAlloc) }
+    };
+  },
 
   // Voltage sensitivity matrix (P4.2) at one operating point.
   voltageSensitivity: ({ design, year, hour, loadMult, solarMult }, hooks) =>

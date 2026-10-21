@@ -6,6 +6,7 @@ import { useEngineTask } from '../hooks/useEngineTask.js';
 import { HostingLimitCell, HostingNonConvergenceWarning } from '../components/Convergence.jsx';
 import ExplainDrawer from '../components/ExplainDrawer.jsx';
 import CsvButton from '../components/CsvButton.jsx';
+import HostingCompareCard from '../components/HostingCompareCard.jsx';
 
 export default function HostingPage() {
   const { design, setLastHosting } = useDesign();
@@ -49,7 +50,7 @@ export default function HostingPage() {
     <div>
       <div className="card">
         <h2>Additional solar hosting capacity</h2>
-        <p className="hint">Tests adding single-phase PV (up to the cap set in Setup) at every pole and phase across the solar shoulder hours (09:00–15:00), then ranks poles by the extra capacity that can be absorbed before it creates a statutory voltage or conductor-thermal violation (or makes one the design already has worse). The transformer is not a limiting factor here when the result is a net export — reverse flow back to the grid is unrestricted.</p>
+        <p className="hint">Tests adding single-phase PV (up to the cap set in Setup) at every pole and phase across the solar shoulder hours (09:00–15:00), then ranks poles by the extra capacity that can be absorbed before it creates a statutory voltage or conductor-thermal violation (or makes one the design already has worse). The transformer is not a limiting factor here when the result is a net export — reverse flow back to the grid is unrestricted, unless Setup → Standards applies the transformer limit to reverse flow too.</p>
         <button className="primary" onClick={run} disabled={indep.running}>Compute hosting capacity</button>{' '}
         <button className="ghost" onClick={runEstimate} disabled={quick.running}>Instant linear estimate</button>
         <TaskProgress task={indep} />
@@ -77,6 +78,7 @@ export default function HostingPage() {
       )}
 
       <BaselineBanner baseline={baseline} kind="solar shoulder (09:00–15:00)" />
+      <HostingCompareCard design={design} />
 
       {results && (
         <div style={{ marginTop: 18 }}>
@@ -94,7 +96,7 @@ export default function HostingPage() {
                 <thead><tr><th>Rank</th><th>Pole</th><th>Phase</th><th>Additional PV headroom (kVA)</th><th>Limited by</th><th></th></tr></thead>
                 <tbody>
                   {results.map((r, i) => (
-                    <tr key={i}><td>{i + 1}</td><td>{r.pole}</td><td className={'phase' + r.phase}>{r.phase}</td><td>{r.kva.toFixed(2)}</td><HostingLimitCell row={r} capLabel={`Setup cap (${design.maxpv} kW)`} />
+                    <tr key={i}><td>{i + 1}</td><td>{r.pole}</td><td className={'phase' + r.phase}>{r.phase}</td><td>{r.kva.toFixed(2)}{r.nonMonotonic && <> <span className="pill warn" title={`Bisection first stopped at ${r.nonMonotonic.firstBoundaryKva} kVA, but ${r.nonMonotonic.probePassKva} kVA passed: feasibility isn't one interval from zero here (e.g. PV first relieves a problem, then creates one). The true upper boundary is shown.`}>non-monotonic</span></>}</td><HostingLimitCell row={r} capLabel={`Setup cap (${design.maxpv} kW)`} />
                       <td><button className="mini" onClick={() => runExplain(r)} disabled={explainTask.running} aria-label={`Explain the result at ${r.pole} phase ${r.phase}`}>Explain</button></td></tr>
                   ))}
                 </tbody>
