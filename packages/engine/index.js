@@ -73,3 +73,7 @@ export * from './advisors/phaseOptimiser.js';
 export * from './advisors/tapAdvisor.js';
 export * from './advisors/reconductor.js';
 export * from './advisors/fixItLadder.js';
+// Optimisation toolkit and optimisers (O1–O6).
+export * from './opt/prng.js';
+export * from './opt/result.js';
+export * from './opt/lp.js';

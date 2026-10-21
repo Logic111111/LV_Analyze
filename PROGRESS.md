@@ -92,6 +92,41 @@ stable, no invented engineering/commercial data, commit after each item, no push
 
 ---
 
+## Optimisation Upgrade (O0–O8)
+
+Runs after Phases 0–7. Legacy methods stay the default and keep their exact outputs; every new
+method is a new function with a certificate (`exact`, `lp-bound` or `heuristic`).
+
+- [x] **O0** Prerequisites — already in place: Vitest, the Walkthrough Island fixture, the engine
+  module split (`packages/engine`) and the Web Worker runner (`useEngineTask` / `engineTasks.js`)
+- [x] **O1.1** Seeded PRNG helpers (`opt/prng.js`)
+- [x] **O1.2** LP solver (`opt/lp.js`)
+- [ ] **O1.3** Linearised network model (semi-analytic Jacobian)
+- [ ] **O1.4** `evaluateDesign` with an LRU cache and canonical signatures
+- [ ] **O1.5** Pareto archive
+- [x] **O1.6** Common result shape (`opt/result.js`)
+- [ ] **O2.1** Exact balancing by dynamic programming
+- [ ] **O2.2** Balancing on the load-flow goal (exact levels, then SA + tabu)
+- [ ] **O3.1** Bisection safeguards (monotonicity probe)
+- [ ] **O3.2** Maximum simultaneous hosting (SLP)
+- [ ] **O3.3** Fair-share hosting
+- [ ] **O3.4** All three hosting answers side by side
+- [ ] **O3.5** Transformer reverse-flow limit
+- [ ] **O4** BESS sizing for losses
+- [ ] **O5** Dual-feeder split without missing the best pair
+- [ ] **O6** Reconductoring as an optimisation
+- [ ] **O7** Optimality badges, explanations, report section
+- [ ] **O8** Tests, `npm run bench:opt`, README
+
+**Legacy goldens in the O-prompt vs this code.** The O-prompt's legacy figures were measured
+before the Phase 1 fixes. Since P1.3 (see "Golden-value notes"), the legacy system PV queue on the
+balanced fixture gives 111.65 kVA (prompt: 111.75), and the BESS queue gives 69.95 kVA with daily
+loss 13.29 → 25.47 kWh (prompt: 69.80, 25.46). These are the values the O-goldens are compared
+against. Every other O-prompt legacy figure is reproduced exactly:
+- unbalanced 3 violations, 19.156 kWh/day;
+- legacy balance 9 moves, 16/15/16 kVA;
+- balanced 0 violations, 13.288 kWh/day.
+
 ## Waiting on data (from the user)
 
 None of these will be invented. Until supplied, the relevant feature shows a "data missing" state.
