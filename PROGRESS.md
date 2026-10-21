@@ -169,7 +169,18 @@ method is a new function with a certificate (`exact`, `lp-bound` or `heuristic`)
   - Golden check: the legacy system PV allocation reaches 107.72 % reverse loading at 13:00. The
     O-prompt's 107.8 % was for its 111.75 kVA allocation; this code's post-P1.3 allocation is
     111.65 kVA.
-- [ ] **O4** BESS sizing for losses
+- [x] **O4** BESS sizing for losses (`opt/bessOpt.js`, BESS Hosting → "Size batteries for minimum
+  loss").
+  - Method: projected gradient on the 24 h loss with a trust region. Every step is verified (no
+    new or worsened violation in any hour, BESS relevance filter, converged). Multi-start: zero,
+    the legacy allocation at 25 % and 50 %, then seeded random starts.
+  - Balanced fixture: **12.53 kWh/day** with 15.3 kVA spread over all 9 locations, against
+    13.29 kWh with no battery and 25.47 kWh for the legacy allocation (prompt: ≤ 13.29 and
+    ≤ 25.46). 2.4 s.
+  - Restart agreement is counted within 0.1 % of the loss: the minimum is flat, and all ten
+    starts end within 0.15 %.
+  - The legacy column is renamed "marginal loss saving at zero size (local slope)". The legacy
+    queue's order is unchanged.
 - [ ] **O5** Dual-feeder split without missing the best pair
 - [ ] **O6** Reconductoring as an optimisation
 - [ ] **O7** Optimality badges, explanations, report section

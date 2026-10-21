@@ -4,6 +4,7 @@ import BaselineBanner from '../components/BaselineBanner.jsx';
 import TaskProgress from '../components/TaskProgress.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
 import { HostingLimitCell, HostingNonConvergenceWarning } from '../components/Convergence.jsx';
+import BessLossCard from '../components/BessLossCard.jsx';
 
 function windowLabel(design) {
   const h = (n) => String(n).padStart(2, '0') + ':00';
@@ -70,7 +71,7 @@ export default function BessHostingPage() {
           {results.length > 0 && (
             <div className="card" style={{ marginTop: 14 }}>
               <h2>Maximum simultaneous BESS hosting capacity</h2>
-              <p className="hint">Unlike the ranking above, this scan re-orders locations by <b>loss-reduction impact</b> rather than raw headroom — the pole/phase where adding BESS cuts total network loss (line + transformer) the most is prioritised first — then processes them in that order like an interconnection queue, each candidate tested with every higher-priority addition already committed, against the <b>uncapped</b> voltage/thermal limit (ignoring the Setup cap, to show what the network can physically absorb). This gives both the true maximum that can be added <b>all at once</b> without a voltage deviation or thermal violation, and the resulting effect on daily distribution energy loss.</p>
+              <p className="hint">Unlike the ranking above, this scan re-orders locations by the <b>marginal loss saving at zero size</b> (the local slope, from a 1 kVA probe) rather than raw headroom — the pole/phase where a small battery cuts total network loss (line + transformer) the most is prioritised first — then processes them in that order like an interconnection queue, each candidate tested with every higher-priority addition already committed, against the <b>uncapped</b> voltage/thermal limit (ignoring the Setup cap, to show what the network can physically absorb). This gives both the true maximum that can be added <b>all at once</b> without a voltage deviation or thermal violation, and the resulting effect on daily distribution energy loss. It maximises how much battery fits, not the loss saving — for that, use "Size batteries for minimum loss" below.</p>
               <button className="primary" onClick={runSystem} disabled={sys.running}>Compute maximum simultaneous capacity</button>
               <TaskProgress task={sys} />
 
@@ -89,7 +90,7 @@ export default function BessHostingPage() {
 
                   <HostingNonConvergenceWarning rows={system.results} />
                   <div className="tbl-wrap"><table>
-                    <thead><tr><th>Priority</th><th>Pole</th><th>Phase</th><th>Independent, uncapped estimate (kVA)</th><th>Loss-reduction score (W)</th><th>Achievable simultaneously (kVA)</th><th>Limited by</th></tr></thead>
+                    <thead><tr><th>Priority</th><th>Pole</th><th>Phase</th><th>Independent, uncapped estimate (kVA)</th><th>Marginal loss saving at zero size (local slope, W)</th><th>Achievable simultaneously (kVA)</th><th>Limited by</th></tr></thead>
                     <tbody>
                       {system.results.map((r, i) => (
                         <tr key={i}>
@@ -112,6 +113,7 @@ export default function BessHostingPage() {
           )}
         </div>
       )}
+      <BessLossCard design={design} />
     </div>
   );
 }

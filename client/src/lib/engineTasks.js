@@ -14,7 +14,7 @@ import {
   proposePhaseBalance, applyPhaseBalance, scanAndSummarize, runDailyScan, protectionCheck, tapAdvisor,
   reconductorAdvisor, fixItLadder, optimisePhaseBalance, voltageSensitivity, linearHostingEstimateKw, monteCarloStudy,
   runSnapshotAt, compareScenarios, collectIssues, traceHostingSearch, explainHosting, compareMeasured, designSummary,
-  balanceExactDP, balanceOptimise, hostingMaxTotalSLP, hostingFairShare, evaluateDesign, withTxLimitRule, HOSTING_TEST_HOURS
+  balanceExactDP, balanceOptimise, hostingMaxTotalSLP, hostingFairShare, evaluateDesign, withTxLimitRule, HOSTING_TEST_HOURS, bessLossOptimal
 } from './loadflow.js';
 import { buildReportHtml } from './report.js';
 
@@ -82,6 +82,12 @@ export const ENGINE_TASKS = {
       txLimitBothDirections: !!txLimitBothDirections, queue, slp: slpOut, fair: { ...fair, allocation: fairAlloc }, example,
       reverse: { queue: rev(queue.allocation), slp: rev(slp.allocation), fair: rev(fairAlloc) }
     };
+  },
+
+  // O4: BESS sizes for minimum daily loss.
+  bessLossOptimal: ({ design, restarts, budget, seed, caps }, hooks) => {
+    const { solution: _s, ...out } = bessLossOptimal(design, { restarts, budget, seed, caps, onProgress: hooks.onProgress });
+    return out;
   },
 
   // Voltage sensitivity matrix (P4.2) at one operating point.
