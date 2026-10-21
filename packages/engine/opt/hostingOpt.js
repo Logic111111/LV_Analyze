@@ -20,8 +20,9 @@
 //      outside a limit may not get worse, but isn't required to improve.
 //   4. Candidate x' = (x + Δx) floored to 0.05 kVA. Verify it with full load flows at every test
 //      hour (no new or worsened violation, converged). Accepted: x = x' and Δ grows ×1.5 (to 40)
-//      if the total rose by ≥ 0.05, else Δ halves. Rejected: Δ halves and the margin grows ×1.2,
-//      so the next linearisation is more cautious.
+//      if the total rose by ≥ 0.05, else Δ halves. Rejected: Δ halves, the margin grows ×1.2,
+//      and the rows that failed are tightened by their overshoot, so the next linearisation is
+//      more cautious exactly where it was wrong.
 //   5. Stop when Δ < 0.2 with no gain, or at the iteration / load-flow budget.
 // Every reported allocation has passed full load flows. The LP solved once more at the final point
 // with no trust region is the optimistic estimate (certificate 'lp-bound'): the gap says how much
@@ -87,8 +88,10 @@ function hostingContext(design0, kind, txBoth, hoursIn) {
       if (!res.converged) return { reason: 'nonConvergence', detail: { hour: h } };
       warm.set(h, warmStartFrom(res));
       if (keep) keep.set(h, res);
-      const v = newOrWorsenedViolation(relevant(h, res.violations), /** @type {Map<string, any>} */ (baseline.byHour.get(h)));
-      if (v) return { reason: 'violation', detail: { hour: h, ...v } };
+      const baseAt = /** @type {Map<string, any>} */ (baseline.byHour.get(h));
+      const v = newOrWorsenedViolation(relevant(h, res.violations), baseAt);
+      // Every new or worsened violation at the failing hour, for the optimiser's row learning.
+      if (v) return { reason: 'violation', detail: { hour: h, ...v }, all: relevant(h, res.violations).filter(x => newOrWorsenedViolation([x], baseAt)).map(x => ({ hour: h, ...x })) };
     }
     return null;
   };
@@ -125,6 +128,26 @@ export function hostingMaxTotalSLP(design0, opts = {}) {
   let atX = new Map();
   if (H.verify(locs, x, atX)) { x = Array(n).fill(0); atX = new Map(); H.verify(locs, x, atX); notes.push('The warm start failed verification; started from zero.'); }
   let delta = 10, margin = opts.marginV ?? 0.02;
+  // Row learning: when a verified step fails, the rows that failed are tightened by how far they
+  // overshot (plus 5 mV / 0.05 %), so the next linearisation stays clear of exactly those limits
+  // rather than shrinking every step. Near an existing violation the allowed change is only the
+  // 0.01 tolerance, and the linearisation's second-order error alone can exceed that.
+  /** @type {Map<string, number>} */
+  const rowExtra = new Map();
+  const lim0 = standardsOf(design);
+  const learn = (/** @type {any[]} */ failures) => failures.forEach(f => {
+    const baseAt = /** @type {Map<string, any>} */ (H.baseline.byHour.get(f.hour));
+    const b = baseAt.get(`${f.pole}|${f.phase}|${f.type}`);
+    const vLow = lim0.vnom * (1 - lim0.vdevPct / 100), vHigh = lim0.vnom * (1 + lim0.vdevPct / 100);
+    const allowed = f.type === 'undervoltage' ? (b ? b.value - 0.01 : vLow)
+      : f.type === 'overvoltage' ? (b ? b.value + 0.01 : vHigh)
+        : f.type === 'thermal' ? (b ? b.value + 0.01 : lim0.cableLoadingLimitPct)
+          : (b ? b.value + 0.01 : lim0.txLoadingLimitPct);
+    const over = f.type === 'undervoltage' ? allowed - f.value : f.value - allowed;
+    const key = `${f.hour}|${f.pole}|${f.phase}|${f.type}`;
+    rowExtra.set(key, (rowExtra.get(key) || 0) + Math.max(0, over) + 0.005);
+  });
+  const extra = (/** @type {number} */ h, /** @type {string} */ pole, /** @type {string} */ phase, /** @type {string} */ type) => rowExtra.get(`${h}|${pole}|${phase}|${type}`) || 0;
   const trace = [];
   /** @type {{ objective: number, x: number[] } | null} */
   let lastLp = null;
@@ -145,14 +168,14 @@ export function hostingMaxTotalSLP(design0, opts = {}) {
         const row = v.grad.map(gr => gr * g);
         if (row.every(a => Math.abs(a) < 1e-12)) return;
         const bU = baseAt.get(`${v.pole}|${v.phase}|overvoltage`), bL = baseAt.get(`${v.pole}|${v.phase}|undervoltage`);
-        if (!charging) { const U = Math.max(res.vLimHigh - margin, bU ? bU.value + 0.009 : -Infinity, v.value); A.push(row); b.push(U - v.value); }
-        if (!discharging) { const L = Math.min(res.vLimLow + margin, bL ? bL.value - 0.009 : Infinity, v.value); A.push(row.map(a => -a)); b.push(v.value - L); }
+        if (!charging) { const U = Math.max(Math.max(res.vLimHigh - margin, bU ? bU.value + 0.009 : -Infinity) - extra(h, v.pole, v.phase, 'overvoltage'), v.value); A.push(row); b.push(U - v.value); }
+        if (!discharging) { const L = Math.min(Math.min(res.vLimLow + margin, bL ? bL.value - 0.009 : Infinity) + extra(h, v.pole, v.phase, 'undervoltage'), v.value); A.push(row.map(a => -a)); b.push(v.value - L); }
       });
       J.spans.forEach(s => {
         const row = s.grad.map(gr => gr * g);
         if (row.every(a => Math.abs(a) < 1e-12)) return;
         const bT = baseAt.get(`${s.pole}|${s.phase}|thermal`);
-        const U = Math.max(lim.cableLoadingLimitPct * 0.999, bT ? bT.value + 0.009 : -Infinity, s.pct);
+        const U = Math.max(Math.max(lim.cableLoadingLimitPct * 0.999, bT ? bT.value + 0.009 : -Infinity) - extra(h, s.pole, s.phase, 'thermal'), s.pct);
         A.push(row); b.push(U - s.pct);
       });
       J.tx.forEach(t => {
@@ -161,7 +184,7 @@ export function hostingMaxTotalSLP(design0, opts = {}) {
         if (t.netKW < 0 && !lim.txLimitBothDirections) return;
         const pct = t.pct, row = t.grad.map(gr => gr * g / t.ratingKva * 100);
         const bX = baseAt.get(`${t.id}|-|transformer overload`);
-        const U = Math.max(lim.txLoadingLimitPct * 0.999, bX ? bX.value + 0.009 : -Infinity, pct);
+        const U = Math.max(Math.max(lim.txLoadingLimitPct * 0.999, bX ? bX.value + 0.009 : -Infinity) - extra(h, t.id, '-', 'transformer overload'), pct);
         A.push(row); b.push(U - pct);
       });
     });
@@ -169,33 +192,48 @@ export function hostingMaxTotalSLP(design0, opts = {}) {
     return { c: Array(n).fill(1), A, b, l, u };
   };
 
-  for (let it = 0; it < maxIterations && H.loadFlows() < budget; it++) {
-    progress({ stage: `Linear programme ${it + 1} (total ${x.reduce((s, v) => s + v, 0).toFixed(2)} kVA)`, done: Math.min(H.loadFlows(), budget), total: budget });
-    const lp = solveLPRowGeneration(buildLp(delta), { batch: 40 });
-    if (lp.status !== 'optimal') { trace.push({ it, delta, margin, status: lp.status }); delta /= 2; if (delta < 0.2) break; continue; }
-    const cand = x.map((v, i) => Math.min(caps[i], Math.max(0, floorStep(v + lp.x[i]))));
-    const gain = cand.reduce((s, v) => s + v, 0) - x.reduce((s, v) => s + v, 0);
-    // Flooring to the grid can turn a small LP gain into a loss: never step to a smaller total.
-    if (cand.every((v, i) => v === x[i]) || gain < -1e-9) {
-      trace.push({ it, delta, margin, lpGain: lp.objective, total: x.reduce((s, v) => s + v, 0), accepted: false, why: 'no gain on the 0.05 kVA grid' });
-      delta /= 2;
-      if (delta < 0.2) break;
-      continue;
+  // Trust-region restarts: when the region collapses after a failed verification (not for lack of
+  // gain), the search restarts from the verified point with Δ = 2 and everything it learned —
+  // up to RESTARTS times. Large networks need this: many locations moving together make even a
+  // small per-location step nonlinear near existing violations.
+  const RESTARTS = 6;
+  let it = 0;
+  for (let reset = 0; reset <= RESTARTS && it < maxIterations && H.loadFlows() < budget; reset++) {
+    if (reset > 0) { delta = 2; trace.push({ it, delta, margin, total: x.reduce((s, v) => s + v, 0), accepted: false, why: 'trust region reset after a rejected step' }); }
+    let endedOnReject = false;
+    for (; it < maxIterations && H.loadFlows() < budget; it++) {
+      progress({ stage: `Linear programme ${it + 1} (total ${x.reduce((s, v) => s + v, 0).toFixed(2)} kVA)`, done: Math.min(H.loadFlows(), budget), total: budget });
+      const lp = solveLPRowGeneration(buildLp(delta), { batch: 40 });
+      if (lp.status !== 'optimal') { trace.push({ it, delta, margin, status: lp.status }); delta /= 2; if (delta < 0.2) break; continue; }
+      const cand = x.map((v, i) => Math.min(caps[i], Math.max(0, floorStep(v + lp.x[i]))));
+      const gain = cand.reduce((s, v) => s + v, 0) - x.reduce((s, v) => s + v, 0);
+      // Flooring to the grid can turn a small LP gain into a loss: never step to a smaller total.
+      if (cand.every((v, i) => v === x[i]) || gain < -1e-9) {
+        trace.push({ it, delta, margin, lpGain: lp.objective, total: x.reduce((s, v) => s + v, 0), accepted: false, why: 'no gain on the 0.05 kVA grid' });
+        endedOnReject = false;
+        delta /= 2;
+        if (delta < 0.2) break;
+        continue;
+      }
+      /** @type {Map<number, SnapshotResult>} */
+      const keep = new Map();
+      const fail = H.verify(locs, cand, keep);
+      if (!fail) {
+        x = cand; atX = keep; endedOnReject = false;
+        delta = gain >= 0.05 ? Math.min(delta * 1.5, 40) : delta / 2;
+        trace.push({ it, delta, margin, lpGain: lp.objective, total: x.reduce((s, v) => s + v, 0), accepted: true });
+        if (gain < 0.05 && delta < 0.2) break;
+      } else {
+        const det = /** @type {any} */ (fail.detail);
+        trace.push({ it, delta, margin, lpGain: lp.objective, total: x.reduce((s, v) => s + v, 0), accepted: false, why: fail.reason + (det.pole ? ` at ${det.pole} ${det.phase}, ${det.hour}:00` : ` at ${det.hour}:00`) });
+        if (/** @type {any} */ (fail).all) learn(/** @type {any} */ (fail).all);
+        endedOnReject = true;
+        delta /= 2; margin *= 1.2;
+        if (delta < 0.2) break;
+      }
     }
-    /** @type {Map<number, SnapshotResult>} */
-    const keep = new Map();
-    const fail = H.verify(locs, cand, keep);
-    if (!fail) {
-      x = cand; atX = keep;
-      delta = gain >= 0.05 ? Math.min(delta * 1.5, 40) : delta / 2;
-      trace.push({ it, delta, margin, lpGain: lp.objective, total: x.reduce((s, v) => s + v, 0), accepted: true });
-      if (gain < 0.05 && delta < 0.2) break;
-    } else {
-      const det = /** @type {any} */ (fail.detail);
-      trace.push({ it, delta, margin, lpGain: lp.objective, total: x.reduce((s, v) => s + v, 0), accepted: false, why: fail.reason + (det.pole ? ` at ${det.pole} ${det.phase}, ${det.hour}:00` : ` at ${det.hour}:00`) });
-      delta /= 2; margin *= 1.2;
-      if (delta < 0.2) break;
-    }
+    it++;
+    if (!endedOnReject) break;
   }
   // Optimistic estimate: the LP at the final point with no trust region (caps only).
   const bigLp = solveLPRowGeneration(buildLp(UNCAPPED_CEILING_KVA), { batch: 40 });
