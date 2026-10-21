@@ -541,9 +541,13 @@ export function runSnapshot(design, opts, ctx = {}) {
     });
     PHASES.forEach(ph => { if (pr.condPct[ph] > cableLimitPct) violations.push({ pole: pr.id, phase: ph, type: 'thermal', value: pr.condPct[ph] }); });
   });
+  // Transformer overload counts when importing — or in either direction when the standards say
+  // so (O3.5). Reverse flow above the limit is always listed in reverseFlowOverloads, so a page
+  // can warn about it even under the import-only rule.
   transformers.forEach(t => {
-    if (t.txPct > txLimitPct && t.flowDirection === 'import') violations.push({ pole: t.id, phase: '-', type: 'transformer overload', value: t.txPct });
+    if (t.txPct > txLimitPct && (t.flowDirection === 'import' || lim.txLimitBothDirections)) violations.push({ pole: t.id, phase: '-', type: 'transformer overload', value: t.txPct });
   });
+  const reverseFlowOverloads = transformers.filter(t => t.flowDirection === 'export' && t.txPct > txLimitPct).map(t => ({ txId: t.id, pct: t.txPct, counted: lim.txLimitBothDirections }));
 
   // Voltage unbalance (P2.1): always reported per pole (vufPct) and as the snapshot's worst; only
   // raised as an 'unbalance' violation when the design's standards ask for it — off by default, so
@@ -559,7 +563,7 @@ export function runSnapshot(design, opts, ctx = {}) {
 
   return {
     converged, status, convergence, iterUsed, lastDelta, poleResults, totalLossW, lossByPole, groundLossW, groundLossByPole, transformers,
-    violations, vLimLow, vLimHigh, vufLimitPct, worstVuf, year, hour, loadMult, solarMult,
+    violations, vLimLow, vLimHigh, vufLimitPct, worstVuf, year, hour, loadMult, solarMult, reverseFlowOverloads,
     ...(design.lineModel === 'coupled' ? { lineModel: 'coupled', couplingIgnored } : {})
   };
 }

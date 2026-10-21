@@ -250,6 +250,11 @@ function Report({ res, design }) {
         </>
       )}
 
+      {(res.reverseFlowOverloads || []).filter(o => !o.counted).map(o => (
+        <div key={o.txId} className="note" role="alert" style={{ marginTop: 10 }}>
+          <span className="pill warn">reverse flow</span> Transformer {o.txId} is at {o.pct.toFixed(1)} % of its rating while exporting. It isn't counted as a violation under the import-only rule, but heating is the same either way — consider "Apply the transformer limit to reverse flow too" under Setup → Standards.
+        </div>
+      ))}
       {res.violations.length > 0 && (
         <>
           <div className="section-title">Violations detail</div>

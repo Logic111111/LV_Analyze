@@ -105,6 +105,23 @@ export function collectIssues(design, daily, protection = null) {
     }));
   }
 
+  // Reverse flow above the transformer's rating while only import counts (O3.5): a warning, with
+  // the hours, recommending the both-directions rule.
+  if (!std.txLimitBothDirections) {
+    /** @type {Map<string, { worst: number, hours: number[] }>} */
+    const rev = new Map();
+    daily.forEach(r => (r.reverseFlowOverloads || []).forEach(o => {
+      const g = rev.get(o.txId) || { worst: 0, hours: [] };
+      g.worst = Math.max(g.worst, o.pct); g.hours.push(r.hour); rev.set(o.txId, g);
+    }));
+    rev.forEach((g, txId) => add({
+      id: `reverse|${txId}`, severity: 'warning', category: 'transformer', title: `Transformer ${txId} above its rating in reverse flow`,
+      detail: `${g.worst.toFixed(1)} % of rating while exporting, ${hoursText(g.hours)}. Heating doesn't depend on the direction of flow — consider "Apply the transformer limit to reverse flow too" in Setup → Standards.`,
+      location: { txId, hours: g.hours },
+      fix: { label: 'Open the standards', route: 'setup', params: {} }
+    }));
+  }
+
   // ---- solver trust ----
   const collapse = daily.filter(r => r.status === 'collapse').map(r => r.hour);
   if (collapse.length) add({

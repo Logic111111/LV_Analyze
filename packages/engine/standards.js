@@ -20,7 +20,8 @@
  * @property {number} vufLimitPct       Voltage unbalance factor limit, %.
  * @property {boolean} vufAsViolation
  * @property {number} cableLoadingLimitPct  Thermal violation above this % of a span's rating.
- * @property {number} txLoadingLimitPct     Transformer overload above this % of rating (import only).
+ * @property {number} txLoadingLimitPct     Transformer overload above this % of rating (import only,
+ *                                          unless design.standards.txLimitBothDirections — O3.5).
  * @property {number} disconnectTimeS       Fuse disconnection time for the protection check, s.
  */
 
@@ -55,6 +56,10 @@ export function standardsOf(design) {
     vufAsViolation: !!s.vufAsViolation,
     cableLoadingLimitPct: num(s.cableLoadingLimitPct, STANDARDS_DEFAULTS.cableLoadingLimitPct),
     txLoadingLimitPct: num(s.txLoadingLimitPct, STANDARDS_DEFAULTS.txLoadingLimitPct),
+    // O3.5: a transformer's heating doesn't depend on the direction of flow, so its limit can be
+    // applied to reverse (export) flow too. Off unless set — absent means the historical
+    // import-only rule, so every legacy result is unchanged.
+    txLimitBothDirections: !!s.txLimitBothDirections,
     disconnectTimeS: Number(s.disconnectTimeS) === 0.4 ? 0.4 : 5
   };
 }

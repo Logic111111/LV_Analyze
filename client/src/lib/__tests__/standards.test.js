@@ -14,7 +14,8 @@ describe('the "Current app defaults" profile reproduces today exactly', () => {
   it('matches a new design and a fixture design', () => {
     expect(matchesProfile(defaultDesign(), appDefaults)).toBe(true);
     expect(matchesProfile(walkthroughIsland(), appDefaults)).toBe(true);
-    expect(standardsOf(defaultDesign())).toEqual({ ...STANDARDS_DEFAULTS, vnom: 230, vdevPct: 6 });
+    // txLimitBothDirections (O3.5) is reported by standardsOf but not stored by default: absent means the import-only rule.
+    expect(standardsOf(defaultDesign())).toEqual({ ...STANDARDS_DEFAULTS, vnom: 230, vdevPct: 6, txLimitBothDirections: false });
   });
 
   it('applying it changes no result (bit-identical snapshot and scan)', () => {

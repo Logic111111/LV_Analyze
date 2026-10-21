@@ -264,6 +264,7 @@
  * @property {number} vLimHigh
  * @property {number} vufLimitPct
  * @property {{ pole: string, value: number } | null} worstVuf Highest pole VUF in this snapshot.
+ * @property {{ txId: string, pct: number, counted: boolean }[]} [reverseFlowOverloads] Transformers above their limit while exporting (O3.5); `counted` when the both-directions rule made it a violation.
  * @property {number} year
  * @property {number} hour
  * @property {number} loadMult

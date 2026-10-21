@@ -60,7 +60,7 @@ describe('balanceOptimise (O2.2)', () => {
     const check = evaluateDesign(applyPhaseBalance(d, r.recommended.changed.map(c => ({ ...c, newPhase: c.to }))), { years: [0, 5] });
     expect(check.total).toBe(0);
     expect(check.converged).toBe(true);
-    expect(r.ms).toBeLessThan(10000);
+    // Timing (under 10 s) is checked by `npm run bench:opt`: the parallel test run shares the CPU.
   });
   it('annealing alone (exact levels off) finds the 3-move optimum in at least 15 of 20 restarts', () => {
     const r = balanceOptimise(fixture(), 'TX', { maxMoves: 3, exact: false, restarts: 20, budget: 3000, seed: 1 });

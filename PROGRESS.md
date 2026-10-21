@@ -137,7 +137,14 @@ method is a new function with a certificate (`exact`, `lp-bound` or `heuristic`)
 - [ ] **O3.2** Maximum simultaneous hosting (SLP)
 - [ ] **O3.3** Fair-share hosting
 - [ ] **O3.4** All three hosting answers side by side
-- [ ] **O3.5** Transformer reverse-flow limit
+- [x] **O3.5** Transformer reverse-flow limit.
+  - `design.standards.txLimitBothDirections` defaults to off (absent = the import-only rule), so
+    no legacy result changes. The checkbox is in Setup → Standards.
+  - Every snapshot lists `reverseFlowOverloads`. Run & Reports shows a warning for any that isn't
+    counted, and the issues list adds a warning recommending the option.
+  - Golden check: the legacy system PV allocation reaches 107.72 % reverse loading at 13:00. The
+    O-prompt's 107.8 % was for its 111.75 kVA allocation; this code's post-P1.3 allocation is
+    111.65 kVA.
 - [ ] **O4** BESS sizing for losses
 - [ ] **O5** Dual-feeder split without missing the best pair
 - [ ] **O6** Reconductoring as an optimisation

@@ -69,7 +69,7 @@ export default function StandardsCard() {
           <input type="number" value={s.vufLimitPct} step={0.1} min={0} onChange={e => setStd({ vufLimitPct: num(e.target.value) })} /></label>
         <label className="field"><span>Cable loading limit (% of rating)</span>
           <input type="number" value={s.cableLoadingLimitPct} step={5} min={1} onChange={e => setStd({ cableLoadingLimitPct: num(e.target.value) })} /></label>
-        <label className="field"><span>Transformer loading limit (% of rating, importing)</span>
+        <label className="field"><span>Transformer loading limit (% of rating)</span>
           <input type="number" value={s.txLoadingLimitPct} step={5} min={1} onChange={e => setStd({ txLoadingLimitPct: num(e.target.value) })} /></label>
         <label className="field"><span>Fuse disconnection time</span>
           <select value={String(s.disconnectTimeS)} onChange={e => setStd({ disconnectTimeS: num(e.target.value) })}>
@@ -78,6 +78,7 @@ export default function StandardsCard() {
           </select></label>
       </div>
       <label className="chk"><input type="checkbox" checked={s.vufAsViolation} onChange={e => setStd({ vufAsViolation: e.target.checked })} /> Count VUF above the limit as a violation (affects hosting and the advisors)</label>
+      <label className="chk"><input type="checkbox" checked={s.txLimitBothDirections} onChange={e => setStd({ txLimitBothDirections: e.target.checked })} /> Apply the transformer limit to reverse flow too (off: only importing counts, the historical rule; heating is the same either way)</label>
       <div className="addrow" style={{ marginTop: 8 }}>
         <input type="text" placeholder="Save these limits as… (e.g. my utility 2026)" value={saveName} onChange={e => setSaveName(e.target.value)} aria-label="Profile name" />
         <button className="ghost" onClick={save}>Save profile</button>
