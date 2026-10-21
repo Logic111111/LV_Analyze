@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Feeder Island mark: the app's gradient tile with a three-phase wave inside. -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#0F766E"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#g)"/>
+  <rect x="96" y="96" width="320" height="320" rx="56" fill="#0B1220"/>
+  <path d="M136 256 C176 176 216 176 256 256 S336 336 376 256" fill="none" stroke="#3FD1C7" stroke-width="28" stroke-linecap="round"/>
+  <path d="M136 296 C176 216 216 216 256 296 S336 376 376 296" fill="none" stroke="#4F8CFF" stroke-width="20" stroke-linecap="round" opacity=".8"/>
+  <path d="M136 216 C176 136 216 136 256 216 S336 296 376 216" fill="none" stroke="#F5B942" stroke-width="20" stroke-linecap="round" opacity=".8"/>
+</svg>

@@ -6,6 +6,7 @@ import { ThemeProvider } from './context/ThemeContext.jsx';
 import { I18nProvider } from './i18n/i18n.jsx';
 import TopNav from './components/TopNav.jsx';
 import IssuesPanel from './components/IssuesPanel.jsx';
+import UpdateBanner from './components/UpdateBanner.jsx';
 
 import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
@@ -29,6 +30,7 @@ const ScenariosPage = lazy(() => import('./pages/ScenariosPage.jsx'));
 const MapPage = lazy(() => import('./pages/MapPage.jsx'));
 const WizardPage = lazy(() => import('./pages/WizardPage.jsx'));
 const FieldDataPage = lazy(() => import('./pages/FieldDataPage.jsx'));
+const FieldSurveyPage = lazy(() => import('./pages/FieldSurveyPage.jsx'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage.jsx'));
 const InsightsPage = lazy(() => import('./pages/InsightsPage.jsx'));
 const DesignsPage = lazy(() => import('./pages/DesignsPage.jsx'));
@@ -51,6 +53,7 @@ function ProtectedShell() {
           <Route path="map" element={<MapPage />} />
           <Route path="wizard" element={<WizardPage />} />
           <Route path="field-data" element={<FieldDataPage />} />
+          <Route path="field-survey" element={<FieldSurveyPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="daily" element={<DailyPage />} />
@@ -94,6 +97,7 @@ export default function App() {
           <Route path="/app/*" element={<ProtectedShell />} />
           <Route path="*" element={<Navigate to="/app/setup" replace />} />
         </Routes>
+        <UpdateBanner />
       </AuthProvider>
       </I18nProvider>
     </ThemeProvider>

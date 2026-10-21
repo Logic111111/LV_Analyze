@@ -44,5 +44,7 @@ export const api = {
   removeMember: (orgId, userId) => request(`/orgs/${orgId}/members/${userId}`, { method: 'DELETE' }),
   audit: (orgId) => request(`/orgs/${orgId}/audit`),
 
+  // Field survey (P7.8): records made on design version baseVersion.
+  fieldSync: (id, baseVersion, records) => request(`/designs/${id}/field-sync`, { method: 'POST', body: JSON.stringify({ baseVersion, records }) }),
   aiInsights: (payload) => request('/ai/insights', { method: 'POST', body: JSON.stringify(payload) })
 };

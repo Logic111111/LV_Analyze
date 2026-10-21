@@ -1,11 +1,13 @@
 const express = require('express');
 const { requireAuth } = require('../middleware/auth');
 const { can } = require('../access');
+const { loadEngine } = require('../engine');
 
 const ah = (fn) => (req, res, next) => fn(req, res, next).catch(next);
 const MAX_DESIGN_BYTES = 500 * 1024; // generous headroom for a network with hundreds of poles
 const MAX_SUMMARY_BYTES = 8 * 1024;
 const MAX_COMMENT = 2000;
+const MAX_FIELD_RECORDS = 2000;
 
 function validateDesign(design) {
   if (!design || typeof design !== 'object' || Array.isArray(design)) return 'Design payload missing.';
@@ -190,6 +192,43 @@ function designRoutes(repo) {
     const r = await load(req, res, 'read');
     if (!r) return;
     res.json({ reviews: await repo.listReviews(r.design.id), status: r.design.status });
+  }));
+
+  // ---- field survey sync (P7.8) ----
+  // Body: { baseVersion, records } — the version the phone downloaded and what was recorded on it.
+  // Records whose connection hasn't changed since baseVersion are applied as one new version;
+  // the rest come back as conflicts with the current values (engine fieldSurvey.js). The save is
+  // conditional on the version read here, so a save that lands in between is caught (409, retry).
+  router.post('/:id/field-sync', ah(async (req, res) => {
+    const body = req.body || {};
+    const baseVersion = idParam(body.baseVersion);
+    if (!baseVersion) return res.status(400).json({ error: 'baseVersion is required.' });
+    if (!Array.isArray(body.records) || !body.records.length) return res.status(400).json({ error: 'records must be a non-empty list.' });
+    if (body.records.length > MAX_FIELD_RECORDS) return res.status(400).json({ error: `At most ${MAX_FIELD_RECORDS} records per sync.` });
+    const engine = await loadEngine();
+    for (let i = 0; i < body.records.length; i++) {
+      const e = engine.fieldRecordError(body.records[i]);
+      if (e) return res.status(400).json({ error: `Record ${i + 1}: ${e}.` });
+    }
+    const r = await load(req, res, 'edit');
+    if (!r) return;
+    const current = r.design.currentVersion;
+    if (baseVersion > current) return res.status(400).json({ error: 'baseVersion is newer than the design.' });
+    const base = baseVersion === current ? null : await repo.getVersion(r.design.id, baseVersion);
+    if (baseVersion !== current && !base) return res.status(400).json({ error: 'baseVersion not found.' });
+    const records = body.records.map(x => ({ kind: x.kind, id: x.id, observedPhase: x.observedPhase ?? null, meterId: x.meterId ?? null, note: x.note ?? null, photoRef: x.photoRef ?? null, recordedAt: x.recordedAt, force: x.force === true }));
+    const merged = engine.mergeFieldRecords(base ? base.data : null, r.design.data, records);
+    if (!merged.applied.length) return res.json({ id: r.design.id, version: current, applied: [], conflicts: merged.conflicts });
+    const reopen = ['approved', 'rejected'].includes(r.design.status) ? 'draft' : undefined;
+    try {
+      const out = await repo.saveDesignVersion({ designId: r.design.id, userId: req.user.id, txRating: totalRatingKva(merged.design), data: merged.design, summary: null,
+        note: `Field survey: ${merged.applied.length} connection${merged.applied.length === 1 ? '' : 's'}${baseVersion !== current ? ` (recorded on v${baseVersion})` : ''}`, status: reopen, expectVersion: current });
+      await audit(req, { ...r.design, currentVersion: out.version }, 'design.fieldSync', { applied: merged.applied.length, conflicts: merged.conflicts.length, baseVersion });
+      res.json({ id: r.design.id, version: out.version, applied: merged.applied, conflicts: merged.conflicts });
+    } catch (e) {
+      if (e && e.code === 'VERSION_CONFLICT') return res.status(409).json({ error: 'The design was saved by someone else during the sync — sync again.' });
+      throw e;
+    }
   }));
 
   return router;

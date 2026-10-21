@@ -37,6 +37,11 @@ export default [
     languageOptions: { globals: { ...globals.es2021 } }
   },
   {
+    // The service worker template (P7.8); __PRECACHE__ is filled in at build time.
+    files: ['pwa/**/*.js'],
+    languageOptions: { sourceType: 'script', globals: { ...globals.serviceworker, __PRECACHE__: 'readonly' } }
+  },
+  {
     files: ['src/**/__tests__/**', 'scripts/**', 'vite.config.js', 'eslint.config.js'],
     languageOptions: { globals: { ...globals.node } }
   }

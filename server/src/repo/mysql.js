@@ -78,8 +78,11 @@ function createMysqlRepo(pool) {
     // A new version of an existing design (the design row follows it), atomically. `status`
     // optionally changes the workflow state at the same time (an edit to an approved design
     // reopens it as a draft).
-    saveDesignVersion: ({ designId, userId, txRating, data, summary, note, status }) => withTx(async (c) => {
+    // expectVersion (optional): save only if the design is still at that version (the row lock
+    // makes the check and the insert atomic); otherwise roll back with code VERSION_CONFLICT.
+    saveDesignVersion: ({ designId, userId, txRating, data, summary, note, status, expectVersion }) => withTx(async (c) => {
       const [[cur]] = await c.query('SELECT current_version FROM designs WHERE id = ? FOR UPDATE', [designId]);
+      if (expectVersion != null && Number(cur.current_version) !== Number(expectVersion)) throw Object.assign(new Error('Design version moved.'), { code: 'VERSION_CONFLICT' });
       const version = Number(cur.current_version) + 1;
       await c.query('INSERT INTO design_versions (design_id, version, data, note, created_by) VALUES (?, ?, ?, ?, ?)', [designId, version, JSON.stringify(data), note || null, userId]);
       await c.query(

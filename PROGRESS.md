@@ -88,7 +88,7 @@ stable, no invented engineering/commercial data, commit after each item, no push
 - [x] **P7.5** Session revocation
 - [x] **P7.6** OpenDSS export and cross-validation
 - [x] **P7.7** AI insights with tools
-- [ ] **P7.8** Field mode (PWA)
+- [x] **P7.8** Field mode (PWA)
 
 ---
 
@@ -1079,6 +1079,51 @@ within 1e-9.
   End to end in the browser (real server, real engine tools, scripted model): brief, tools table,
   preview, discard, 390 px with no horizontal scroll, no console errors.
 - **Not verified:** a call to the live Anthropic API. There is no API key in this environment.
+
+**P7.8 Field mode (PWA) (2026-10-21).**
+- **Installable, offline client.**
+  - `manifest.webmanifest` (standalone; 192/512 and maskable icons drawn for the app; a "Field
+    survey" shortcut) and a favicon. This also ends the old `/favicon.ico` 404 from Phase 0.
+  - A service worker generated at build time (`client/pwa/sw.template.js` plus a small Vite
+    plugin): every built chunk and the public files are precached; page loads go network-first
+    with the cached `index.html` as the offline fallback.
+  - `/api` is never cached. Google Fonts are cached as used.
+  - A new version waits for "Reload" on a banner, so an open page never loses its lazy chunks.
+  - nginx serves `sw.js`, the manifest and `index.html` as no-cache, and `/assets/` as immutable.
+  - Service workers need HTTPS or localhost. Over plain HTTP the app still works online, but not
+    offline.
+- **Offline start.**
+  - The signed-in user (id and email only — the session cookie stays httpOnly) is remembered.
+  - When the server can't be reached at all, the app opens as that user, marked offline.
+  - On reconnect it re-checks the session. A 401 signs out; records stay on the device.
+- **Field survey page** (phone-first):
+  - Download a saved design.
+  - Pick a pole (search, connection and "waiting" counts).
+  - Per connection, record observed phase (A/B/C/ABC/not checked — always lettered), meter ID,
+    note and photo reference. "Pick…" takes a photo's file name; the photo stays on the phone.
+  - Records live in an outbox in localStorage, per user. They are not cleared on sign-out:
+    unsynced records are field work.
+  - Sync runs on reconnect and on demand.
+- **Sync with conflict detection by version.** `POST /api/designs/:id/field-sync {baseVersion,
+  records}`:
+  - Needs edit rights, like a save. Validates every record (kinds, phases, ≤ 200-character
+    texts, ≤ 2 000 records).
+  - Records whose connection's pole, phase and meter ID are unchanged between `baseVersion` and
+    the current version are applied as one new version ("Field survey: n connections").
+  - Changed or removed connections come back as conflicts with the current values. The surveyor
+    picks "Send mine anyway" (`force`) or "Drop mine".
+  - The save is conditional on the version read (`saveDesignVersion({ expectVersion })` under the
+    row lock). A save that lands in between gives 409, and the client retries once.
+  - Merge logic: `mergeFieldRecords` in the engine (pure, shared).
+- **Tests.**
+  - Engine merge, validation and outbox state: vitest.
+  - The route: node:test — apply, conflict, force, removed, no-op, validation, access and the race.
+  - End to end on the production build, in a phone viewport:
+    - service worker active and controlling, manifest checked;
+    - download, then offline reload of the app;
+    - two records saved offline, no horizontal scroll;
+    - a conflicting office edit (v2), then auto-sync on reconnect (1 applied → v3, 1 conflict);
+    - "Send mine anyway" (v4), with server state verified, and no console errors.
 
 ## Phase verification log
 

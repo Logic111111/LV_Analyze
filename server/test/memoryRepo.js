@@ -31,8 +31,9 @@ function createMemoryRepo() {
       db.versions.push({ designId: id, version: 1, data: clone(data), note: note || null, createdBy: userId, createdAt: now() });
       return { id, version: 1 };
     },
-    async saveDesignVersion({ designId, userId, txRating, data, summary, note, status }) {
+    async saveDesignVersion({ designId, userId, txRating, data, summary, note, status, expectVersion }) {
       const d = db.designs.find(x => x.id === designId);
+      if (expectVersion != null && d.currentVersion !== expectVersion) throw Object.assign(new Error('Design version moved.'), { code: 'VERSION_CONFLICT' });
       const version = d.currentVersion + 1;
       db.versions.push({ designId, version, data: clone(data), note: note || null, createdBy: userId, createdAt: now() });
       Object.assign(d, { txRating, data: clone(data), currentVersion: version, updatedAt: now() });
