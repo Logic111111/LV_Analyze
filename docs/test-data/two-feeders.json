@@ -1,0 +1,919 @@
+{
+ "name": "Two feeders",
+ "transformers": [
+  {
+   "id": "TX",
+   "name": "TX",
+   "txRating": 100,
+   "tap": 2,
+   "hvActual": 10800,
+   "txXR": 3,
+   "txGroundOhms": 7.5
+  }
+ ],
+ "admd": 1.5,
+ "pf": 0.95,
+ "growth": 3,
+ "loadModel": "constant",
+ "zipZ": 0.2,
+ "zipI": 0.2,
+ "zipP": 0.6,
+ "txNoLoadW": {
+  "100": 260,
+  "160": 380,
+  "250": 530,
+  "630": 1200
+ },
+ "vnom": 230,
+ "vdev": 6,
+ "maxpv": 5,
+ "maxbess": 5,
+ "bessRte": 0.9,
+ "lineModel": "simple",
+ "standards": {
+  "profileName": "Current app defaults",
+  "vufLimitPct": 2,
+  "vufAsViolation": false,
+  "disconnectTimeS": 5,
+  "cableLoadingLimitPct": 100,
+  "txLoadingLimitPct": 100
+ },
+ "fault": {
+  "hvFaultMVA": null,
+  "hvXR": 10,
+  "cMax": 1.05,
+  "cMin": 0.95,
+  "condTempC": 80
+ },
+ "fuseLibrary": [],
+ "scenarios": [],
+ "thermal": {
+  "ambientC": [
+   20,
+   20,
+   20,
+   20,
+   20,
+   20,
+   20,
+   20,
+   20,
+   20,
+   20,
+   20,
+   20,
+   20,
+   20,
+   20,
+   20,
+   20,
+   20,
+   20,
+   20,
+   20,
+   20,
+   20
+  ],
+  "oilExponentX": 0.8,
+  "windingExponentY": 1.6,
+  "lossRatioR": 5,
+  "k11": 1,
+  "k21": 1,
+  "k22": 2,
+  "tauOilMin": 180,
+  "tauWindingMin": 4,
+  "topOilRiseK": 55,
+  "hotSpotGradientK": 23
+ },
+ "signOff": {
+  "prepared": "",
+  "preparedDate": "",
+  "checked": "",
+  "checkedDate": "",
+  "approved": "",
+  "approvedDate": ""
+ },
+ "economics": {
+  "lossCostLkrPerKwh": null,
+  "discountRatePct": null,
+  "studyYears": null,
+  "rewirePerMoveLkr": null,
+  "tapChangeLkr": null,
+  "transformerCostLkr": {}
+ },
+ "velander": {
+  "enabled": false,
+  "k1": null,
+  "k2": null
+ },
+ "map": {
+  "tileUrl": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  "attribution": "© OpenStreetMap contributors",
+  "maxZoom": 19,
+  "centerLat": 7.8731,
+  "centerLng": 80.7718,
+  "zoom": 8
+ },
+ "inverter": {
+  "mode": "unity",
+  "voltVarCurve": [
+   [
+    0.92,
+    0.44
+   ],
+   [
+    0.98,
+    0
+   ],
+   [
+    1.02,
+    0
+   ],
+   [
+    1.08,
+    -0.44
+   ]
+  ],
+  "voltWattCurve": [
+   [
+    1.06,
+    1
+   ],
+   [
+    1.1,
+    0.2
+   ]
+  ],
+  "exportLimitKw": null
+ },
+ "protection": {
+  "feederFuses": {},
+  "poleFuses": {}
+ },
+ "includeGeneral": true,
+ "includeEV": true,
+ "includeSolar": true,
+ "includeShop": true,
+ "includeBess": true,
+ "includeEVCS": true,
+ "bessChargeStartHour": 10,
+ "bessChargeEndHour": 14,
+ "bessDischargeStartHour": 19,
+ "bessDischargeEndHour": 23,
+ "loadCurve": [
+  0.35,
+  0.3,
+  0.28,
+  0.27,
+  0.28,
+  0.32,
+  0.45,
+  0.55,
+  0.5,
+  0.45,
+  0.42,
+  0.4,
+  0.42,
+  0.4,
+  0.42,
+  0.48,
+  0.6,
+  0.75,
+  0.95,
+  1,
+  1,
+  0.8,
+  0.6,
+  0.45
+ ],
+ "evCurve": [
+  0.55,
+  0.45,
+  0.3,
+  0.2,
+  0.15,
+  0.1,
+  0.08,
+  0.1,
+  0.15,
+  0.2,
+  0.2,
+  0.18,
+  0.15,
+  0.15,
+  0.15,
+  0.2,
+  0.35,
+  0.55,
+  0.85,
+  1,
+  0.95,
+  0.85,
+  0.7,
+  0.6
+ ],
+ "solarCurve": [
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0.05,
+  0.2,
+  0.45,
+  0.7,
+  0.88,
+  0.98,
+  1,
+  0.98,
+  0.88,
+  0.7,
+  0.45,
+  0.2,
+  0.05,
+  0,
+  0,
+  0,
+  0,
+  0
+ ],
+ "shopCurve": [
+  0.15,
+  0.15,
+  0.15,
+  0.15,
+  0.15,
+  0.15,
+  0.15,
+  0.15,
+  0.5,
+  0.7,
+  0.85,
+  0.95,
+  1,
+  1,
+  0.95,
+  0.9,
+  0.9,
+  0.85,
+  0.75,
+  0.55,
+  0.15,
+  0.15,
+  0.15,
+  0.15
+ ],
+ "evcsCurve": [
+  0.05,
+  0.05,
+  0.05,
+  0.05,
+  0.05,
+  0.05,
+  0.1,
+  0.25,
+  0.45,
+  0.65,
+  0.8,
+  0.9,
+  0.95,
+  1,
+  0.95,
+  0.85,
+  0.7,
+  0.55,
+  0.4,
+  0.25,
+  0.15,
+  0.1,
+  0.08,
+  0.05
+ ],
+ "conductorLibrary": {
+  "70ABC": {
+   "R": 0.443,
+   "L_mH": 0.3,
+   "Z": 0.453,
+   "I": 203,
+   "neutralScale": 1.4
+  },
+  "50ABC": {
+   "R": 0.641,
+   "L_mH": 0.3,
+   "Z": 0.647,
+   "I": 162,
+   "neutralScale": 1.4285714285714286
+  }
+ },
+ "transformerLibrary": {
+  "100": {
+   "kVA": 100,
+   "z": 0.04,
+   "noLoadW": 260
+  },
+  "160": {
+   "kVA": 160,
+   "z": 0.04,
+   "noLoadW": 380
+  },
+  "250": {
+   "kVA": 250,
+   "z": 0.04,
+   "noLoadW": 530
+  },
+  "630": {
+   "kVA": 630,
+   "z": 0.04,
+   "noLoadW": 1200
+  }
+ },
+ "poles": [
+  {
+   "id": "A1",
+   "feeder": "F1",
+   "parent": "TX",
+   "spanM": 46,
+   "cond": "70ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "A2",
+   "feeder": "F1",
+   "parent": "A1",
+   "spanM": 36,
+   "cond": "70ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "A3",
+   "feeder": "F1",
+   "parent": "A2",
+   "spanM": 39,
+   "cond": "70ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "A4",
+   "feeder": "F1",
+   "parent": "A3",
+   "spanM": 46,
+   "cond": "70ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "A5",
+   "feeder": "F1",
+   "parent": "A4",
+   "spanM": 40,
+   "cond": "50ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "A6",
+   "feeder": "F1",
+   "parent": "A5",
+   "spanM": 47,
+   "cond": "50ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "A7",
+   "feeder": "F1",
+   "parent": "A6",
+   "spanM": 40,
+   "cond": "50ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "A8",
+   "feeder": "F1",
+   "parent": "A7",
+   "spanM": 37,
+   "cond": "50ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "A9",
+   "feeder": "F1",
+   "parent": "A8",
+   "spanM": 35,
+   "cond": "50ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "A10",
+   "feeder": "F1",
+   "parent": "A9",
+   "spanM": 45,
+   "cond": "50ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "A11",
+   "feeder": "F1",
+   "parent": "A10",
+   "spanM": 41,
+   "cond": "50ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "A12",
+   "feeder": "F1",
+   "parent": "A11",
+   "spanM": 42,
+   "cond": "50ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "B1",
+   "feeder": "F2",
+   "parent": "TX",
+   "spanM": 48,
+   "cond": "70ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "B2",
+   "feeder": "F2",
+   "parent": "B1",
+   "spanM": 45,
+   "cond": "70ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "B3",
+   "feeder": "F2",
+   "parent": "B2",
+   "spanM": 46,
+   "cond": "70ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "B4",
+   "feeder": "F2",
+   "parent": "B3",
+   "spanM": 36,
+   "cond": "70ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "B5",
+   "feeder": "F2",
+   "parent": "B4",
+   "spanM": 43,
+   "cond": "50ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "B6",
+   "feeder": "F2",
+   "parent": "B5",
+   "spanM": 43,
+   "cond": "50ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "B7",
+   "feeder": "F2",
+   "parent": "B6",
+   "spanM": 38,
+   "cond": "50ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "B8",
+   "feeder": "F2",
+   "parent": "B7",
+   "spanM": 36,
+   "cond": "50ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "B9",
+   "feeder": "F2",
+   "parent": "B8",
+   "spanM": 47,
+   "cond": "50ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "B10",
+   "feeder": "F2",
+   "parent": "B9",
+   "spanM": 50,
+   "cond": "50ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "B11",
+   "feeder": "F2",
+   "parent": "B10",
+   "spanM": 47,
+   "cond": "50ABC",
+   "grounded": false,
+   "groundOhms": 20
+  },
+  {
+   "id": "B12",
+   "feeder": "F2",
+   "parent": "B11",
+   "spanM": 49,
+   "cond": "50ABC",
+   "grounded": false,
+   "groundOhms": 20
+  }
+ ],
+ "loads": [
+  {
+   "id": "L1",
+   "pole": "A1",
+   "type": "general",
+   "phase": "B",
+   "kva": null
+  },
+  {
+   "id": "L2",
+   "pole": "A2",
+   "type": "general",
+   "phase": "B",
+   "kva": null
+  },
+  {
+   "id": "L3",
+   "pole": "A2",
+   "type": "general",
+   "phase": "B",
+   "kva": null
+  },
+  {
+   "id": "L4",
+   "pole": "A2",
+   "type": "general",
+   "phase": "A",
+   "kva": null
+  },
+  {
+   "id": "L5",
+   "pole": "A3",
+   "type": "general",
+   "phase": "A",
+   "kva": null
+  },
+  {
+   "id": "L6",
+   "pole": "A3",
+   "type": "general",
+   "phase": "A",
+   "kva": null
+  },
+  {
+   "id": "L7",
+   "pole": "A4",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L8",
+   "pole": "A4",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L9",
+   "pole": "A5",
+   "type": "general",
+   "phase": "A",
+   "kva": null
+  },
+  {
+   "id": "L10",
+   "pole": "A5",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L11",
+   "pole": "A5",
+   "type": "general",
+   "phase": "B",
+   "kva": null
+  },
+  {
+   "id": "L12",
+   "pole": "A6",
+   "type": "general",
+   "phase": "A",
+   "kva": null
+  },
+  {
+   "id": "L13",
+   "pole": "A6",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L14",
+   "pole": "A7",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L15",
+   "pole": "A7",
+   "type": "general",
+   "phase": "B",
+   "kva": null
+  },
+  {
+   "id": "L16",
+   "pole": "A7",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L17",
+   "pole": "A8",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L18",
+   "pole": "A8",
+   "type": "general",
+   "phase": "A",
+   "kva": null
+  },
+  {
+   "id": "L19",
+   "pole": "A9",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L20",
+   "pole": "A9",
+   "type": "general",
+   "phase": "B",
+   "kva": null
+  },
+  {
+   "id": "L21",
+   "pole": "A10",
+   "type": "general",
+   "phase": "B",
+   "kva": null
+  },
+  {
+   "id": "L22",
+   "pole": "A10",
+   "type": "general",
+   "phase": "B",
+   "kva": null
+  },
+  {
+   "id": "L23",
+   "pole": "A10",
+   "type": "general",
+   "phase": "A",
+   "kva": null
+  },
+  {
+   "id": "L24",
+   "pole": "A11",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L25",
+   "pole": "A11",
+   "type": "general",
+   "phase": "B",
+   "kva": null
+  },
+  {
+   "id": "L26",
+   "pole": "A12",
+   "type": "general",
+   "phase": "B",
+   "kva": null
+  },
+  {
+   "id": "L27",
+   "pole": "A12",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L28",
+   "pole": "B1",
+   "type": "general",
+   "phase": "B",
+   "kva": null
+  },
+  {
+   "id": "L29",
+   "pole": "B1",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L30",
+   "pole": "B2",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L31",
+   "pole": "B2",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L32",
+   "pole": "B3",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L33",
+   "pole": "B3",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L34",
+   "pole": "B3",
+   "type": "general",
+   "phase": "A",
+   "kva": null
+  },
+  {
+   "id": "L35",
+   "pole": "B4",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L36",
+   "pole": "B4",
+   "type": "general",
+   "phase": "B",
+   "kva": null
+  },
+  {
+   "id": "L37",
+   "pole": "B5",
+   "type": "general",
+   "phase": "B",
+   "kva": null
+  },
+  {
+   "id": "L38",
+   "pole": "B6",
+   "type": "general",
+   "phase": "B",
+   "kva": null
+  },
+  {
+   "id": "L39",
+   "pole": "B6",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L40",
+   "pole": "B7",
+   "type": "general",
+   "phase": "B",
+   "kva": null
+  },
+  {
+   "id": "L41",
+   "pole": "B7",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L42",
+   "pole": "B7",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L43",
+   "pole": "B8",
+   "type": "general",
+   "phase": "A",
+   "kva": null
+  },
+  {
+   "id": "L44",
+   "pole": "B8",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L45",
+   "pole": "B9",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L46",
+   "pole": "B9",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L47",
+   "pole": "B10",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L48",
+   "pole": "B10",
+   "type": "general",
+   "phase": "C",
+   "kva": null
+  },
+  {
+   "id": "L49",
+   "pole": "B11",
+   "type": "general",
+   "phase": "B",
+   "kva": null
+  },
+  {
+   "id": "L50",
+   "pole": "B12",
+   "type": "general",
+   "phase": "B",
+   "kva": null
+  },
+  {
+   "id": "L51",
+   "pole": "B12",
+   "type": "general",
+   "phase": "A",
+   "kva": null
+  }
+ ],
+ "pv": [],
+ "bess": [],
+ "openPoints": [
+  {
+   "id": "OP1",
+   "poleA": "A12",
+   "poleB": "B12",
+   "spanM": 30,
+   "cond": "70ABC"
+  }
+ ]
+}
