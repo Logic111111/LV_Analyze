@@ -1,18 +1,41 @@
+/* Design system (UI stage 1, "precision instrument"). Light is the :root block, dark overrides it.
+   Every text colour meets WCAG AA 4.5:1 on --bg, --panel and --panel-2, and each status colour on
+   its own 14% pill (lib/__tests__/contrast.test.js). One light source, from the top-left: the
+   elevation stacks carry a 1px top highlight and soft shadows below. */
 :root{
-  --bg:#F3F5FA; --panel:#FFFFFF; --panel-2:#F1F4F9; --line:#DCE3EE; --text:#17202E; --muted:#5B6B85;
-  /* Status colours double as text, so they meet WCAG AA 4.5:1 on white and on their own tinted
-     pill backgrounds (checked with axe-core, P5.10): teal-700, amber-800, red-700, green-800. */
-  --accent:#0F766E; --accent-2:#2563EB; --warn:#92400E; --bad:#B91C1C; --good:#166534; --accent-ink:#FFFFFF;
+  --bg:#EEF2F7; --panel:#FFFFFF; --panel-2:#F4F7FB; --line:#D5DEEA; --text:#0E1726; --muted:#52627A;
+  --accent:#086A61; --accent-2:#1D5FD8; --accent-ink:#FFFFFF; --good:#12643A; --warn:#8A3B0B; --bad:#B01C2E;
+  --glass:rgba(255,255,255,.80); --glass-blur:blur(14px) saturate(140%);
+  --grid-line:rgba(15,23,42,.035);
+  --halo:radial-gradient(1200px 600px at 20% -10%, rgba(29,95,216,.06), transparent 60%);
+  --elev-1:inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(15,23,42,.06), 0 10px 28px -14px rgba(15,23,42,.18);
+  --elev-2:inset 0 1px 0 rgba(255,255,255,.9), 0 2px 4px rgba(15,23,42,.08), 0 18px 40px -16px rgba(15,23,42,.24);
+  --elev-3:0 8px 20px rgba(15,23,42,.12), 0 30px 60px -20px rgba(15,23,42,.30);
+  --r-1:6px; --r-2:10px; --r-3:14px; --r-4:20px;
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:20px; --s-6:24px; --s-8:32px;
+  --dur-1:120ms; --dur-2:200ms; --dur-3:280ms; --dur-data:400ms;
+  --ease-out:cubic-bezier(.22,1,.36,1); --ease-in:cubic-bezier(.55,0,1,.45); --ease-move:cubic-bezier(.65,0,.35,1);
   --mono:'IBM Plex Mono','SFMono-Regular',Consolas,monospace; --disp:'Space Grotesk','Segoe UI',sans-serif; --body:'Inter','Segoe UI',sans-serif;
 }
 :root[data-theme='dark']{
-  --bg:#0B1220; --panel:#121B2E; --panel-2:#0E1626; --line:#22304A; --text:#DCE6F5; --muted:#7F94B5;
-  --accent:#3FD1C7; --accent-2:#4F8CFF; --warn:#F5B942; --bad:#F0546A; --good:#4FD98A; --accent-ink:#04101F;
+  --bg:#070B12; --panel:#101827; --panel-2:#0C1320; --line:rgba(148,178,214,.14); --text:#E6EDF7; --muted:#8EA0BA;
+  --accent:#3DDCCB; --accent-2:#6CB8FF; --accent-ink:#041018; --good:#5BE49B; --warn:#F7C04A; --bad:#FF7A8A;
+  --glass:rgba(16,24,39,.78);
+  --grid-line:rgba(148,178,214,.045);
+  --halo:radial-gradient(1200px 600px at 20% -10%, rgba(61,220,203,.08), transparent 60%);
+  --elev-1:inset 0 1px 0 rgba(255,255,255,.05), 0 1px 2px rgba(0,0,0,.5), 0 12px 32px -16px rgba(0,0,0,.7);
+  --elev-2:inset 0 1px 0 rgba(255,255,255,.07), 0 2px 4px rgba(0,0,0,.5), 0 20px 44px -18px rgba(0,0,0,.8);
+  --elev-3:inset 0 1px 0 rgba(255,255,255,.08), 0 8px 16px rgba(0,0,0,.45), 0 32px 64px -24px rgba(0,0,0,.85);
+  color-scheme:dark;
 }
 *{box-sizing:border-box}
 html,body,#root{height:100%}
-body{margin:0;background:var(--bg);color:var(--text);font-family:var(--body);font-size:14px;transition:background .15s,color .15s}
-h1,h2,h3{font-family:var(--disp)}
+body{margin:0;color:var(--text);font-family:var(--body);font-size:14px;line-height:1.45;
+  background:var(--halo), linear-gradient(var(--grid-line) 1px, transparent 1px) 0 0/24px 24px, linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0/24px 24px, var(--bg);
+  background-attachment:fixed;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--disp);letter-spacing:-.01em}
+h1{font-size:24px;font-weight:600}
+td,.stat .v,.readout,input[type=number]{font-variant-numeric:tabular-nums}
 a{color:var(--accent-2)}
 header.top{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--panel),var(--bg));position:sticky;top:0;z-index:20;flex-wrap:wrap;gap:10px}
 /* On phones the wrapped tab bar is tall; keeping it sticky would cover much of the screen. */
@@ -37,7 +60,7 @@ main{padding:22px 24px 60px;max-width:1400px;margin:0 auto}
 .g4{grid-template-columns:repeat(4,1fr)}
 @media(max-width:1000px){.g2,.g3,.g4{grid-template-columns:1fr}}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
-.card h2{font-size:14px;margin:0 0 3px;font-weight:600}
+.card h2{font-size:15px;margin:0 0 3px;font-weight:600}
 .card p.hint{color:var(--muted);font-size:12px;margin:0 0 14px;line-height:1.5}
 label.field{display:block;margin-bottom:12px}
 label.field span{display:block;font-size:11px;color:var(--muted);margin-bottom:5px;font-family:var(--mono);letter-spacing:.3px;text-transform:uppercase}
@@ -74,7 +97,7 @@ tr:hover td{background:var(--panel-2)}
 .stat .l{color:var(--muted);font-size:11px;margin-top:4px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.4px}
 .stat.bad .v{color:var(--bad)} .stat.ok .v{color:var(--good)} .stat.warn .v{color:var(--warn)}
 .phaseA{color:#C2410C} .phaseB{color:#2563EB} .phaseC{color:#15803D}
-:root[data-theme='dark'] .phaseA{color:#FF9B71} :root[data-theme='dark'] .phaseB{color:#4F8CFF} :root[data-theme='dark'] .phaseC{color:#4FD98A}
+:root[data-theme='dark'] .phaseA{color:#FFA27F} :root[data-theme='dark'] .phaseB{color:#6AA6FF} :root[data-theme='dark'] .phaseC{color:#5BE49B}
 .slider-row{display:flex;align-items:center;gap:12px;margin-bottom:14px}
 .slider-row input[type=range]{flex:1;accent-color:var(--accent-2)}
 .slider-row .val{font-family:var(--mono);width:60px;text-align:right;color:var(--accent)}
@@ -150,4 +173,8 @@ button.ghost:focus-visible,button.primary:focus-visible,button.mini:focus-visibl
 @media (prefers-reduced-motion: reduce){
   .task-progress-bar.indeterminate .task-progress-fill{animation:none;width:100%;opacity:.45}
   .task-progress-fill{transition:none}
+}
+/* Reduced motion, everywhere: every animation and transition becomes instant. */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:0s!important;animation-iteration-count:1!important;transition-duration:0s!important}
 }
