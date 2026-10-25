@@ -122,5 +122,7 @@
   "Save, open, version and share designs": "வடிவமைப்புகளைச் சேமி, திற, பதிப்பிடு மற்றும் பகிர்",
   "Claude reviews this design with the app engine": "Claude பயன்பாட்டின் இயந்திரத்துடன் இந்த வடிவமைப்பை மதிப்பாய்வு செய்கிறது",
   "About this deployment": "இந்த நிறுவல் பற்றி",
-  "Build a new network step by step": "படிப்படியாக புதிய வலையமைப்பை உருவாக்கு"
+  "Build a new network step by step": "படிப்படியாக புதிய வலையமைப்பை உருவாக்கு",
+  "Command palette": "கட்டளைத் தட்டு",
+  "No matches": "பொருத்தங்கள் இல்லை"
 }

@@ -97,6 +97,22 @@ main{padding:24px 28px 64px;max-width:1440px;width:100%;margin:0 auto}
 .page-desc{margin:6px 0 0;color:var(--muted);font-size:13px}
 .page-actions{display:flex;gap:8px}
 body.drawer-lock{overflow:hidden}
+/* Command palette (Ctrl/⌘+K). */
+.palette-backdrop{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.4);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);display:flex;justify-content:center;align-items:flex-start;padding:12vh 16px 16px;animation:fade-in var(--dur-2) var(--ease-out)}
+.palette{width:min(640px,100%);max-height:min(560px,76vh);display:flex;flex-direction:column;background:var(--glass);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);border:1px solid var(--line);border-radius:var(--r-4);box-shadow:var(--elev-3);overflow:hidden;animation:palette-in var(--dur-2) var(--ease-out)}
+.palette-input-row{display:flex;align-items:center;gap:10px;padding:0 16px;height:56px;border-bottom:1px solid var(--line);color:var(--muted)}
+.palette-input-row input.palette-input{flex:1;width:auto;background:transparent;border:0;padding:0;height:100%;font:15px var(--body);color:var(--text)}
+.palette-input-row input.palette-input:focus,.palette-input-row input.palette-input:focus-visible{outline:none;box-shadow:none}
+.palette-list{list-style:none;margin:0;padding:6px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.palette-option{display:flex;align-items:center;gap:12px;height:42px;padding:0 12px;border-radius:var(--r-2);color:var(--muted);cursor:pointer;position:relative}
+.palette-option.active{background:var(--panel-2);color:var(--text);box-shadow:inset 3px 0 0 var(--accent-2)}
+.palette-option.active .icon{color:var(--accent)}
+.palette-label{flex:1;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.palette-group{font:11px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.palette-empty:empty{display:none}
+.palette-empty{padding:18px 16px 22px;color:var(--muted);font-size:13px;text-align:center}
+@keyframes fade-in{from{opacity:0}}
+@keyframes palette-in{from{opacity:0;transform:scale(.98)}}
 /* Phones: the sidebar becomes an off-canvas drawer (solid, no glass) and the top bar shows the
    menu button. The top bar stays sticky: it is one row now that the tabs are gone. */
 @media (max-width: 720px){
@@ -128,6 +144,7 @@ body.drawer-lock{overflow:hidden}
 /* The sidebar narrows the content, so grids also collapse on the content's own width (950 px is
    where the old full-width layout collapsed), and grid cells may shrink below their content. */
 main{container-type:inline-size;container-name:main}
+@container main (max-width: 1200px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @container main (max-width: 950px){.g2,.g3,.g4{grid-template-columns:minmax(0,1fr)}}
 .grid>*{min-width:0}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
