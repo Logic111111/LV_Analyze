@@ -7,8 +7,8 @@ export const SLD_PALETTES = {
     phaseA: '#C2410C', phaseB: '#2563EB', phaseC: '#15803D', accent: '#7C3AED', bg: '#FFFFFF'
   },
   dark: {
-    line: '#9FB0CC', text: '#DCE6F5', muted: '#7F94B5', ok: '#4FD98A', warn: '#F5B942', bad: '#F0546A',
-    phaseA: '#FF9B71', phaseB: '#4F8CFF', phaseC: '#4FD98A', accent: '#C084FC', bg: '#121B2E'
+    line: '#9FB0CC', text: '#E6EDF7', muted: '#8EA0BA', ok: '#5BE49B', warn: '#F7C04A', bad: '#FF7A8A',
+    phaseA: '#FFA27F', phaseB: '#6AA6FF', phaseC: '#5BE49B', accent: '#C084FC', bg: '#101827'
   }
 };
 

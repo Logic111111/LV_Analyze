@@ -154,7 +154,7 @@ main{container-type:inline-size;container-name:main}
 .card p.hint{color:var(--muted);font-size:12px;margin:0 0 14px;line-height:1.5}
 label.field{display:block;margin-bottom:12px}
 label.field span{display:block;font-size:11px;color:var(--muted);margin-bottom:5px;font-family:var(--mono);letter-spacing:.3px;text-transform:uppercase}
-select,input[type=number],input[type=text],input[type=password],input[type=email]{
+select,textarea,input[type=number],input[type=text],input[type=password],input[type=email],input[type=date],input[type=time],input[type=search],input[type=url]{
   width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:9px 10px;border-radius:var(--r-2);font-size:13px;font-family:var(--mono);
   box-shadow:inset 0 1px 2px rgba(0,0,0,.18);transition:border-color var(--dur-1),box-shadow var(--dur-1);
 }
@@ -248,7 +248,15 @@ tr:hover td{background:var(--panel-2)}
 .explain-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.38);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);z-index:60;display:flex;justify-content:flex-end}
 .explain-drawer{background:var(--panel);width:min(760px,100vw);height:100%;overflow:auto;padding:20px;border-left:1px solid var(--line);box-shadow:var(--elev-3);box-sizing:border-box}
 /* Map editor (P5.7). Leaflet needs an explicit height. Labels are text, phases lettered. */
-.map-frame{height:60vh;min-height:320px;border-radius:8px;z-index:0}
+.map-frame{height:60vh;min-height:320px;border-radius:var(--r-3);z-index:0;border:1px solid var(--line);box-shadow:var(--elev-1);overflow:hidden}
+.map-frame .leaflet-bar{border:1px solid var(--line);border-radius:var(--r-2);overflow:hidden;box-shadow:var(--elev-1)}
+.map-frame .leaflet-bar a{background:var(--panel);color:var(--text);border-bottom-color:var(--line)}
+.map-frame .leaflet-bar a:hover{background:var(--panel-2)}
+.map-frame .leaflet-control-attribution{background:color-mix(in srgb,var(--panel) 85%,transparent);color:var(--muted)}
+.map-frame .leaflet-control-attribution a{color:var(--accent-2)}
+/* Dark theme: tiles are dimmed only — never colour-inverted — so a custom tile source such as
+   satellite imagery stays legible. Node labels sit above the tile pane and keep full contrast. */
+:root[data-theme='dark'] .map-frame .leaflet-tile-pane{filter:brightness(.75) saturate(.8) contrast(1.05)}
 .map-icon{background:transparent;border:0}
 .map-node{display:inline-block;padding:2px 5px;border-radius:999px;font:600 11px var(--mono);background:var(--panel);color:var(--text);border:2px solid var(--accent-2);white-space:nowrap}
 .map-tx{border-color:var(--text);border-radius:3px}

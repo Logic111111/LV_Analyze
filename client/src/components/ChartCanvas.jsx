@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Chart } from 'chart.js/auto';
+import '../lib/chartDefaults.js';
 
 // Any Chart.js chart type on a canvas, rebuilt when data/options change. `label` gives the canvas
 // an accessible name; pages also print the key numbers as text, so nothing is chart-only.

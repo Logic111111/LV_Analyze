@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import { useDesign } from '../context/DesignContext.jsx';
 import { measuredSpans, acceptMeasuredSpans, hasCoords, haversineM, usableConductorCodes } from '../lib/loadflow.js';
 import { useT } from '../i18n/i18n.jsx';
+import { useTheme } from '../context/ThemeContext.jsx';
 
 // Map-based network editor (P5.7). Leaflet's own API (BSD-2) in a small React wrapper:
 // react-leaflet, which the brief names, is under the Hippocratic License 2.1 (not OSI-approved,
@@ -45,6 +46,7 @@ function isDescendant(design, ancestor, id) {
 
 export default function MapPage() {
   const { design, setDesign } = useDesign();
+  const { theme } = useTheme();
   const t = useT();
   const mapEl = useRef(null);
   const mapRef = useRef(null);
@@ -131,11 +133,11 @@ export default function MapPage() {
     const pos = new Map(nodes.filter(n => hasCoords(n.item)).map(n => [n.item.id, [Number(n.item.lat), Number(n.item.lng)]]));
     design.poles.forEach(p => {
       if (pos.has(p.id) && pos.has(p.parent)) {
-        L.polyline([pos.get(p.parent), pos.get(p.id)], { color: '#2563EB', weight: 3 }).bindTooltip(`${p.parent} → ${p.id}: ${p.spanM} m entered, ${p.cond}`).addTo(g);
+        L.polyline([pos.get(p.parent), pos.get(p.id)], { color: theme === 'dark' ? '#6CB8FF' : '#1D5FD8', weight: 3 }).bindTooltip(`${p.parent} → ${p.id}: ${p.spanM} m entered, ${p.cond}`).addTo(g);
       }
     });
     (design.openPoints || []).forEach(o => {
-      if (pos.has(o.poleA) && pos.has(o.poleB)) L.polyline([pos.get(o.poleA), pos.get(o.poleB)], { color: '#64748B', weight: 2, dashArray: '6 5' }).bindTooltip(`Open point ${o.id}`).addTo(g);
+      if (pos.has(o.poleA) && pos.has(o.poleB)) L.polyline([pos.get(o.poleA), pos.get(o.poleB)], { color: theme === 'dark' ? '#8EA0BA' : '#52627A', weight: 2, dashArray: '6 5' }).bindTooltip(`Open point ${o.id}`).addTo(g);
     });
     nodes.forEach(({ kind, item }) => {
       if (!pos.has(item.id)) return;
@@ -159,7 +161,7 @@ export default function MapPage() {
         }
       }
     });
-  }, [design, nodes, selected, mode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [design, nodes, selected, mode, theme]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function fit() {
     const pts = placed.map(n => [Number(n.item.lat), Number(n.item.lng)]);
