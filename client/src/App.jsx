@@ -4,7 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { DesignProvider } from './context/DesignContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 import { I18nProvider } from './i18n/i18n.jsx';
-import TopNav from './components/TopNav.jsx';
+import AppShell from './components/AppShell.jsx';
 import IssuesPanel from './components/IssuesPanel.jsx';
 import UpdateBanner from './components/UpdateBanner.jsx';
 
@@ -43,8 +43,7 @@ function ProtectedShell() {
 
   return (
     <DesignProvider>
-      <TopNav />
-      <main id="main" tabIndex={-1}>
+      <AppShell>
         <Suspense fallback={<div className="card" role="status">Loading…</div>}>
         <Routes>
           <Route path="setup" element={<SetupPage />} />
@@ -73,7 +72,7 @@ function ProtectedShell() {
           <Route path="*" element={<Navigate to="setup" replace />} />
         </Routes>
         </Suspense>
-      </main>
+      </AppShell>
       <IssuesPanel />
     </DesignProvider>
   );

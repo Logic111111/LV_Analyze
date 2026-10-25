@@ -37,28 +37,99 @@ h1,h2,h3{font-family:var(--disp);letter-spacing:-.01em}
 h1{font-size:24px;font-weight:600}
 td,.stat .v,.readout,input[type=number]{font-variant-numeric:tabular-nums}
 a{color:var(--accent-2)}
-header.top{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--panel),var(--bg));position:sticky;top:0;z-index:20;flex-wrap:wrap;gap:10px}
-/* On phones the wrapped tab bar is tall; keeping it sticky would cover much of the screen. */
-@media (max-width: 720px){header.top{position:static;padding:12px 16px}}
+/* ── App shell (UI stage 1): sidebar + sticky top bar + main ───────────────────────────── */
+.mark{width:32px;height:32px;border-radius:9px;background:conic-gradient(from 210deg,var(--accent-2),var(--accent),var(--accent-2));position:relative;flex:none;box-shadow:0 0 18px color-mix(in srgb,var(--accent) 35%,transparent)}
+.mark::after{content:'';position:absolute;inset:7px;border-radius:4px;background:var(--bg)}
 .brand{display:flex;align-items:center;gap:12px}
-.brand .mark{width:34px;height:34px;border-radius:8px;background:conic-gradient(from 210deg,var(--accent-2),var(--accent),var(--accent-2));position:relative;flex:none}
-.brand .mark::after{content:'';position:absolute;inset:7px;border-radius:4px;background:var(--bg)}
-.brand h1{font-size:16px;margin:0;font-weight:600}
-.brand span{display:block;font-size:11px;color:var(--muted);margin-top:2px;font-family:var(--mono)}
-nav.tabs{display:flex;gap:2px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:3px;flex-wrap:wrap}
-nav.tabs a{border:none;background:transparent;color:var(--muted);padding:8px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;transition:.15s}
-nav.tabs a.active{background:var(--accent-2);color:var(--accent-ink)}
-nav.tabs a:hover:not(.active){color:var(--text)}
-.headright{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.iconbtn{border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:7px 12px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600}
-.iconbtn:disabled{opacity:.5;cursor:not-allowed}
-.iconbtn:hover{color:var(--text);border-color:var(--accent-2)}
-main{padding:22px 24px 60px;max-width:1400px;margin:0 auto}
+.brand h1{font-size:18px;margin:0;font-weight:600}
+.shell{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100%;transition:grid-template-columns var(--dur-2) var(--ease-move)}
+.shell.collapsed{grid-template-columns:64px minmax(0,1fr)}
+.shell-main{min-width:0;display:flex;flex-direction:column}
+.sidebar{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;background:var(--glass);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);border-right:1px solid var(--line);z-index:30;overflow:hidden}
+.sidebar-brand{display:flex;align-items:center;gap:10px;height:56px;padding:0 16px;border-bottom:1px solid var(--line);flex:none}
+.brand-name{font:600 15px var(--disp);white-space:nowrap}
+.iconbtn.sidebar-close{display:none;margin-left:auto}
+.sidebar-nav{position:relative;flex:1;overflow-y:auto;overflow-x:hidden;padding:4px 10px 12px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.sidebar-section{margin-top:10px}
+.sidebar-group{font:600 10.5px var(--mono);letter-spacing:.7px;text-transform:uppercase;color:var(--muted);padding:6px 10px;white-space:nowrap}
+.sidebar-nav ul{list-style:none;margin:0;padding:0}
+.sidebar-item{display:flex;align-items:center;gap:10px;height:34px;padding:0 10px;border-radius:var(--r-2);color:var(--muted);text-decoration:none;font-size:13px;font-weight:500;white-space:nowrap;transition:color var(--dur-1),background-color var(--dur-1)}
+.sidebar-item:hover{color:var(--text);background:var(--panel-2)}
+.sidebar-item.active{color:var(--text);background:color-mix(in srgb,var(--accent) 11%,transparent)}
+.sidebar-item .icon{flex:none}
+.sidebar-item.active .icon{color:var(--accent)}
+.sidebar-item:focus-visible,.sidebar-collapse:focus-visible{outline:2px solid var(--accent-2);outline-offset:-2px}
+.sidebar-indicator{position:absolute;left:3px;top:0;width:3px;border-radius:3px;background:var(--accent);box-shadow:0 0 12px var(--accent);opacity:0;pointer-events:none;transition:transform var(--dur-2) var(--ease-move),height var(--dur-2) var(--ease-move),opacity var(--dur-2)}
+.sidebar-indicator.on{opacity:1}
+.sidebar-collapse{display:flex;align-items:center;gap:10px;flex:none;margin:8px 10px 12px;height:34px;padding:0 10px;border:1px solid var(--line);border-radius:var(--r-2);background:transparent;color:var(--muted);cursor:pointer;font:12px var(--body);white-space:nowrap}
+.sidebar-collapse:hover{color:var(--text);border-color:var(--accent-2)}
+.shell.collapsed .sidebar-label,.shell.collapsed .sidebar-group,.shell.collapsed .brand-name{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+.shell.collapsed .sidebar-section{margin-top:6px;padding-top:6px;border-top:1px solid var(--line)}
+.shell.collapsed .sidebar-item,.shell.collapsed .sidebar-collapse{justify-content:center;padding:0}
+.shell.collapsed .sidebar-brand{justify-content:center;padding:0}
+header.top{position:sticky;top:0;z-index:20;background:var(--glass);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);border-bottom:1px solid var(--line)}
+.topbar-row{display:flex;align-items:center;gap:14px;height:56px;padding:0 20px}
+.iconbtn.topbar-menu{display:none}
+.topbar-design{min-width:0}
+.topbar-name{font:600 14px var(--disp);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar-meta{font:11px var(--mono);color:var(--muted);white-space:nowrap}
+.palette-trigger{flex:0 1 380px;margin:0 auto;display:flex;align-items:center;gap:8px;height:34px;padding:0 10px;min-width:0;border:1px solid var(--line);border-radius:var(--r-2);background:var(--panel-2);color:var(--muted);font:13px var(--body);cursor:pointer;transition:color var(--dur-1),border-color var(--dur-1)}
+.palette-trigger:hover{color:var(--text);border-color:var(--accent-2)}
+.palette-trigger:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
+.palette-trigger-text{flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+kbd{font:600 10.5px var(--mono);padding:2px 6px;border-radius:5px;border:1px solid var(--line);background:var(--panel);color:var(--muted);white-space:nowrap}
+.headright{display:flex;gap:6px;align-items:center}
+.headright .lang-select{height:34px;padding:0 8px}
+.iconbtn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:34px;height:34px;padding:0 9px;border:1px solid var(--line);border-radius:var(--r-2);background:var(--panel-2);color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;transition:color var(--dur-1),border-color var(--dur-1)}
+.iconbtn:disabled{opacity:.45;cursor:not-allowed}
+.iconbtn:hover:not(:disabled){color:var(--text);border-color:var(--accent-2)}
+.account{position:relative}
+.account summary{list-style:none}
+.account summary::-webkit-details-marker{display:none}
+.account summary:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
+.account-menu{position:absolute;right:0;top:calc(100% + 8px);min-width:220px;padding:12px;display:grid;gap:10px;border:1px solid var(--line);border-radius:var(--r-3);background:var(--panel);box-shadow:var(--elev-3);z-index:50}
+.account-email{font:12px var(--mono);color:var(--muted);overflow-wrap:anywhere}
+header.top .draft-banner{margin:0 20px 10px}
+main{padding:24px 28px 64px;max-width:1440px;width:100%;margin:0 auto}
+.page-header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:4px 0 20px}
+.page-eyebrow{font:600 11px var(--mono);letter-spacing:.8px;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+.page-header h1{margin:0;font-size:24px;line-height:1.2}
+.page-desc{margin:6px 0 0;color:var(--muted);font-size:13px}
+.page-actions{display:flex;gap:8px}
+body.drawer-lock{overflow:hidden}
+/* Phones: the sidebar becomes an off-canvas drawer (solid, no glass) and the top bar shows the
+   menu button. The top bar stays sticky: it is one row now that the tabs are gone. */
+@media (max-width: 720px){
+  .shell,.shell.collapsed{grid-template-columns:minmax(0,1fr)}
+  .sidebar{position:fixed;left:0;top:0;bottom:0;width:min(300px,86vw);height:auto;background:var(--panel);-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:var(--elev-3);z-index:60;transform:translateX(-100%);visibility:hidden;transition:transform var(--dur-2) var(--ease-in),visibility 0s linear var(--dur-2)}
+  .sidebar.open{transform:none;visibility:visible;transition:transform var(--dur-3) var(--ease-out),visibility 0s}
+  .shell.collapsed .sidebar-label,.shell.collapsed .sidebar-group,.shell.collapsed .brand-name{position:static;width:auto;height:auto;overflow:visible;clip:auto}
+  .shell.collapsed .sidebar-item{justify-content:flex-start;padding:0 10px}
+  .shell.collapsed .sidebar-brand{justify-content:flex-start;padding:0 16px}
+  .shell.collapsed .sidebar-section{border-top:0}
+  .iconbtn.sidebar-close{display:inline-flex}
+  .sidebar-collapse{display:none}
+  .sidebar-backdrop{position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+  .iconbtn.topbar-menu{display:inline-flex}
+  .topbar-row{padding:0 12px;gap:8px}
+  .topbar-design{flex:1}
+  .topbar-meta{display:none}
+  .palette-trigger{flex:none;margin:0}
+  .palette-trigger-text,.palette-trigger kbd{display:none}
+  .headright .lang-select{max-width:88px}
+  header.top .draft-banner{margin:0 12px 8px}
+  main{padding:16px 14px 72px}
+}
 .grid{display:grid;gap:18px}
 .g2{grid-template-columns:1fr 1fr}
 .g3{grid-template-columns:repeat(3,1fr)}
 .g4{grid-template-columns:repeat(4,1fr)}
 @media(max-width:1000px){.g2,.g3,.g4{grid-template-columns:1fr}}
+/* The sidebar narrows the content, so grids also collapse on the content's own width (950 px is
+   where the old full-width layout collapsed), and grid cells may shrink below their content. */
+main{container-type:inline-size;container-name:main}
+@container main (max-width: 950px){.g2,.g3,.g4{grid-template-columns:minmax(0,1fr)}}
+.grid>*{min-width:0}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
 .card h2{font-size:15px;margin:0 0 3px;font-weight:600}
 .card p.hint{color:var(--muted);font-size:12px;margin:0 0 14px;line-height:1.5}
