@@ -7,7 +7,8 @@ import SingleLineDiagram from '../components/SingleLineDiagram.jsx';
 import ChartCanvas from '../components/ChartCanvas.jsx';
 import { SolveStatusWarning } from '../components/Convergence.jsx';
 import { CHART_PALETTES, themedScales } from '../lib/chartTheme.js';
-import { withVoltages, headline, tableRows } from './compareData.js';
+import { useKeyboardScrollRegions } from '../hooks/useKeyboardScrollRegions.js';
+import { withVoltages, headline, tableRows, compareBoth, verdictText } from './compareData.js';
 
 // The OpenDSS comparison app (compare.html, spec docs/superpowers/specs/2026-11-09-opendss-compare-app-design.md):
 // one hour of a saved island, solved by the server in both Feeder Island and OpenDSS, side by side for a
@@ -28,6 +29,8 @@ export default function CompareApp() {
   const [error, setError] = useState('');
   const [result, setResult] = useState(null); // { design, res, check, ms }
   const runId = useRef(0);
+  // The long bus table scrolls inside its frame: give it a tab stop so keyboard users can scroll it (Safari).
+  useKeyboardScrollRegions();
 
   useEffect(() => {
     (async () => {
@@ -51,9 +54,8 @@ export default function CompareApp() {
     try {
       const design = withDefaults((await api.getDesign(selected)).design);
       const opts = { year: 0, hour, loadMult: 1, solarMult: 1 };
-      const res = runSnapshotAt(design, opts);
       const t0 = performance.now();
-      const check = await api.opendssCheck({ ...design, logo: undefined }, opts, true);
+      const { res, check } = await compareBoth(() => api.opendssCheck({ ...design, logo: undefined }, opts, true), () => runSnapshotAt(design, opts));
       if (id !== runId.current) return;
       if (check.ok === false) throw new Error(check.error || 'OpenDSS did not solve this snapshot.');
       setResult({ design, res, check, ms: performance.now() - t0 });
@@ -133,7 +135,7 @@ function Results({ result, theme }) {
           {design.name} at {hh(check.hour)} <span className={'pill ' + (check.pass ? 'ok' : 'bad')}>{check.pass ? 'Pass' : 'Fail'}</span>
         </h2>
         <p className="hint" style={{ marginBottom: 0 }}>
-          {check.pass ? 'Every bus voltage agrees' : 'Some bus voltages differ by more than'} within {check.tolerance * 1000} mV.
+          {verdictText(check)}
           {' '}{String(check.opendss).replace(/ revision.*/, '')}, {check.iterations} iterations, answered in {(ms / 1000).toFixed(1)} s.
         </p>
       </div>

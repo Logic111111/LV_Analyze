@@ -29,6 +29,20 @@ export function headline(check) {
   };
 }
 
+/** Sends the OpenDSS check, then solves in the browser while the server works (spec §5: in parallel). */
+export async function compareBoth(sendCheck, solve) {
+  const pending = sendCheck();
+  pending.catch(() => {}); // a failure is reported by the await below, not as an unhandled rejection if solve() throws
+  const res = solve();
+  return { res, check: await pending };
+}
+
+/** The verdict sentence under the Pass/Fail pill. */
+export function verdictText(check) {
+  const mV = check.tolerance * 1000;
+  return check.pass ? `Every bus voltage agrees within ${mV} mV.` : `Some bus voltages differ by more than ${mV} mV.`;
+}
+
 /** Every bus and phase with its difference in mV, largest first. */
 export function tableRows(points) {
   return points

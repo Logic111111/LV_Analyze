@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { withVoltages, headline, tableRows } from '../../compare/compareData.js';
+import fs from 'node:fs';
+import { withVoltages, headline, tableRows, compareBoth, verdictText } from '../../compare/compareData.js';
 
 // The comparison app's pure helpers: everything on its screen comes from the OpenDSS check's answer.
 const res = {
@@ -37,6 +38,32 @@ describe('headline', () => {
     expect(h.minV).toEqual({ app: null, dss: null });
     expect(h.maxV).toEqual({ app: null, dss: null });
     expect(h.neutralA).toEqual({ app: null, dss: null });
+  });
+});
+
+describe('compareBoth', () => {
+  it('sends the OpenDSS check before the browser solve starts, so the two overlap', async () => {
+    const order = [];
+    const out = await compareBoth(() => { order.push('check'); return Promise.resolve('answer'); }, () => { order.push('solve'); return 'res'; });
+    expect(order).toEqual(['check', 'solve']);
+    expect(out).toEqual({ res: 'res', check: 'answer' });
+  });
+  it('passes a failed check on to the caller', async () => {
+    await expect(compareBoth(() => Promise.reject(new Error('Not signed in.')), () => 'res')).rejects.toThrow('Not signed in.');
+  });
+});
+
+describe('verdictText', () => {
+  it('reads as a sentence for a pass and for a fail', () => {
+    expect(verdictText({ pass: true, tolerance: 0.5 })).toBe('Every bus voltage agrees within 500 mV.');
+    expect(verdictText({ pass: false, tolerance: 0.5 })).toBe('Some bus voltages differ by more than 500 mV.');
+  });
+});
+
+describe('nginx', () => {
+  it('never lets a browser cache compare.html, which names the hashed assets of one release', () => {
+    const conf = fs.readFileSync(new URL('../../../nginx.conf', import.meta.url), 'utf8');
+    expect(conf).toMatch(/location = \/compare\.html \{[^}]*Cache-Control "no-cache"/);
   });
 });
 
