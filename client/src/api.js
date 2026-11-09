@@ -46,5 +46,8 @@ export const api = {
 
   // Field survey (P7.8): records made on design version baseVersion.
   fieldSync: (id, baseVersion, records) => request(`/designs/${id}/field-sync`, { method: 'POST', body: JSON.stringify({ baseVersion, records }) }),
-  aiInsights: (payload) => request('/ai/insights', { method: 'POST', body: JSON.stringify(payload) })
+  aiInsights: (payload) => request('/ai/insights', { method: 'POST', body: JSON.stringify(payload) }),
+  // OpenDSS cross-check of one snapshot (year, hour, loadMult, solarMult), run on the server.
+  // full: also every bus voltage and span current (the comparison app).
+  opendssCheck: (design, opts, full = false) => request('/opendss/check', { method: 'POST', body: JSON.stringify({ design, opts, full }) })
 };

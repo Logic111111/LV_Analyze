@@ -113,7 +113,7 @@ export default function SetupPage() {
         </div>
       </div>
 
-      <div style={{ marginTop: 18 }}><TapAdvisorCard /></div>
+      <div className="mt-4"><TapAdvisorCard /></div>
 
       <div className="section-title">Transformer no-load loss by rating</div>
       <div className="card" style={{ padding: '8px 12px' }}>
@@ -137,7 +137,7 @@ export default function SetupPage() {
         </table></div>
       </div>
 
-      <div className="grid g3" style={{ marginTop: 18 }}>
+      <div className="grid g3 mt-4">
         <div className="card">
           <h2>Customer load assumptions</h2>
           <p className="hint">Applied to every general connection unless overridden per-connection. ADMD represents the night peak (18:30–22:30).</p>
@@ -186,7 +186,7 @@ export default function SetupPage() {
 
         <div>
           <StandardsCard />
-          <div className="card" style={{ marginTop: 18 }}>
+          <div className="card mt-4">
           <h2>Connection caps</h2>
           <label className="field"><span>Max single-phase PV per connection (kW)</span>
             <input type="number" value={design.maxpv} step={0.5} onChange={e => set({ maxpv: num(e.target.value) })} /></label>
@@ -227,8 +227,8 @@ export default function SetupPage() {
         </div>
       </div>
 
-      <div style={{ marginTop: 18 }}><InverterCard /></div>
-      <div style={{ marginTop: 18 }}><ThermalCard /></div>
+      <div className="mt-4"><InverterCard /></div>
+      <div className="mt-4"><ThermalCard /></div>
 
       <div className="section-title" id="section-fault" tabIndex={-1}>Fault level &amp; protection settings</div>
       <div className="card">
@@ -249,11 +249,11 @@ export default function SetupPage() {
 
       <div className="section-title" id="section-conductors" tabIndex={-1}>Conductor library</div>
       <ConductorLibraryEditor />
-      <div style={{ marginTop: 18 }}><LineModelCard /></div>
-      <div style={{ marginTop: 18 }} id="section-economics" tabIndex={-1}><EconomicsCard /></div>
-      <div style={{ marginTop: 18 }} id="section-velander" tabIndex={-1}><VelanderCard /></div>
+      <div className="mt-4"><LineModelCard /></div>
+      <div className="mt-4" id="section-economics" tabIndex={-1}><EconomicsCard /></div>
+      <div className="mt-4" id="section-velander" tabIndex={-1}><VelanderCard /></div>
 
-      <div className="grid g4" style={{ marginTop: 18 }}>
+      <div className="grid g4 mt-4">
         <div className="card">
           <h2>General load daily curve</h2>
           <p className="hint">Multiplier of ADMD by hour. Drag bars to reshape.</p>

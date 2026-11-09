@@ -4,7 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { DesignProvider } from './context/DesignContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 import { I18nProvider } from './i18n/i18n.jsx';
-import TopNav from './components/TopNav.jsx';
+import AppShell from './components/AppShell.jsx';
 import IssuesPanel from './components/IssuesPanel.jsx';
 import UpdateBanner from './components/UpdateBanner.jsx';
 
@@ -35,6 +35,7 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage.jsx'));
 const InsightsPage = lazy(() => import('./pages/InsightsPage.jsx'));
 const DesignsPage = lazy(() => import('./pages/DesignsPage.jsx'));
 const AboutPage = lazy(() => import('./pages/AboutPage.jsx'));
+const ValidationPage = lazy(() => import('./pages/ValidationPage.jsx'));
 
 function ProtectedShell() {
   const { user, loading } = useAuth();
@@ -43,9 +44,8 @@ function ProtectedShell() {
 
   return (
     <DesignProvider>
-      <TopNav />
-      <main id="main" tabIndex={-1}>
-        <Suspense fallback={<div className="card" role="status">Loading…</div>}>
+      <AppShell>
+        <Suspense fallback={<div className="skeleton-page" role="status" aria-label="Loading…"><div className="sk sk-title" /><div className="sk sk-card" /><div className="sk sk-card" /></div>}>
         <Routes>
           <Route path="setup" element={<SetupPage />} />
           <Route path="network" element={<NetworkPage />} />
@@ -69,11 +69,12 @@ function ProtectedShell() {
           <Route path="scenarios" element={<ScenariosPage />} />
           <Route path="insights" element={<InsightsPage />} />
           <Route path="designs" element={<DesignsPage />} />
+          <Route path="validation" element={<ValidationPage />} />
           <Route path="about" element={<AboutPage />} />
           <Route path="*" element={<Navigate to="setup" replace />} />
         </Routes>
         </Suspense>
-      </main>
+      </AppShell>
       <IssuesPanel />
     </DesignProvider>
   );

@@ -32,6 +32,15 @@ function serviceWorker() {
 export default defineConfig({
   plugins: [react(), serviceWorker()],
   resolve: { alias: { '@feeder-island/engine': ENGINE } },
+  // Two pages: the app, and the OpenDSS comparison app (compare.html).
+  build: {
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        compare: fileURLToPath(new URL('./compare.html', import.meta.url))
+      }
+    }
+  },
   server: {
     port: 5173,
     // The dev server may serve the engine package from outside client/.

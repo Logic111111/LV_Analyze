@@ -63,7 +63,7 @@ export default function ReconductorPage() {
       {applied && <div className="note" style={{ marginTop: 14 }}>Applied — {applied} Review it on Network or Diagram.</div>}
 
       {result && !preview && (
-        <div className="card" style={{ marginTop: 14 }}>
+        <div className="card mt-4">
           <p className="hint" style={{ marginBottom: 6 }}>
             Current design: {result.years.map(y => `${result.baseline.violationsByYear[y]} violation(s) in year ${y}`).join(', ')} · {result.baseline.kwhYear0.toFixed(2)} kWh/day loss (year 0).
             {result.truncated && <b> Only the first {result.candidates.length} of {result.candidateCount} options were scanned — raise the maximum to see the rest.</b>}
@@ -101,9 +101,9 @@ export default function ReconductorPage() {
       {!preview && <ReconductorOptCard design={design} years={checkHorizon && Number(horizon) > 0 ? [0, Math.round(Number(horizon))] : [0]} onPreview={(c) => { setApplied(''); setPreview(c); }} />}
 
       {preview && previewView && (
-        <div className="card" style={{ marginTop: 14 }}>
+        <div className="card mt-4">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-            <h2 style={{ margin: 0 }}>Preview — {describeReconductor(preview.changes)}</h2>
+            <h2 className="flush">Preview — {describeReconductor(preview.changes)}</h2>
             <span><button className="primary" onClick={() => apply(preview)}>Apply this design</button> <button className="mini" onClick={() => setPreview(null)}>Discard preview</button></span>
           </div>
           <p className="hint">Shown at night peak (20:00, year 0). Restrung spans are labelled with their new conductor.</p>

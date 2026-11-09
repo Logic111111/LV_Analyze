@@ -3,14 +3,14 @@
 // dev-only, nothing here ships. Usage: node scripts/opendss-cases.mjs <outDir>
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { toOpenDSS, runSnapshotAt } from '../packages/engine/index.js';
+import { openDSSCheckCase } from '../packages/engine/index.js';
 import { walkthroughIsland } from '../client/src/lib/__tests__/fixtures/walkthroughIsland.js';
 import { syntheticFeeder } from '../client/src/lib/__tests__/fixtures/syntheticFeeder.js';
+import { twoFeeders } from '../client/src/lib/__tests__/fixtures/twoFeeders.js';
 
 const outDir = process.argv[2] || 'opendss-out';
 mkdirSync(outDir, { recursive: true });
 
-const abs = (z) => Math.hypot(z.re, z.im);
 // A coupled-model variant: every conductor gets a 4×4 matrix with its own R/X on the diagonal and
 // made-up mutual terms. A test matrix only — it exercises the coupled path, it isn't cable data.
 function coupledVariant(d) {
@@ -24,28 +24,34 @@ function coupledVariant(d) {
   return out;
 }
 
+// A second transformer feeding P3 over a 0 m span, earth electrodes on both subtrees (the
+// reference lock's twoTx variant).
+function twoTxVariant() {
+  const d = walkthroughIsland();
+  d.transformers = [...d.transformers, { id: 'TX2', name: 'TX2', txRating: 160, tap: 1, hvActual: 11000, txXR: 4, txGroundOhms: 5 }];
+  d.poles = d.poles.map(p => p.id === 'P3' ? { ...p, parent: 'TX2', spanM: 0, grounded: true, groundOhms: 15 }
+    : p.id === 'P2' ? { ...p, grounded: true, groundOhms: 25 } : p);
+  return d;
+}
+
 const cases = [
-  { name: 'walkthrough-2000', design: walkthroughIsland(), opts: { year: 0, hour: 20, loadMult: 1, solarMult: 1 } },
-  { name: 'walkthrough-1200', design: walkthroughIsland(), opts: { year: 0, hour: 12, loadMult: 1, solarMult: 1 } },
-  { name: 'synthetic50-2000', design: syntheticFeeder(), opts: { year: 0, hour: 20, loadMult: 1, solarMult: 1 } },
-  { name: 'synthetic50-1200', design: syntheticFeeder(), opts: { year: 0, hour: 12, loadMult: 1, solarMult: 1 } },
-  { name: 'synthetic50-grounded-2000', design: syntheticFeeder({ grounded: true }), opts: { year: 0, hour: 20, loadMult: 1, solarMult: 1 } },
-  { name: 'synthetic50-zip-2000', design: { ...syntheticFeeder(), loadModel: 'zip', zipZ: 0.3, zipI: 0.3, zipP: 0.4 }, opts: { year: 0, hour: 20, loadMult: 1, solarMult: 1 } },
-  { name: 'walkthrough-coupled-2000', design: coupledVariant(walkthroughIsland()), opts: { year: 0, hour: 20, loadMult: 1, solarMult: 1 } }
+  { name: 'walkthrough-2000', label: 'Walkthrough Island, 20:00 evening peak', design: walkthroughIsland(), opts: { year: 0, hour: 20, loadMult: 1, solarMult: 1 } },
+  { name: 'walkthrough-1200', label: 'Walkthrough Island, 12:00 solar noon', design: walkthroughIsland(), opts: { year: 0, hour: 12, loadMult: 1, solarMult: 1 } },
+  { name: 'synthetic50-2000', label: '50-pole feeder, 20:00 evening peak', design: syntheticFeeder(), opts: { year: 0, hour: 20, loadMult: 1, solarMult: 1 } },
+  { name: 'synthetic50-1200', label: '50-pole feeder, 12:00 with PV and BESS', design: syntheticFeeder(), opts: { year: 0, hour: 12, loadMult: 1, solarMult: 1 } },
+  { name: 'synthetic50-heavy-2000', label: '50-pole feeder, 20:00, load x1.5', design: syntheticFeeder(), opts: { year: 0, hour: 20, loadMult: 1.5, solarMult: 1 } },
+  { name: 'synthetic50-grounded-2000', label: '50-pole feeder, 8 earthed poles', design: syntheticFeeder({ grounded: true }), opts: { year: 0, hour: 20, loadMult: 1, solarMult: 1 } },
+  { name: 'synthetic50-zip-2000', label: '50-pole feeder, ZIP (voltage-dependent) loads', design: { ...syntheticFeeder(), loadModel: 'zip', zipZ: 0.3, zipI: 0.3, zipP: 0.4 }, opts: { year: 0, hour: 20, loadMult: 1, solarMult: 1 } },
+  { name: 'walkthrough-coupled-2000', label: 'Walkthrough Island, coupled 4x4 line model', design: coupledVariant(walkthroughIsland()), opts: { year: 0, hour: 20, loadMult: 1, solarMult: 1 } },
+  { name: 'walkthrough-twotx-2000', label: 'Two transformers, 0 m span, earthed poles', design: twoTxVariant(), opts: { year: 0, hour: 20, loadMult: 1, solarMult: 1 } },
+  { name: 'twofeeders-2000', label: 'Two 12-pole feeders, heavily loaded (undervoltage)', design: twoFeeders(), opts: { year: 0, hour: 20, loadMult: 1, solarMult: 1 } }
 ];
 
 const index = [];
 for (const c of cases) {
-  const res = runSnapshotAt(c.design, c.opts);
-  const { script, buses, notes } = toOpenDSS(c.design, { ...c.opts, result: res });
+  const { script, app } = openDSSCheckCase(c.design, c.opts);
   writeFileSync(join(outDir, `${c.name}.dss`), script);
-  const app = {
-    name: c.name, status: res.status,
-    poles: res.poleResults.map(p => ({ id: p.id, bus: buses.poles[p.id], V: { A: p.volt.A, B: p.volt.B, C: p.volt.C } })),
-    transformers: res.transformers.map(t => ({ id: t.id, bus: buses.transformers[t.id], V: { A: abs(t.busVph.A), B: abs(t.busVph.B), C: abs(t.busVph.C) } })),
-    notes
-  };
-  writeFileSync(join(outDir, `${c.name}.app.json`), JSON.stringify(app, null, 1));
+  writeFileSync(join(outDir, `${c.name}.app.json`), JSON.stringify({ name: c.name, label: c.label, ...app }, null, 1));
   index.push(c.name);
 }
 writeFileSync(join(outDir, 'cases.json'), JSON.stringify(index));

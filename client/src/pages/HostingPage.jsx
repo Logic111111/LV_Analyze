@@ -58,7 +58,7 @@ export default function HostingPage() {
       </div>
 
       {estimate && (
-        <div className="card" style={{ marginTop: 14 }}>
+        <div className="card mt-4">
           <h2>Instant linear estimate (12:00)</h2>
           <p className="hint">From the voltage sensitivity matrix at 12:00 (nominal solar): the unity-pf PV each pole/phase could take before a voltage would leave the band, if voltage changed linearly. It ignores thermal limits, the other shoulder hours and the Setup cap. It is a first look only; use "Compute hosting capacity" for the confirmed figures, which are full load flows.</p>
           {!estimate.converged && <p className="hint" style={{ color: 'var(--warn)' }}>⚠ Some sensitivity load flows did not converge — treat the estimate with caution.</p>}
@@ -81,7 +81,7 @@ export default function HostingPage() {
       <HostingCompareCard design={design} />
 
       {results && (
-        <div style={{ marginTop: 18 }}>
+        <div className="mt-4">
           {results.length === 0 ? (
             <div className="empty">No additional headroom found at solar-peak conditions — the island is already at its statutory or thermal limit under this design.</div>
           ) : (
@@ -108,14 +108,14 @@ export default function HostingPage() {
           )}
 
           {results.length > 0 && (
-            <div className="card" style={{ marginTop: 14 }}>
+            <div className="card mt-4">
               <h2>Maximum simultaneous hosting capacity</h2>
               <p className="hint">The ranking above tests each location on its own, capped at the {design.maxpv} kW per-connection limit set in Setup — but real headroom shrinks once other locations also start exporting, because the voltage rise and thermal loading compound. This scan re-ranks locations by their true, <b>uncapped</b> voltage/thermal limit (ignoring the Setup cap, to show what the network itself can physically absorb), then processes them in that priority order like an interconnection queue — each candidate tested with every higher-ranked addition already committed — giving the true maximum that can be added to this design <b>all at once</b>, and the realistic amount to allocate at each location.</p>
               <button className="primary" onClick={runSystem} disabled={sys.running}>Compute maximum simultaneous capacity</button>
               <TaskProgress task={sys} />
 
               {system && (
-                <div style={{ marginTop: 14 }}>
+                <div className="mt-4">
                   <p><strong>Maximum further solar hosting capacity for this design: {system.totalKva.toFixed(2)} kVA</strong> addable simultaneously across {system.results.filter(r => r.achievableKva > 0).length} location{system.results.filter(r => r.achievableKva > 0).length === 1 ? '' : 's'}.</p>
                   <HostingNonConvergenceWarning rows={system.results} />
                   <div className="tbl-wrap"><table>

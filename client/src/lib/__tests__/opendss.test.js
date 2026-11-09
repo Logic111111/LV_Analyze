@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toOpenDSS, runSnapshotAt, txImpedance, netS, connectionIndex } from '../loadflow.js';
+import { toOpenDSS, openDSSCheckCase, runSnapshotAt, txImpedance, netS, connectionIndex } from '../loadflow.js';
 import { walkthroughIsland } from './fixtures/walkthroughIsland.js';
 import { syntheticFeeder } from './fixtures/syntheticFeeder.js';
 
@@ -72,5 +72,32 @@ describe('toOpenDSS', () => {
     expect(a.script).toBe(b.script);
     expect(a.buses.poles['P 1']).toBe('p_p_1');
     expect(a.buses.poles.p_1).toBe('p_p_1_2');
+  });
+});
+
+describe('toOpenDSS with hostile text in the design', () => {
+  it('keeps names and ids inside comment lines, so they can never run as OpenDSS commands', () => {
+    const d = walkthroughIsland();
+    d.name = 'Evil\nDOScmd calc.exe\r\nRedirect C:/x.dss\u2028Export voltages';
+    d.poles = [...d.poles, { ...d.poles[0], id: 'Q1', parent: 'ghost\nCompile x.dss' }];
+    const { script } = toOpenDSS(d, opts);
+    const commands = script.split('\n').filter(l => l && !l.startsWith('!'));
+    commands.forEach(l => expect(l).toMatch(/^(?:Clear|Solve|Set mode=snapshot |New (?:Circuit|Vsource|Transformer|Reactor|LineCode|Line|Load)\.)/));
+    expect(commands.join('\n')).not.toMatch(/DOScmd|Redirect|Export|Compile/);
+  });
+});
+
+describe('openDSSCheckCase', () => {
+  it('pairs the script with the app\'s own voltages, currents and losses at the script\'s buses', () => {
+    const d = syntheticFeeder({ grounded: true });
+    const { script, app } = openDSSCheckCase(d, opts);
+    const res = runSnapshotAt(d, opts);
+    expect(app.status).toBe('converged');
+    expect(app.poles.map(p => p.id)).toEqual(res.poleResults.map(p => p.id));
+    app.poles.forEach(p => expect(script).toContain(`bus2=${p.bus}.1.2.3.4`));
+    expect(app.poles[0].V.A).toBe(res.poleResults[0].volt.A);
+    expect(app.poles[0].I.N).toBe(res.poleResults[0].In);
+    expect(app.lossW).toBeCloseTo(res.totalLossW + res.transformers[0].txLossW + res.groundLossW, 9);
+    expect(app.transformers[0].kVA).toBe(res.transformers[0].txKVA);
   });
 });
