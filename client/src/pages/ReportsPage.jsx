@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useDesign } from '../context/DesignContext.jsx';
+import { api } from '../api.js';
 import { runSnapshotAt, getTransformerType, transformerOfPole, isTransformerId, systemLossW } from '../lib/loadflow.js';
 import { downloadHtml, reportFileName } from '../lib/report.js';
 import TaskProgress from '../components/TaskProgress.jsx';
@@ -8,6 +9,7 @@ import { vufText } from '../lib/format.js';
 import { SolveStatusWarning } from '../components/Convergence.jsx';
 import YearPicker from '../components/YearPicker.jsx';
 import ExportsCard from '../components/ExportsCard.jsx';
+import Readout from '../components/Readout.jsx';
 
 function pillClassFor(level) { return level === 2 ? 'bad' : level === 1 ? 'warn' : 'ok'; }
 
@@ -29,6 +31,9 @@ export default function ReportsPage() {
   const [loadMult, setLoadMult] = useState(1);
   const [solarMult, setSolarMult] = useState(1);
   const [busy, setBusy] = useState(false);
+  // OpenDSS cross-check of the last run: { running } | the server's summary | { error }.
+  const [dssCheck, setDssCheck] = useState(null);
+  const checkId = useRef(0);
   // The comprehensive report re-runs several 24 h scans (energy loss, 5-year outlook), so it's
   // built in the engine worker; only the download itself happens here.
   const reportTask = useEngineTask();
@@ -46,9 +51,15 @@ export default function ReportsPage() {
   function run() {
     setBusy(true);
     setTimeout(() => {
-      const res = runSnapshotAt(design, { year, hour, loadMult, solarMult });
+      const snap = { year, hour, loadMult, solarMult };
+      const res = runSnapshotAt(design, snap);
       setLastResults(res);
       setBusy(false);
+      // Check the same snapshot in OpenDSS on the server; only the newest run's answer is shown.
+      const id = ++checkId.current;
+      setDssCheck({ running: true });
+      api.opendssCheck({ ...design, logo: undefined }, snap)
+        .then(r => id === checkId.current && setDssCheck(r), e => id === checkId.current && setDssCheck({ error: e.message }));
     }, 10);
   }
 
@@ -72,9 +83,9 @@ export default function ReportsPage() {
 
       {/* Report options (P5.9): an optional logo (stored in the design, so keep it small) and the
           sign-off block shared with the diagram's title block. */}
-      <details className="card" style={{ marginTop: 14 }}>
+      <details className="card mt-4">
         <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Report options — logo and sign-off</summary>
-        <div className="grid g3" style={{ marginTop: 10 }}>
+        <div className="grid g3 mt-3">
           <div className="field"><span>Logo (PNG, JPEG or SVG, up to 100 kB)</span>
             <input type="file" accept="image/png,image/jpeg,image/svg+xml" onChange={e => {
               const f = e.target.files && e.target.files[0];
@@ -100,7 +111,7 @@ export default function ReportsPage() {
 
       <ExportsCard />
 
-      <div className="card" style={{ marginTop: 14 }}>
+      <div className="card mt-4">
         <h2>Simulation snapshot</h2>
         <div className="grid g3">
           <label className="field"><span>Year</span><YearPicker value={year} onChange={setYear} /></label>
@@ -125,7 +136,46 @@ export default function ReportsPage() {
         {busy && <span className="loading" style={{ marginLeft: 12 }}><span className="spinner"></span> solving…</span>}
       </div>
 
+      <OpenDssCheck check={dssCheck} />
       {res && <Report res={res} design={design} />}
+    </div>
+  );
+}
+
+const mV = (v) => (v * 1000).toFixed(2);
+
+// Summary of the server's OpenDSS cross-check of the last run (see server/src/routes/opendss.js).
+function OpenDssCheck({ check }) {
+  if (!check) return null;
+  if (check.running) return <div className="card mt-4"><span className="loading"><span className="spinner"></span> Checking this result against OpenDSS…</span></div>;
+  if (check.error || !check.ok) {
+    return (
+      <div className="card mt-4">
+        <h3>OpenDSS cross-check {check.ok === false && <span className="pill bad">Fail</span>}</h3>
+        <p className="hint" style={{ marginBottom: 0 }}>{check.error}</p>
+      </div>
+    );
+  }
+  const { voltage: v, current: i, losses } = check;
+  return (
+    <div className="card mt-4">
+      <h3>OpenDSS cross-check <span className={'pill ' + (check.pass ? 'ok' : 'bad')}>{check.pass ? 'Pass' : 'Fail'}</span></h3>
+      <p className="hint">
+        {check.pass ? 'OpenDSS solved this same snapshot and agrees with the app.' : `Some voltages differ from OpenDSS by more than the ${check.tolerance * 1000} mV limit.`}
+        {' '}{check.opendss.replace(/ revision.*/, '')}, {check.iterations} iterations.
+      </p>
+      <div className="grid g3">
+        <div className={'stat ' + (check.pass ? 'ok' : 'bad')}><div className="v">{mV(v.max)} mV</div><div className="l">Largest voltage difference{v.where ? ` (at ${v.where})` : ''}, of {v.n} bus voltages</div></div>
+        <div className="stat"><div className="v">{mV(i.max)} mA</div><div className="l">Largest current difference{i.where ? ` (at ${i.where})` : ''}, of {i.n} span currents</div></div>
+        <div className="stat"><div className="v">{Math.abs(losses.diffPct).toFixed(4)} %</div><div className="l">Losses without transformer core loss: app {(losses.appW / 1000).toFixed(3)} kW, OpenDSS {(losses.dssW / 1000).toFixed(3)} kW</div></div>
+      </div>
+      {!check.pass && (
+        <div className="tbl-wrap mt-3"><table>
+          <thead><tr><th scope="col">Bus and phase</th><th scope="col">App (V)</th><th scope="col">OpenDSS (V)</th><th scope="col">Difference (mV)</th></tr></thead>
+          <tbody>{check.worst.map(w => <tr key={w.id + w.phase}><td>{w.id} {w.phase}</td><td>{w.app.toFixed(3)}</td><td>{w.opendss.toFixed(3)}</td><td>{mV(w.diff)}</td></tr>)}</tbody>
+        </table></div>
+      )}
+      {check.notes.map(n => <p key={n} className="hint" style={{ margin: '8px 0 0' }}>{n}</p>)}
     </div>
   );
 }
@@ -139,17 +189,17 @@ function Report({ res, design }) {
   const totalLabel = 'Total losses (line + transformer' + (hasGroundLoss ? ' + ground' : '') + ')';
 
   return (
-    <div style={{ marginTop: 18 }}>
+    <div className="mt-4">
       <div style={{ marginBottom: 14 }}><SolveStatusWarning res={res} /></div>
       <div className="grid g4">
-        <div className={'stat ' + (vBad ? 'bad' : 'ok')}><div className="v">{vBad}</div><div className="l">Voltage violations</div></div>
-        <div className={'stat ' + (tBad ? 'bad' : 'ok')}><div className="v">{tBad}</div><div className="l">Thermal (conductor) violations</div></div>
-        <div className="stat"><div className="v">{(totalSystemLossW / 1000).toFixed(2)} kW</div><div className="l">{totalLabel}</div></div>
-        <div className="stat"><div className="v">{(res.totalLossW / 1000).toFixed(2)} kW</div><div className="l">Line (conductor) losses</div></div>
+        <div className={'stat ' + (vBad ? 'bad' : 'ok')}><div className="v"><Readout value={vBad} format={v => String(Math.round(v))} /></div><div className="l">Voltage violations</div></div>
+        <div className={'stat ' + (tBad ? 'bad' : 'ok')}><div className="v"><Readout value={tBad} format={v => String(Math.round(v))} /></div><div className="l">Thermal (conductor) violations</div></div>
+        <div className="stat"><div className="v"><Readout value={totalSystemLossW / 1000} format={v => v.toFixed(2)} /> kW</div><div className="l">{totalLabel}</div></div>
+        <div className="stat"><div className="v"><Readout value={res.totalLossW / 1000} format={v => v.toFixed(2)} /> kW</div><div className="l">Line (conductor) losses</div></div>
       </div>
-      <div className="grid g4" style={{ marginTop: 10 }}>
-        <div className="stat"><div className="v">{(txLossW / 1000).toFixed(3)} kW</div><div className="l">Transformer losses (all units, copper + no-load)</div></div>
-        {hasGroundLoss && <div className="stat"><div className="v">{(groundLossW / 1000).toFixed(3)} kW</div><div className="l">Ground-electrode losses (grounded poles/star point)</div></div>}
+      <div className="grid g4 mt-3">
+        <div className="stat"><div className="v"><Readout value={txLossW / 1000} format={v => v.toFixed(3)} /> kW</div><div className="l">Transformer losses (all units, copper + no-load)</div></div>
+        {hasGroundLoss && <div className="stat"><div className="v"><Readout value={groundLossW / 1000} format={v => v.toFixed(3)} /> kW</div><div className="l">Ground-electrode losses (grounded poles/star point)</div></div>}
         {res.worstVuf && (
           <div className={'stat ' + (res.worstVuf.value > res.vufLimitPct ? 'warn' : 'ok')}>
             <div className="v">{vufText(res.worstVuf.value)}</div>
@@ -173,14 +223,14 @@ function Report({ res, design }) {
         const rating = design.transformers.find(dt => dt.id === t.id)?.txRating;
         return (
           <div className="card" key={t.id} style={{ marginBottom: 12 }}>
-            <h2 style={{ fontSize: 13 }}>{t.name}</h2>
+            <h2 className="subhead">{t.name}</h2>
             <div className="grid g4">
               <div className={'stat ' + txClass}><div className="v">{txLabel}</div><div className="l">Transformer loading ({t.txKVA.toFixed(1)} / {getTransformerType(design, rating).kVA} kVA){exporting ? ' — no export cap applied' : ''}</div></div>
               <div className="stat ok"><div className="v">{dirLabel}</div><div className="l">Grid direction{exporting ? ' — reverse power flow' : ''}</div></div>
-              <div className="stat"><div className="v">{(t.txLossW / 1000).toFixed(3)} kW</div><div className="l">Transformer copper loss</div></div>
-              <div className="stat"><div className="v">{(t.txNoLoadW / 1000).toFixed(3)} kW</div><div className="l">Transformer no-load (core) loss</div></div>
+              <div className="stat"><div className="v"><Readout value={t.txLossW / 1000} format={v => v.toFixed(3)} /> kW</div><div className="l">Transformer copper loss</div></div>
+              <div className="stat"><div className="v"><Readout value={t.txNoLoadW / 1000} format={v => v.toFixed(3)} /> kW</div><div className="l">Transformer no-load (core) loss</div></div>
             </div>
-            <div className="grid g3" style={{ marginTop: 14 }}>
+            <div className="grid g3 mt-4">
               <div className="stat"><div className="v"><span className="phaseA">{t.busVoltPct.A.toFixed(1)}</span>/<span className="phaseB">{t.busVoltPct.B.toFixed(1)}</span>/<span className="phaseC">{t.busVoltPct.C.toFixed(1)}</span> V</div><div className="l">LV bus voltage A/B/C (post-transformer drop)</div></div>
               <div className="stat"><div className="v">{vufText(t.busVufPct)}</div><div className="l">LV bus voltage unbalance (VUF)</div></div>
             </div>

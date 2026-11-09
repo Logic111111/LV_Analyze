@@ -30,6 +30,19 @@ export default function IssuesPanel() {
     return () => clearTimeout(t);
   }, [design]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Stay mounted for the slide-out after closing (instant with reduced motion).
+  const [closing, setClosing] = useState(false);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    const closed = wasOpen.current && !open;
+    wasOpen.current = open;
+    if (!closed) { if (open) setClosing(false); return undefined; }
+    setClosing(true);
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const timer = setTimeout(() => setClosing(false), reduce ? 0 : 200);
+    return () => clearTimeout(timer);
+  }, [open]);
+
   useEffect(() => {
     if (!open) return undefined;
     closeRef.current?.focus();
@@ -58,8 +71,8 @@ export default function IssuesPanel() {
           </>
         )}
       </button>
-      {open && (
-        <aside id="issues-drawer" className="issues-drawer" role="complementary" aria-label={t('Issues')}>
+      {(open || closing) && (
+        <aside id="issues-drawer" className={'issues-drawer' + (open ? '' : ' closing')} role="complementary" aria-label={t('Issues')} aria-hidden={open ? undefined : true}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
             <h2 style={{ margin: 0 }}>{t('Issues')}</h2>
             <button ref={closeRef} type="button" className="mini" onClick={() => setOpen(false)}>{t('Close')}</button>

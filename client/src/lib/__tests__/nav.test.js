@@ -5,15 +5,15 @@ import { NAV_GROUPS, NAV_ITEMS, EXTRA_ITEMS, findNavItem } from '../nav.js';
 import en from '../../i18n/en.json';
 
 // UI stage 1 — the sidebar/palette navigation model (lib/nav.js).
-const OLD_TABS = ['setup', 'network', 'diagram', 'map', 'reports', 'daily', 'charts', 'hosting', 'bess-hosting', 'feeder-split', 'load-balance', 'reconductor', 'fix-it', 'monte-carlo', 'scenarios', 'field-data', 'field-survey', 'protection', 'insights', 'dashboard', 'designs', 'about'];
+const OLD_TABS = ['setup', 'network', 'diagram', 'map', 'reports', 'daily', 'charts', 'hosting', 'bess-hosting', 'feeder-split', 'load-balance', 'reconductor', 'fix-it', 'monte-carlo', 'scenarios', 'field-data', 'field-survey', 'protection', 'insights', 'dashboard', 'designs', 'about', 'validation'];
 const appJsx = path.resolve(__dirname, '../../App.jsx');
 
 describe('navigation model', () => {
-  it('the 22 sidebar pages are exactly the old tabs, each in one group', () => {
+  it('the 23 sidebar pages are exactly the old tabs plus Validation, each in one group', () => {
     expect([...NAV_ITEMS.map(i => i.path)].sort()).toEqual([...OLD_TABS].sort());
-    expect(new Set(NAV_ITEMS.map(i => i.path)).size).toBe(22);
+    expect(new Set(NAV_ITEMS.map(i => i.path)).size).toBe(23);
     expect(NAV_GROUPS.map(g => g.id)).toEqual(['build', 'analyse', 'optimise', 'field', 'workspace']);
-    expect(NAV_GROUPS.map(g => g.items.length)).toEqual([4, 6, 6, 2, 4]);
+    expect(NAV_GROUPS.map(g => g.items.length)).toEqual([4, 6, 6, 2, 5]);
   });
 
   it('every nav path and the wizard is a route in App.jsx, and every App route is in nav or extra', () => {

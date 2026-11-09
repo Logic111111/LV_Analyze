@@ -1,0 +1,345 @@
+{
+  "name": "Walkthrough Island",
+  "transformers": [
+    {
+      "id": "TX",
+      "name": "TX",
+      "txRating": 100,
+      "tap": 2,
+      "hvActual": 10800,
+      "txXR": 3,
+      "txGroundOhms": 7.5
+    }
+  ],
+  "admd": 1.5,
+  "pf": 0.95,
+  "growth": 3,
+  "loadModel": "constant",
+  "zipZ": 0.2,
+  "zipI": 0.2,
+  "zipP": 0.6,
+  "txNoLoadW": {
+    "100": 260,
+    "160": 380,
+    "250": 530,
+    "630": 1200
+  },
+  "vnom": 230,
+  "vdev": 6,
+  "maxpv": 5,
+  "maxbess": 5,
+  "bessRte": 0.9,
+  "includeGeneral": true,
+  "includeEV": true,
+  "includeSolar": true,
+  "includeShop": true,
+  "includeBess": true,
+  "includeEVCS": true,
+  "bessChargeStartHour": 10,
+  "bessChargeEndHour": 14,
+  "bessDischargeStartHour": 19,
+  "bessDischargeEndHour": 23,
+  "loadCurve": [
+    0.35,
+    0.3,
+    0.28,
+    0.27,
+    0.28,
+    0.32,
+    0.45,
+    0.55,
+    0.5,
+    0.45,
+    0.42,
+    0.4,
+    0.42,
+    0.4,
+    0.42,
+    0.48,
+    0.6,
+    0.75,
+    0.95,
+    1,
+    1,
+    0.8,
+    0.6,
+    0.45
+  ],
+  "evCurve": [
+    0.55,
+    0.45,
+    0.3,
+    0.2,
+    0.15,
+    0.1,
+    0.08,
+    0.1,
+    0.15,
+    0.2,
+    0.2,
+    0.18,
+    0.15,
+    0.15,
+    0.15,
+    0.2,
+    0.35,
+    0.55,
+    0.85,
+    1,
+    0.95,
+    0.85,
+    0.7,
+    0.6
+  ],
+  "solarCurve": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0.05,
+    0.2,
+    0.45,
+    0.7,
+    0.88,
+    0.98,
+    1,
+    0.98,
+    0.88,
+    0.7,
+    0.45,
+    0.2,
+    0.05,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "shopCurve": [
+    0.15,
+    0.15,
+    0.15,
+    0.15,
+    0.15,
+    0.15,
+    0.15,
+    0.15,
+    0.5,
+    0.7,
+    0.85,
+    0.95,
+    1,
+    1,
+    0.95,
+    0.9,
+    0.9,
+    0.85,
+    0.75,
+    0.55,
+    0.15,
+    0.15,
+    0.15,
+    0.15
+  ],
+  "evcsCurve": [
+    0.05,
+    0.05,
+    0.05,
+    0.05,
+    0.05,
+    0.05,
+    0.1,
+    0.25,
+    0.45,
+    0.65,
+    0.8,
+    0.9,
+    0.95,
+    1,
+    0.95,
+    0.85,
+    0.7,
+    0.55,
+    0.4,
+    0.25,
+    0.15,
+    0.1,
+    0.08,
+    0.05
+  ],
+  "poles": [
+    {
+      "id": "P1",
+      "feeder": "F1",
+      "parent": "TX",
+      "spanM": 40,
+      "cond": "70ABC",
+      "grounded": false,
+      "groundOhms": 20
+    },
+    {
+      "id": "P2",
+      "feeder": "F1",
+      "parent": "P1",
+      "spanM": 60,
+      "cond": "70ABC",
+      "grounded": false,
+      "groundOhms": 20
+    },
+    {
+      "id": "P3",
+      "feeder": "F1",
+      "parent": "P2",
+      "spanM": 60,
+      "cond": "50ABC",
+      "grounded": false,
+      "groundOhms": 20
+    }
+  ],
+  "loads": [
+    {
+      "id": "L1",
+      "pole": "P1",
+      "type": "general",
+      "phase": "A",
+      "kva": null
+    },
+    {
+      "id": "L2",
+      "pole": "P1",
+      "type": "general",
+      "phase": "B",
+      "kva": null
+    },
+    {
+      "id": "L3",
+      "pole": "P2",
+      "type": "general",
+      "phase": "C",
+      "kva": null
+    },
+    {
+      "id": "L4",
+      "pole": "P2",
+      "type": "general",
+      "phase": "A",
+      "kva": null
+    },
+    {
+      "id": "L5",
+      "pole": "P3",
+      "type": "general",
+      "phase": "B",
+      "kva": null
+    },
+    {
+      "id": "L6",
+      "pole": "P3",
+      "type": "ev",
+      "phase": "C",
+      "kva": 7
+    },
+    {
+      "id": "L7",
+      "pole": "P2",
+      "type": "general",
+      "phase": "A",
+      "kva": null
+    },
+    {
+      "id": "L8",
+      "pole": "P2",
+      "type": "general",
+      "phase": "A",
+      "kva": null
+    },
+    {
+      "id": "L9",
+      "pole": "P2",
+      "type": "general",
+      "phase": "A",
+      "kva": null
+    },
+    {
+      "id": "L10",
+      "pole": "P2",
+      "type": "general",
+      "phase": "A",
+      "kva": null
+    },
+    {
+      "id": "L11",
+      "pole": "P2",
+      "type": "general",
+      "phase": "A",
+      "kva": null
+    },
+    {
+      "id": "L12",
+      "pole": "P3",
+      "type": "general",
+      "phase": "A",
+      "kva": null
+    },
+    {
+      "id": "L13",
+      "pole": "P3",
+      "type": "general",
+      "phase": "A",
+      "kva": null
+    },
+    {
+      "id": "L14",
+      "pole": "P3",
+      "type": "general",
+      "phase": "A",
+      "kva": null
+    },
+    {
+      "id": "L15",
+      "pole": "P3",
+      "type": "general",
+      "phase": "A",
+      "kva": null
+    },
+    {
+      "id": "L16",
+      "pole": "P3",
+      "type": "general",
+      "phase": "A",
+      "kva": null
+    },
+    {
+      "id": "L17",
+      "pole": "P3",
+      "type": "general",
+      "phase": "A",
+      "kva": null
+    },
+    {
+      "id": "L18",
+      "pole": "P3",
+      "type": "ev",
+      "phase": "A",
+      "kva": 7
+    }
+  ],
+  "pv": [
+    {
+      "id": "S1",
+      "pole": "P2",
+      "phase": "A",
+      "kva": 4
+    },
+    {
+      "id": "S2",
+      "pole": "P3",
+      "phase": "B",
+      "kva": 5
+    }
+  ],
+  "bess": [],
+  "openPoints": []
+}

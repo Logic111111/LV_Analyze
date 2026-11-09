@@ -6,6 +6,8 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useDesign } from '../context/DesignContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import { useFocusTrap } from '../hooks/useFocusTrap.js';
+import { useTiltDelegate } from '../hooks/useTiltDelegate.js';
+import { useKeyboardScrollRegions } from '../hooks/useKeyboardScrollRegions.js';
 import Sidebar from './Sidebar.jsx';
 import TopBar from './TopBar.jsx';
 import PageHeader from './PageHeader.jsx';
@@ -27,6 +29,13 @@ export default function AppShell({ children }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const sidebarRef = useRef(null);
   const menuButtonRef = useRef(null);
+  const mainRef = useRef(null);
+  useTiltDelegate(mainRef);
+  // The entrance animation is for moving between pages; the first page after load appears at once
+  // (fading it in from opacity 0 delayed Largest Contentful Paint by ~90 ms).
+  const firstPage = useRef(true);
+  useEffect(() => { firstPage.current = false; }, []);
+  useKeyboardScrollRegions();
 
   useEffect(() => {
     try { localStorage.setItem(SIDEBAR_KEY, collapsed ? 'collapsed' : 'expanded'); } catch (e) { /* storage unavailable */ }
@@ -114,9 +123,12 @@ export default function AppShell({ children }) {
         {drawerOpen && <div className="sidebar-backdrop" onClick={closeDrawer} aria-hidden="true" />}
         <div className="shell-main">
           <TopBar onOpenMenu={() => setDrawerOpen(true)} onOpenPalette={openPalette} menuButtonRef={menuButtonRef} />
-          <main id="main" tabIndex={-1}>
-            {found && <PageHeader eyebrow={found.group ? t(found.group.label) : undefined} title={t(found.item.label)} desc={t(found.item.desc)} />}
-            {children}
+          <main id="main" tabIndex={-1} ref={mainRef}>
+            {/* Keyed on the route so each page plays the entrance animation; the shell stays still. */}
+            <div className={'page' + (firstPage.current ? '' : ' page-enter')} key={location.pathname}>
+              {found && <PageHeader eyebrow={found.group ? t(found.group.label) : undefined} title={t(found.item.label)} desc={t(found.item.desc)} />}
+              {children}
+            </div>
           </main>
         </div>
       </div>

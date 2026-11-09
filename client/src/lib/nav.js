@@ -33,6 +33,7 @@ export const NAV_GROUPS = [
     { path: 'dashboard', label: 'Dashboard', icon: 'grid', desc: 'Every design you can open, worst first' },
     { path: 'designs', label: 'Designs', icon: 'folder', desc: 'Save, open, version and share designs' },
     { path: 'insights', label: 'AI Insights', icon: 'sparkle', desc: 'Claude reviews this design with the app engine' },
+    { path: 'validation', label: 'OpenDSS Validation', icon: 'check', desc: 'Accuracy of the load flow against OpenDSS' },
     { path: 'about', label: 'About', icon: 'info', desc: 'About this deployment' }
   ] }
 ];

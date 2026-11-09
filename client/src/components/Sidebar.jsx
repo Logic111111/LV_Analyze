@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { NAV_GROUPS } from '../lib/nav.js';
 import { useI18n } from '../i18n/i18n.jsx';
@@ -13,9 +13,14 @@ export default function Sidebar({ collapsed, onToggleCollapsed, drawerOpen, onCl
   const navRef = useRef(null);
   const [bar, setBar] = useState({ top: 0, height: 0, visible: false });
 
-  useLayoutEffect(() => {
-    const active = navRef.current?.querySelector('.sidebar-item.active');
-    setBar(active ? { top: active.offsetTop, height: active.offsetHeight, visible: true } : b => ({ ...b, visible: false }));
+  // Measured a frame later, once the browser has laid the page out anyway: reading offsetTop
+  // during the commit forced a synchronous layout of the whole new page on every navigation.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const active = navRef.current?.querySelector('.sidebar-item.active');
+      setBar(active ? { top: active.offsetTop, height: active.offsetHeight, visible: true } : b => ({ ...b, visible: false }));
+    });
+    return () => cancelAnimationFrame(frame);
   }, [location.pathname, collapsed]);
 
   return (

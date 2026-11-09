@@ -147,6 +147,11 @@ main{container-type:inline-size;container-name:main}
 @container main (max-width: 1200px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @container main (max-width: 950px){.g2,.g3,.g4{grid-template-columns:minmax(0,1fr)}}
 .grid>*{min-width:0}
+/* Spacing utilities on the 4 px grid (polish pass: replaces ad-hoc inline margins). */
+.mt-2{margin-top:var(--s-2)} .mt-3{margin-top:var(--s-3)} .mt-4{margin-top:var(--s-4)}
+.stack{display:grid;gap:var(--s-4)}
+.card h2.flush,h2.flush{margin:0}
+.card h2.subhead{font-size:13px}
 .card{position:relative;background:linear-gradient(180deg,rgba(255,255,255,.035),transparent 42%),var(--glass);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);border:1px solid var(--line);border-radius:var(--r-3);padding:18px 20px;box-shadow:var(--elev-1)}
 @media (max-width:720px){.card{background:var(--panel);-webkit-backdrop-filter:none;backdrop-filter:none}}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.card{background:var(--panel)}}
@@ -185,6 +190,7 @@ th button.sort:focus-visible{outline:2px solid var(--accent-2);outline-offset:2p
 tr:hover td{background:var(--panel-2)}
 .tbl-wrap{overflow-x:auto;max-height:420px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
 .tbl-wrap th{position:sticky;top:0;z-index:1;background:var(--panel)}
+.tbl-wrap:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
 /* Status pills: a dot plus the text (never colour alone); the tint is 14% of the status colour
    over --panel, the case contrast.test.js checks. */
 .pill{display:inline-flex;align-items:center;gap:6px;padding:2px 9px 2px 8px;border-radius:20px;font-size:10.5px;font-weight:700;font-family:var(--mono);background:var(--panel-2);color:var(--muted);border:1px solid var(--line)}
@@ -201,6 +207,10 @@ tr:hover td{background:var(--panel-2)}
 .stat.warn:hover{border-color:color-mix(in srgb,var(--warn) 40%,var(--line));box-shadow:0 0 18px -2px color-mix(in srgb,var(--warn) 35%,transparent)}
 .stat.bad:hover{border-color:color-mix(in srgb,var(--bad) 40%,var(--line));box-shadow:0 0 18px -2px color-mix(in srgb,var(--bad) 35%,transparent)}
 .stat .v{font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-.01em}
+/* <Readout>: a changed result glows briefly in the signal colour (filter only, so it stays cheap). */
+.readout{display:inline-block}
+.readout.changed{animation:readout-glow 600ms var(--ease-out)}
+@keyframes readout-glow{from{filter:drop-shadow(0 0 6px var(--accent)) brightness(1.25)}to{filter:none}}
 .stat .l{color:var(--muted);font-size:11px;margin-top:4px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.4px}
 .stat.bad .v{color:var(--bad)} .stat.ok .v{color:var(--good)} .stat.warn .v{color:var(--warn)}
 .phaseA{color:#C2410C} .phaseB{color:#2563EB} .phaseC{color:#15803D}
@@ -308,7 +318,48 @@ button.ghost:focus-visible,button.primary:focus-visible,button.mini:focus-visibl
   .task-progress-bar.indeterminate .task-progress-fill{animation:none;width:100%;opacity:.45}
   .task-progress-fill{transition:none}
 }
+/* ── Motion (UI stage 1) ─────────────────────────────────────────────────────────────── */
+/* Page entrance on in-app navigation: the new page rises into place; there is no exit, so
+   navigation stays instant. The first page after load has no entrance (see AppShell). */
+.page-enter{animation:page-in var(--dur-3) var(--ease-out)}
+@keyframes page-in{from{opacity:0;transform:translateY(6px)}}
+/* Stat tiles lean toward the pointer (--rx/--ry set by hooks/useTiltDelegate.js) and lift on hover. */
+.stat{transform:perspective(700px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateY(var(--lift,0px));transition:transform var(--dur-1) var(--ease-out),box-shadow var(--dur-1) var(--ease-out),border-color var(--dur-1)}
+.stat:hover{--lift:-2px}
+/* Loading skeleton for pages that are still being fetched. */
+.skeleton-page{display:grid;gap:16px}
+.sk{position:relative;overflow:hidden;border-radius:var(--r-3);background:var(--panel-2);border:1px solid var(--line)}
+.sk-title{height:44px;width:min(320px,60%)}
+.sk-card{height:160px}
+.sk::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--text) 7%,transparent),transparent);transform:translateX(-100%);animation:sk-sweep 1.4s var(--ease-move) infinite}
+@keyframes sk-sweep{to{transform:translateX(100%)}}
+/* Drawers slide in from the right; the Issues drawer also slides out (it owns its open state). */
+.issues-drawer{animation:drawer-in var(--dur-3) var(--ease-out)}
+.issues-drawer.closing{animation:drawer-out var(--dur-2) var(--ease-in) forwards;pointer-events:none}
+.explain-drawer{animation:drawer-in var(--dur-3) var(--ease-out)}
+.explain-backdrop{animation:fade-in var(--dur-2) var(--ease-out)}
+@keyframes drawer-in{from{opacity:0;transform:translateX(24px)}}
+@keyframes drawer-out{to{opacity:0;transform:translateX(16px)}}
+@media (prefers-reduced-motion: reduce){.stat:hover{--lift:0px}}
 /* Reduced motion, everywhere: every animation and transition becomes instant. */
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation-duration:0s!important;animation-iteration-count:1!important;transition-duration:0s!important}
+}
+/* ── Print (UI stage 1): light ink on white whatever the theme; no glass, shadow, grid, motion or
+   app chrome, so the printable report looks like a document. ───────────────────────────── */
+@media print{
+  :root,:root[data-theme='dark']{
+    --bg:#FFFFFF; --panel:#FFFFFF; --panel-2:#F4F7FB; --line:#D5DEEA; --text:#0E1726; --muted:#52627A;
+    --accent:#086A61; --accent-2:#1D5FD8; --accent-ink:#FFFFFF; --good:#12643A; --warn:#8A3B0B; --bad:#B01C2E;
+    --glass:#FFFFFF; --halo:none; --grid-line:transparent; color-scheme:light;
+  }
+  :root[data-theme='dark'] .phaseA{color:#C2410C} :root[data-theme='dark'] .phaseB{color:#2563EB} :root[data-theme='dark'] .phaseC{color:#15803D}
+  body{background:#FFFFFF}
+  *,*::before,*::after{box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;animation:none!important;transition:none!important;text-shadow:none!important}
+  .sidebar,header.top,.sidebar-backdrop,.issues-fab,.issues-drawer,.palette-backdrop,.skip-link{display:none!important}
+  .shell,.shell.collapsed{display:block}
+  main{max-width:none;padding:0}
+  .page-header{margin-top:0}
+  .card{break-inside:avoid;border:1px solid #D5DEEA;background:#FFFFFF}
+  .stat{transform:none!important;background:#FFFFFF}
 }

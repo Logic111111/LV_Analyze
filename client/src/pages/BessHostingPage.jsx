@@ -5,6 +5,7 @@ import TaskProgress from '../components/TaskProgress.jsx';
 import { useEngineTask } from '../hooks/useEngineTask.js';
 import { HostingLimitCell, HostingNonConvergenceWarning } from '../components/Convergence.jsx';
 import BessLossCard from '../components/BessLossCard.jsx';
+import Readout from '../components/Readout.jsx';
 
 function windowLabel(design) {
   const h = (n) => String(n).padStart(2, '0') + ':00';
@@ -46,7 +47,7 @@ export default function BessHostingPage() {
       <BaselineBanner baseline={baseline} kind={'BESS charge/discharge (' + windowLabel(design) + ')'} />
 
       {results && (
-        <div style={{ marginTop: 18 }}>
+        <div className="mt-4">
           {results.length === 0 ? (
             <div className="empty">No additional BESS headroom found across the charge/discharge windows — the island is already at its statutory or thermal limit under this design.</div>
           ) : (
@@ -69,21 +70,21 @@ export default function BessHostingPage() {
           )}
 
           {results.length > 0 && (
-            <div className="card" style={{ marginTop: 14 }}>
+            <div className="card mt-4">
               <h2>Maximum simultaneous BESS hosting capacity</h2>
               <p className="hint">Unlike the ranking above, this scan re-orders locations by the <b>marginal loss saving at zero size</b> (the local slope, from a 1 kVA probe) rather than raw headroom — the pole/phase where a small battery cuts total network loss (line + transformer) the most is prioritised first — then processes them in that order like an interconnection queue, each candidate tested with every higher-priority addition already committed, against the <b>uncapped</b> voltage/thermal limit (ignoring the Setup cap, to show what the network can physically absorb). This gives both the true maximum that can be added <b>all at once</b> without a voltage deviation or thermal violation, and the resulting effect on daily distribution energy loss. It maximises how much battery fits, not the loss saving — for that, use "Size batteries for minimum loss" below.</p>
               <button className="primary" onClick={runSystem} disabled={sys.running}>Compute maximum simultaneous capacity</button>
               <TaskProgress task={sys} />
 
               {system && (
-                <div style={{ marginTop: 14 }}>
+                <div className="mt-4">
                   <p><strong>Maximum further BESS hosting capacity for this design: {system.totalKva.toFixed(2)} kVA</strong> addable simultaneously across {system.results.filter(r => r.achievableKva > 0).length} location{system.results.filter(r => r.achievableKva > 0).length === 1 ? '' : 's'}.</p>
 
                   <div className="grid g3" style={{ marginBottom: 14 }}>
-                    <div className="stat"><div className="v">{system.baselineLossKwh.totalKwh.toFixed(2)} kWh/day</div><div className="l">Baseline network loss (no BESS)</div></div>
-                    <div className="stat"><div className="v">{system.withBessLossKwh.totalKwh.toFixed(2)} kWh/day</div><div className="l">Loss with accepted BESS allocation</div></div>
+                    <div className="stat"><div className="v"><Readout value={system.baselineLossKwh.totalKwh} format={v => v.toFixed(2)} /> kWh/day</div><div className="l">Baseline network loss (no BESS)</div></div>
+                    <div className="stat"><div className="v"><Readout value={system.withBessLossKwh.totalKwh} format={v => v.toFixed(2)} /> kWh/day</div><div className="l">Loss with accepted BESS allocation</div></div>
                     <div className={'stat ' + (system.lossReductionKwh >= 0 ? 'ok' : 'warn')}>
-                      <div className="v">{system.lossReductionKwh >= 0 ? '−' : '+'}{Math.abs(system.lossReductionKwh).toFixed(2)} kWh/day</div>
+                      <div className="v">{system.lossReductionKwh >= 0 ? '−' : '+'}<Readout value={Math.abs(system.lossReductionKwh)} format={v => v.toFixed(2)} /> kWh/day</div>
                       <div className="l">Loss {system.lossReductionKwh >= 0 ? 'reduction' : 'increase'} ({system.baselineLossKwh.totalKwh > 0 ? (Math.abs(system.lossReductionKwh) / system.baselineLossKwh.totalKwh * 100).toFixed(1) : '0.0'}%)</div>
                     </div>
                   </div>

@@ -27,7 +27,9 @@ export default function TopBar({ onOpenMenu, onOpenPalette, menuButtonRef }) {
             {t(nTx === 1 ? '{n} transformer' : '{n} transformers', { n: nTx })} · {t('{kva} kVA total', { kva: design.transformers.reduce((s, x) => s + x.txRating, 0) })}
           </div>
         </div>
-        <button type="button" className="palette-trigger" onClick={onOpenPalette}>
+        {/* Named explicitly: on phones only the icon shows. */}
+        <button type="button" className="palette-trigger" onClick={onOpenPalette}
+          aria-label={t('Search pages and actions…')} aria-keyshortcuts="Control+K Meta+K">
           <Icon name="search" size={16} />
           <span className="palette-trigger-text">{t('Search pages and actions…')}</span>
           <kbd>Ctrl K</kbd>
