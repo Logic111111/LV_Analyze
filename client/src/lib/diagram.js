@@ -49,7 +49,7 @@ function loadingColor(pr) {
 // are picked here to track the app's two themes explicitly.
 const DIAGRAM_PALETTES = {
   light: { nodeFill: '#FFFFFF', text: '#17202E', muted: '#5B6B85', phase: { A: '#C2410C', B: '#2563EB', C: '#15803D' } },
-  dark: { nodeFill: '#121B2E', text: '#DCE6F5', muted: '#7F94B5', phase: { A: '#FF9B71', B: '#4F8CFF', C: '#4FD98A' } }
+  dark: { nodeFill: '#101827', text: '#E6EDF7', muted: '#8EA0BA', phase: { A: '#FFA27F', B: '#6AA6FF', C: '#5BE49B' } }
 };
 
 export function buildDiagramSVG(design, res, theme = 'light') {

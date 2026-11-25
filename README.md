@@ -145,9 +145,14 @@ cd ../server && npm test   # node:test + supertest on an in-memory repository (n
   **reference lock** holds 29 cases to 1e-9 (`npm run gen:reference` rewrites it — only after a
   deliberate, documented change in results).
 - **OpenDSS cross-check** (dev-only):
-  `pip install opendssdirect.py && python scripts/validate-opendss.py` exports seven cases (simple,
-  coupled, earthed, ZIP, with PV/BESS) and compares every voltage with OpenDSS. Agreement is
-  0.2 mV.
+  `pip install opendssdirect.py && python scripts/validate-opendss.py` exports ten cases (simple,
+  coupled, earthed, ZIP, with PV/BESS, heavy load, two transformers) and compares every voltage,
+  span current and the total losses with OpenDSS. Agreement is within 0.5 mV and 0.7 mA. With
+  `--json client/src/data/opendss-validation.json` it also refreshes the app's OpenDSS Validation page.
+  Every "Run load flow" on Run & Reports is also checked automatically on the server
+  (`POST /api/opendss/check`) when that machine has Python 3 with opendssdirect.py
+  (`OPENDSS_PYTHON` names the interpreter; the server Docker image has both); otherwise the page
+  says the check is unavailable.
 - **CI** runs lint, typecheck, tests and the build for the client, and syntax checks plus tests
   for the server.
 

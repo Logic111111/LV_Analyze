@@ -129,7 +129,7 @@ export default function LoadBalancePage() {
       )}
 
       {method === 'quick' && proposal && !preview && (
-        <div style={{ marginTop: 18 }}>
+        <div className="mt-4">
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
               <span style={{ fontWeight: 600 }}>Before → after, {proposal.periodLabel}</span>
@@ -149,7 +149,7 @@ export default function LoadBalancePage() {
             </ConvergenceWarning>
           </div>
 
-          <div className="card" style={{ marginTop: 14 }}>
+          <div className="card mt-4">
             {proposal.changed.length === 0 ? (
               <div className="empty">Already balanced — no phase changes proposed for this transformer.</div>
             ) : (
@@ -176,9 +176,9 @@ export default function LoadBalancePage() {
       )}
 
       {preview && (
-        <div className="card" style={{ marginTop: 18 }}>
+        <div className="card mt-4">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-            <h2 style={{ margin: 0 }}>Preview — rebalanced phases ({preview.label}, {preview.changed.length} move{preview.changed.length === 1 ? '' : 's'})</h2>
+            <h2 className="flush">Preview — rebalanced phases ({preview.label}, {preview.changed.length} move{preview.changed.length === 1 ? '' : 's'})</h2>
             <span>
               <button className="primary" onClick={applyBalance}>Apply this design</button>{' '}
               <button className="mini" onClick={() => setPreview(null)}>{t('Discard preview')}</button>

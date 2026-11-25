@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { rect, polar } from '../lib/loadflow.js';
 import { useT } from '../i18n/i18n.jsx';
 
@@ -29,7 +30,9 @@ export default function ExplainDrawer({ trace, onClose }) {
   if (!trace) return null;
   const hasInPhase = trace.steps.some(s => s.inPhaseV != null);
   const isHosting = trace.kind === 'hosting';
-  return (
+  // Rendered into <body>: glass cards (backdrop-filter) and the main container query would
+  // otherwise become the containing block of this fixed-position overlay.
+  return createPortal(
     <div className="explain-backdrop" onClick={onClose}>
       <div className="explain-drawer" role="dialog" aria-modal="true" aria-labelledby="explain-title" onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
@@ -54,6 +57,7 @@ export default function ExplainDrawer({ trace, onClose }) {
         {trace.check && <p className="hint" style={{ margin: 0 }}>{trace.check.label}: {trace.check.value.toFixed(3)} {trace.check.unit}</p>}
         {trace.notes.length > 0 && <ul style={{ fontSize: 12, paddingLeft: 18, marginBottom: 0 }}>{trace.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

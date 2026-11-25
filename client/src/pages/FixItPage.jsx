@@ -89,7 +89,7 @@ export default function FixItPage() {
       {applied && <div className="note" style={{ marginTop: 14 }}>Applied — {applied}</div>}
 
       {result && !preview && (
-        <div className="card" style={{ marginTop: 14 }}>
+        <div className="card mt-4">
           {result.alreadyCompliant ? (
             <div className="empty">The design already has no voltage violation in years {result.years.join(' and ')} — nothing to fix.</div>
           ) : (
@@ -157,9 +157,9 @@ export default function FixItPage() {
       )}
 
       {preview && previewView && (
-        <div className="card" style={{ marginTop: 14 }}>
+        <div className="card mt-4">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-            <h2 style={{ margin: 0 }}>Preview — {preview.label}</h2>
+            <h2 className="flush">Preview — {preview.label}</h2>
             <span><button className="primary" onClick={() => apply(preview)}>Apply this design</button> <button className="mini" onClick={() => setPreview(null)}>Discard preview</button></span>
           </div>
           <p className="hint">{preview.actions.join('; ')}. Shown at night peak (20:00, year 0).</p>

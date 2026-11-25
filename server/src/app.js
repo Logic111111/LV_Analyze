@@ -9,8 +9,9 @@ const { authRoutes } = require('./routes/auth');
 const { designRoutes } = require('./routes/designs');
 const { orgRoutes } = require('./routes/orgs');
 const { aiRoutes } = require('./routes/ai');
+const { opendssRoutes } = require('./routes/opendss');
 
-function createApp({ repo, rateLimits = true, ai = null } = {}) {
+function createApp({ repo, rateLimits = true, ai = null, opendss = null } = {}) {
   const app = express();
 
   // The nginx container in front of this one sets X-Forwarded-For; without this, express-rate-limit
@@ -28,6 +29,8 @@ function createApp({ repo, rateLimits = true, ai = null } = {}) {
   app.use(limit({ windowMs: 60 * 1000, max: 120 }));
   const authLimiter = limit({ windowMs: 15 * 60 * 1000, max: 20, message: { error: 'Too many attempts — try again later.' } });
   const aiLimiter = limit({ windowMs: 60 * 60 * 1000, max: 30, message: { error: 'AI insights rate limit reached — try again later.' } });
+  // Each OpenDSS check starts a Python process.
+  const opendssLimiter = limit({ windowMs: 60 * 1000, max: 20, message: { error: 'Too many OpenDSS checks — try again in a minute.' } });
 
   // Login/register/logout are rate-limited; the session endpoints (me, sessions) are not, so the
   // app's own checks don't eat into the brute-force budget.
@@ -37,6 +40,7 @@ function createApp({ repo, rateLimits = true, ai = null } = {}) {
   app.use('/api/designs', designRoutes(repo));
   app.use('/api/orgs', orgRoutes(repo));
   app.use('/api/ai', aiLimiter, (ai || aiRoutes)(repo));
+  app.use('/api/opendss', opendssLimiter, (opendss || opendssRoutes)(repo));
 
   app.get('/api/health', (req, res) => res.json({ ok: true }));
 

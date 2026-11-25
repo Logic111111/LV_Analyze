@@ -8,6 +8,7 @@ import { useEngineTask } from '../hooks/useEngineTask.js';
 import { vufText } from '../lib/format.js';
 import { transformerAgeing } from '../lib/loadflow.js';
 import { CHART_PALETTES } from '../lib/chartTheme.js';
+import Readout from '../components/Readout.jsx';
 
 const TX_DASH_PATTERNS = [[], [6, 4], [2, 2], [8, 3, 2, 3]];
 
@@ -215,15 +216,15 @@ function DailyResults({ rows, title }) {
     : null;
 
   return (
-    <div style={{ marginTop: 18, marginBottom: 28, paddingTop: 14, borderTop: '1px solid var(--line, #22304A)' }}>
+    <div style={{ marginTop: 18, marginBottom: 28, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
       {title && <div className="section-title" style={{ marginTop: 0 }}>{title}</div>}
       {collapseHours.length > 0 && <div className="note" role="alert" style={{ borderColor: 'var(--bad)', color: 'var(--bad)', marginBottom: 14 }}><strong>Voltage collapse</strong> at {collapseHours.map(h => String(h).padStart(2, '0') + ':00').join(', ')} — the load at those hours is more than the network can deliver (a voltage below half of nominal). Their figures are not a valid operating point.</div>}
       {anyNonConverged && <div className="note" style={{ borderColor: 'var(--bad)', color: 'var(--bad)', marginBottom: 14 }}>One or more hours did not fully converge — treat those hours' figures with caution.</div>}
       <div className="grid g4">
-        <div className={'stat ' + (hoursWithViolations ? 'bad' : 'ok')}><div className="v">{hoursWithViolations}/24</div><div className="l">Hours with a violation</div></div>
-        <div className={'stat ' + (hoursExporting ? 'warn' : 'ok')}><div className="v">{hoursExporting}/24</div><div className="l">Hours exporting to grid</div></div>
-        <div className={'stat ' + (worstOver ? 'bad' : 'ok')}><div className="v">{worstOver ? worstOver.value.toFixed(1) + ' V' : '—'}</div><div className="l">Peak overvoltage{worstOver ? ` (h${worstOver.hour}, ${worstOver.pole}/${worstOver.phase})` : ''}</div></div>
-        <div className={'stat ' + (worstUnder ? 'bad' : 'ok')}><div className="v">{worstUnder ? worstUnder.value.toFixed(1) + ' V' : '—'}</div><div className="l">Worst undervoltage{worstUnder ? ` (h${worstUnder.hour}, ${worstUnder.pole}/${worstUnder.phase})` : ''}</div></div>
+        <div className={'stat ' + (hoursWithViolations ? 'bad' : 'ok')}><div className="v"><Readout value={hoursWithViolations} format={v => String(Math.round(v))} />/24</div><div className="l">Hours with a violation</div></div>
+        <div className={'stat ' + (hoursExporting ? 'warn' : 'ok')}><div className="v"><Readout value={hoursExporting} format={v => String(Math.round(v))} />/24</div><div className="l">Hours exporting to grid</div></div>
+        <div className={'stat ' + (worstOver ? 'bad' : 'ok')}><div className="v"><Readout value={worstOver ? worstOver.value : null} format={v => v.toFixed(1) + ' V'} /></div><div className="l">Peak overvoltage{worstOver ? ` (h${worstOver.hour}, ${worstOver.pole}/${worstOver.phase})` : ''}</div></div>
+        <div className={'stat ' + (worstUnder ? 'bad' : 'ok')}><div className="v"><Readout value={worstUnder ? worstUnder.value : null} format={v => v.toFixed(1) + ' V'} /></div><div className="l">Worst undervoltage{worstUnder ? ` (h${worstUnder.hour}, ${worstUnder.pole}/${worstUnder.phase})` : ''}</div></div>
         {worstVuf && (
           <div className={'stat ' + (worstVuf.value > vufLimit ? 'warn' : 'ok')}><div className="v">{vufText(worstVuf.value)}</div><div className="l">Worst voltage unbalance (VUF) over the day (h{worstVuf.hour}, {worstVuf.pole}; limit {vufLimit} %)</div></div>
         )}

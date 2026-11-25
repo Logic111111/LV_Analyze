@@ -95,6 +95,7 @@ export default function DesignsPage() {
                   <td>{new Date(d.updatedAt).toLocaleString()}</td>
                   <td style={{ display: 'flex', gap: 6 }}>
                     <button className="mini" onClick={() => onLoad(d.id)}>load</button>
+                    <a className="btn-link" style={{ padding: '4px 9px', fontSize: 11 }} href={`/compare.html?design=${encodeURIComponent(d.id)}`} target="_blank" rel="noopener">Open in comparison app</a>
                     {d.own !== false && <button className="mini" onClick={() => onDelete(d.id, d.name)}>delete</button>}
                   </td>
                 </tr>

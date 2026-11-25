@@ -24,10 +24,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="authwrap">
-      <div className="brand" style={{ marginBottom: 24, justifyContent: 'center' }}>
+    <div className="auth-scene">
+      <div className="auth-panel">
+      <div className="brand auth-brand">
         <div className="mark"></div>
-        <h1 style={{ fontSize: 18 }}>Feeder Island</h1>
+        <h1>Feeder Island</h1>
       </div>
       <div className="card">
         <h2>Sign in</h2>
@@ -39,13 +40,14 @@ export default function LoginPage() {
           <label className="field"><span>Password</span>
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} required />
           </label>
-          <button className="primary" type="submit" disabled={busy} style={{ width: '100%' }}>
+          <button className="primary btn-block" type="submit" disabled={busy}>
             {busy ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
-        <p className="hint" style={{ marginTop: 14 }}>
+        <p className="hint auth-switch">
           No account yet? <Link to="/register">Create one</Link>
         </p>
+      </div>
       </div>
     </div>
   );

@@ -219,7 +219,7 @@ export default function FeederSplitPage() {
 
         {mode === 'single' ? (
           <>
-            <div className="grid g3" style={{ marginTop: 10 }}>
+            <div className="grid g3 mt-3">
               <label className="field"><span>Feeder to split</span>
                 <select value={feederRootId} onChange={e => setFeederRootId(e.target.value)}>
                   {trees.map(t => <option key={t.rootPoleId} value={t.rootPoleId}>{t.feederName} — {t.txId}</option>)}
@@ -284,7 +284,7 @@ export default function FeederSplitPage() {
           </>
         ) : (
           <>
-            <div className="grid g3" style={{ marginTop: 10 }}>
+            <div className="grid g3 mt-3">
               <label className="field"><span>Common open point</span>
                 <select value={dualOpenPointId} onChange={e => setDualOpenPointId(e.target.value)}>
                   {openPoints.map(o => <option key={o.id} value={o.id}>{openPointLabel(design, o)}</option>)}
@@ -344,7 +344,7 @@ export default function FeederSplitPage() {
               Place new transformer at {dualOpenPointObj ? `${dualOpenPointObj.poleA} & ${dualOpenPointObj.poleB}` : 'this open point'} (0m connectors, no search)
             </button>{' '}
             <button className="ghost" onClick={runDual} disabled={task.running} style={{ marginTop: 8 }}>Or search nearby cut points instead</button>
-            <div className="grid g3" style={{ marginTop: 8 }}>
+            <div className="grid g3 mt-2">
               <label className="chk"><input type="radio" name="dualSearch" checked={dualSearch === 'shortlist'} onChange={() => setDualSearch('shortlist')} /> Search: shortlist {DUAL_SHORTLIST_K} per side (legacy)</label>
               <label className="chk"><input type="radio" name="dualSearch" checked={dualSearch === 'optimised'} onChange={() => setDualSearch('optimised')} /> Search: every pair, or shortlist + local improvement above 400 pairs</label>
             </div>
@@ -359,7 +359,7 @@ export default function FeederSplitPage() {
       )}
 
       {quickResult && !preview && (
-        <div className="card" style={{ marginTop: 18 }}>
+        <div className="card mt-4">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
             <span style={{ fontWeight: 600 }}>New transformer placed directly at the open point</span>
             <span className={'pill ' + (quickResult.candidate.voltageViolationCount ? 'bad' : 'ok')}>{quickResult.candidate.voltageViolationCount} voltage violation{quickResult.candidate.voltageViolationCount === 1 ? '' : 's'} {quickResult.periodLabel}</span>
@@ -378,7 +378,7 @@ export default function FeederSplitPage() {
       )}
 
       {results && !preview && (
-        <div style={{ marginTop: 18 }}>
+        <div className="mt-4">
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
               <span style={{ fontWeight: 600 }}>Current design (no new transformer)</span>
@@ -394,7 +394,7 @@ export default function FeederSplitPage() {
             </p>
           </div>
 
-          <div className="card" style={{ marginTop: 14 }}>
+          <div className="card mt-4">
             {results.certificate && <OptimiserCertificate result={results} space={`${results.totalPairs} cut-point pairs (${results.coveragePct.toFixed(1)} % scored with full load flows)`} why="the legacy search shortlists each feeder's cuts on their own, then pairs them; a cut that is mediocre alone can be the best partner for the other side, so the best pair can be missed." />}
             <p className="hint">Ranked best-to-worst{results.mode === 'single' ? <> for feeder <b>{results.feederName}</b></> : <> for feeders <b>{results.feederA}</b> &amp; <b>{results.feederB}</b></>}, tested {results.periodLabel}. Voltage violations drive the ranking, network loss is the tie-breaker; the per-transformer columns (every transformer in the resulting design, not just the new one) are reported for context and don't affect the ranking. Transformer current is the true worst phase current from the load flow; the balanced-equivalent figure (peak kVA ÷ (√3 × 415 V)) beside it understates an unbalanced transformer. Click Preview to see the resulting network before applying anything.</p>
             <ConvergenceWarning show={results.candidates.some(c => !c.converged)}>
@@ -454,9 +454,9 @@ export default function FeederSplitPage() {
       )}
 
       {preview && (
-        <div className="card" style={{ marginTop: 18 }}>
+        <div className="card mt-4">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-            <h2 style={{ margin: 0 }}>Preview — {preview.label}</h2>
+            <h2 className="flush">Preview — {preview.label}</h2>
             <span>
               <button className="primary" onClick={applyPreview}>Apply this design</button>{' '}
               <button className="mini" onClick={() => setPreview(null)}>Discard preview</button>

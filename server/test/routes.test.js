@@ -25,7 +25,7 @@ function setup() {
 test('every protected route needs a session', async () => {
   const { app } = setup();
   for (const [m, p] of [['get', '/api/designs'], ['get', '/api/designs/1'], ['post', '/api/designs'], ['delete', '/api/designs/1'], ['get', '/api/designs/1/versions'],
-    ['post', '/api/designs/1/submit'], ['get', '/api/orgs'], ['post', '/api/orgs'], ['get', '/api/orgs/1/audit'], ['get', '/api/auth/me'], ['get', '/api/auth/sessions'], ['post', '/api/ai/insights']]) {
+    ['post', '/api/designs/1/submit'], ['get', '/api/orgs'], ['post', '/api/orgs'], ['get', '/api/orgs/1/audit'], ['get', '/api/auth/me'], ['get', '/api/auth/sessions'], ['post', '/api/ai/insights'], ['post', '/api/opendss/check']]) {
     assert.equal((await request(app)[m](p)).status, 401, `${m} ${p}`);
   }
 });

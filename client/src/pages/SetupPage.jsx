@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useDesign } from '../context/DesignContext.jsx';
+import { useMode } from '../context/ModeContext.jsx';
 import { secondaryLNVoltage, txImpedance, nextTransformerId, transformerRatings, getTransformerType } from '../lib/loadflow.js';
 import CurveEditor from '../components/CurveEditor.jsx';
 import TapAdvisorCard from '../components/TapAdvisorCard.jsx';
@@ -19,6 +20,9 @@ export default function SetupPage() {
   // ?section=fault|conductors (from the issues panel) scrolls to that section.
   const [searchParams] = useSearchParams();
   const section = searchParams.get('section');
+  // Basic shows the essentials only; a ?section= link (Issues panel) always gets the full page.
+  const { mode } = useMode();
+  const full = mode === 'advanced' || !!section;
   useEffect(() => {
     const el = section && document.getElementById('section-' + section);
     if (!el) return;
@@ -91,7 +95,7 @@ export default function SetupPage() {
                 <input type="number" value={tx.txGroundOhms ?? 7.5} step={0.5} min={0.1} onChange={e => updateTx(tx.id, { txGroundOhms: num(e.target.value) })} />
               </label>
               <p className="hint" style={{ marginTop: -4 }}>No-load secondary phase-neutral voltage at this tap: {v0.toFixed(1)} V ({(v0 * Math.sqrt(3)).toFixed(0)} V line-line).</p>
-              <details style={{ marginBottom: 10 }}>
+              {full && (<details style={{ marginBottom: 10 }}>
                 <summary style={{ cursor: 'pointer', fontSize: 12 }}>HV voltage profile {Array.isArray(tx.hvProfile) && tx.hvProfile.some(v => v !== 1) ? '(varies by hour)' : '(flat — 1.0 all day)'}</summary>
                 <p className="hint" style={{ marginTop: 6 }}>Per-unit multipliers on the assumed HV supply, one per hour, for an HV feeder whose voltage swings over the day (e.g. from your SCADA or HV studies). Leave at 1.0 for a constant supply.</p>
                 <div className="tbl-wrap"><table>
@@ -103,7 +107,7 @@ export default function SetupPage() {
                   ))}</tr></tbody>
                 </table></div>
                 {Array.isArray(tx.hvProfile) && <button className="mini" style={{ marginTop: 6 }} onClick={() => updateTx(tx.id, { hvProfile: undefined })}>reset to flat</button>}
-              </details>
+              </details>)}
               <p className="hint" style={{ marginTop: -4 }}>Series impedance referred to LV, per phase: R={tz.r.toFixed(4)} Ω, X={tz.x.toFixed(4)} Ω (|Z|={tz.z.toFixed(4)} Ω from {(getTransformerType(design, tx.txRating).z * 100).toFixed(1)}% on nameplate rating).</p>
             </div>
           );
@@ -113,7 +117,8 @@ export default function SetupPage() {
         </div>
       </div>
 
-      <div style={{ marginTop: 18 }}><TapAdvisorCard /></div>
+      {full && (<>
+      <div className="mt-4"><TapAdvisorCard /></div>
 
       <div className="section-title">Transformer no-load loss by rating</div>
       <div className="card" style={{ padding: '8px 12px' }}>
@@ -136,8 +141,9 @@ export default function SetupPage() {
           </tbody>
         </table></div>
       </div>
+      </>)}
 
-      <div className="grid g3" style={{ marginTop: 18 }}>
+      <div className="grid g3 mt-4">
         <div className="card">
           <h2>Customer load assumptions</h2>
           <p className="hint">Applied to every general connection unless overridden per-connection. ADMD represents the night peak (18:30–22:30).</p>
@@ -155,7 +161,7 @@ export default function SetupPage() {
           <label className="chk"><input type="checkbox" checked={design.includeBess} onChange={e => set({ includeBess: e.target.checked })} /> Include battery storage (BESS)</label>
         </div>
 
-        <div className="card">
+        {full && (<div className="card">
           <h2>Load voltage-dependence (ZIP model)</h2>
           <p className="hint">Real feeders draw a mix of constant-impedance (Z — resistive heaters, incandescent lighting), constant-current (I), and constant-power (P — LEDs, inverter appliances, EV chargers) demand: P(V) = P₀·[a_Z(V/V₀)² + a_I(V/V₀) + a_P], with the same ratio applied to Q. Older, more resistive feeders skew toward Z; modern LED/inverter/EV-heavy feeders skew toward P, which is why voltage margins matter more on them. Applies to general/EV/shop connections only — rooftop PV and BESS always stay constant-power.</p>
           <label className="field"><span>Model</span>
@@ -182,11 +188,11 @@ export default function SetupPage() {
               </p>
             </>
           )}
-        </div>
+        </div>)}
 
         <div>
-          <StandardsCard />
-          <div className="card" style={{ marginTop: 18 }}>
+          {full && <StandardsCard />}
+          <div className={'card' + (full ? ' mt-4' : '')}>
           <h2>Connection caps</h2>
           <label className="field"><span>Max single-phase PV per connection (kW)</span>
             <input type="number" value={design.maxpv} step={0.5} onChange={e => set({ maxpv: num(e.target.value) })} /></label>
@@ -196,7 +202,7 @@ export default function SetupPage() {
         </div>
         </div>
 
-        <div className="card">
+        {full && (<div className="card">
           <h2>BESS charge / discharge assumptions</h2>
           <p className="hint">By default a BESS connection is a fixed-power schedule: it draws its rated kVA from the grid during the charge window and injects it at unity power factor during the discharge window, with no state-of-charge tracking. Individual units can instead use a state-of-charge mode (Network page, needs the battery's kWh), which uses these windows but respects its SOC limits. Windows snap to whole clock hours since the load flow solves one snapshot per hour, so 18:30–22:30 is approximated as whole hours below (same rounding the app already uses for ADMD's night peak).</p>
           <label className="field"><span>Round-trip efficiency</span>
@@ -224,11 +230,12 @@ export default function SetupPage() {
               </select>
             </label>
           </div>
-        </div>
+        </div>)}
       </div>
 
-      <div style={{ marginTop: 18 }}><InverterCard /></div>
-      <div style={{ marginTop: 18 }}><ThermalCard /></div>
+      {full && (<>
+      <div className="mt-4"><InverterCard /></div>
+      <div className="mt-4"><ThermalCard /></div>
 
       <div className="section-title" id="section-fault" tabIndex={-1}>Fault level &amp; protection settings</div>
       <div className="card">
@@ -249,11 +256,11 @@ export default function SetupPage() {
 
       <div className="section-title" id="section-conductors" tabIndex={-1}>Conductor library</div>
       <ConductorLibraryEditor />
-      <div style={{ marginTop: 18 }}><LineModelCard /></div>
-      <div style={{ marginTop: 18 }} id="section-economics" tabIndex={-1}><EconomicsCard /></div>
-      <div style={{ marginTop: 18 }} id="section-velander" tabIndex={-1}><VelanderCard /></div>
+      <div className="mt-4"><LineModelCard /></div>
+      <div className="mt-4" id="section-economics" tabIndex={-1}><EconomicsCard /></div>
+      <div className="mt-4" id="section-velander" tabIndex={-1}><VelanderCard /></div>
 
-      <div className="grid g4" style={{ marginTop: 18 }}>
+      <div className="grid g4 mt-4">
         <div className="card">
           <h2>General load daily curve</h2>
           <p className="hint">Multiplier of ADMD by hour. Drag bars to reshape.</p>
@@ -280,6 +287,7 @@ export default function SetupPage() {
           <CurveEditor values={design.solarCurve} onChange={(v) => set({ solarCurve: v })} max={1.1} colorVar="--warn" />
         </div>
       </div>
+      </>)}
     </div>
   );
 }

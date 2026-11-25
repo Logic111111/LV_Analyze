@@ -71,9 +71,9 @@ export default function DashboardPage() {
           <div className="field"><span>View</span>
             <label className="chk"><input type="checkbox" checked={sort.key === 'worst'} onChange={e => setSort(e.target.checked ? { key: 'worst', dir: 'desc' } : { key: 'updatedAt', dir: 'desc' })} /> Worst first</label></div>
         </div>
-        {error && <p className="hint" role="alert" style={{ color: 'var(--bad)' }}>{error}</p>}
+        {error && <p className="hint error" role="alert">{error}</p>}
       </div>
-      <div className="card" style={{ marginTop: 14 }}>
+      <div className="card mt-4">
         {rows && rows.length > 0 && <div style={{ marginBottom: 8 }}><CsvButton name="Fleet dashboard" columns={['Design', 'Status', 'Owner', 'Organisation', 'Updated', 'Violations', 'Worst V', 'Worst at', 'Transformer peak %', 'Losses kWh/day', 'PV headroom kVA', 'Protection']}
           rows={shown.map(d => { const s = d.summary || {}; return [d.name, d.status, d.own ? 'me' : d.ownerEmail, d.orgName || '', d.updatedAt, s.violations ? s.violations.total : '', s.worstV ?? '', s.worstAt ?? '', s.txPeakPct ?? '', s.lossKwhDay ?? '', s.hostingTotalKva ?? '', s.protection ?? '']; })} /></div>}
         {!rows ? <p className="hint">Loading…</p> : !rows.length ? <p className="hint">No saved designs yet.</p> : (

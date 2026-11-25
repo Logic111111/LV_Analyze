@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Chart } from 'chart.js/auto';
+import '../lib/chartDefaults.js';
 
 // `label` names the chart for screen readers (P5.10); the pages also print the key numbers.
 export default function LineChart({ data, options, height = 90, label = '24-hour chart' }) {

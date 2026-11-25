@@ -31,7 +31,9 @@ const NODE = { A: 1, B: 2, C: 3 };
 // The HV side's nominal voltage only sets the turns ratio's numerator; the app models the
 // transformer from its LV side, so any value gives the same LV result. 11 kV is the usual one.
 const HV_KV = 11;
-const fmt = (/** @type {number} */ x) => (Math.abs(x) < 1e-15 ? '0' : Number(x.toPrecision(12)).toString());
+// Numbers go through Number() so a design value that isn't one (a string from imported JSON) can only
+// ever print as a number or NaN, never as script text.
+const fmt = (/** @type {unknown} */ x) => { const n = Number(x); return Math.abs(n) < 1e-15 ? '0' : Number(n.toPrecision(12)).toString(); };
 
 /** A name OpenDSS accepts (letters, digits, underscore), unique within `used`. @param {string} prefix @param {string} id @param {Set<string>} used */
 function dssName(prefix, id, used) {
@@ -64,7 +66,10 @@ export function toOpenDSS(design, opts) {
   const index = connectionIndex(design);
   const used = new Set();
   const out = [];
-  const say = (/** @type {string} */ s) => out.push(s);
+  // One call, one script line: control characters (CR/LF above all) in a name or id are blanked, so
+  // free text in a comment can't start a line of its own and run as an OpenDSS command.
+  // eslint-disable-next-line no-control-regex -- matching control characters is the point: one statement per line
+  const say = (/** @type {string} */ s) => out.push(s.replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, ' '));
 
   say(`! ${design.name || 'Design'} — exported by Feeder Island for year ${year}, ${String(hour).padStart(2, '0')}:00, load ×${loadMult}, solar ×${solarMult}`);
   say('! Same model as the app: ideal source behind the transformer impedance, uncoupled (or the');
@@ -90,9 +95,9 @@ export function toOpenDSS(design, opts) {
     // as in the app (PHASE_ANGLE). A stiff source (µΩ) so the transformer is the only impedance.
     const src = `bus1=${hv} basekv=${HV_KV} pu=1 angle=${fmt(PHASE_ANGLE.A - 30)} phases=3 Z1=[1e-6 1e-6] Z0=[1e-6 1e-6]`;
     say('');
-    say(`! Transformer ${tx.id}: ${tx.txRating} kVA, V0 = ${fmt(V0)} V phase-neutral, Z = ${fmt(z.r)} + j${fmt(z.x)} Ω per phase (LV)`);
+    say(`! Transformer ${tx.id}: ${fmt(tx.txRating)} kVA, V0 = ${fmt(V0)} V phase-neutral, Z = ${fmt(z.r)} + j${fmt(z.x)} Ω per phase (LV)`);
     say(i === 0 ? `New Circuit.feeder_island ${src}` : `New Vsource.${dssName('src', tx.id, used)} ${src}`);
-    say(`New Transformer.${dssName('t', tx.id, used)} phases=3 windings=2 buses=[${hv}.1.2.3 ${txBus[tx.id]}.1.2.3.4] conns=[delta wye] kVs=[${HV_KV} ${fmt(kvLL)}] kVAs=[${tx.txRating} ${tx.txRating}] %Rs=[${fmt(pctR / 2)} ${fmt(pctR / 2)}] XHL=${fmt(pctX)} %noloadloss=0 %imag=0 LeadLag=Lead`);
+    say(`New Transformer.${dssName('t', tx.id, used)} phases=3 windings=2 buses=[${hv}.1.2.3 ${txBus[tx.id]}.1.2.3.4] conns=[delta wye] kVs=[${HV_KV} ${fmt(kvLL)}] kVAs=[${fmt(tx.txRating)} ${fmt(tx.txRating)}] %Rs=[${fmt(pctR / 2)} ${fmt(pctR / 2)}] XHL=${fmt(pctX)} %noloadloss=0 %imag=0 LeadLag=Lead`);
     say(`New Reactor.${dssName('rg', tx.id, used)} phases=1 bus1=${txBus[tx.id]}.4 bus2=${txBus[tx.id]}.0 R=${fmt(Number(tx.txGroundOhms) || 7.5)} X=0`);
   });
 
@@ -155,4 +160,27 @@ export function toOpenDSS(design, opts) {
   say('Solve');
   notes.forEach(n => say(`! Note: ${n}`));
   return { script: out.join('\n') + '\n', buses: { poles: poleBus, transformers: txBus }, notes };
+}
+
+/**
+ * One OpenDSS cross-check case: the export plus the app's own results at the same buses, in the
+ * shape scripts/validate-opendss.py reads (<name>.dss + <name>.app.json). Shared by
+ * scripts/opendss-cases.mjs and the server's automatic check after a load flow run.
+ * @param {Design} design
+ * @param {SnapshotOptions} opts
+ */
+export function openDSSCheckCase(design, opts) {
+  const res = runSnapshotAt(design, opts);
+  const { script, buses, notes } = toOpenDSS(design, { ...opts, result: res });
+  const abs = (/** @type {{ re: number, im: number }} */ z) => Math.hypot(z.re, z.im);
+  const app = {
+    status: res.status, poleCount: design.poles.length, hour: opts.hour, loadMult: opts.loadMult ?? 1,
+    // I: the span's phase and neutral current into this pole.
+    poles: res.poleResults.map(p => ({ id: p.id, bus: buses.poles[p.id], V: { A: p.volt.A, B: p.volt.B, C: p.volt.C }, I: { A: p.cur.A, B: p.cur.B, C: p.cur.C, N: p.In } })),
+    transformers: res.transformers.map(t => ({ id: t.id, bus: buses.transformers[t.id], V: { A: abs(t.busVph.A), B: abs(t.busVph.B), C: abs(t.busVph.C) }, kVA: t.txKVA })),
+    // Losses OpenDSS also has: spans, transformer copper (the export has no no-load loss), earth electrodes.
+    lossW: res.totalLossW + res.transformers.reduce((s, t) => s + t.txLossW, 0) + res.groundLossW,
+    notes
+  };
+  return { script, app };
 }

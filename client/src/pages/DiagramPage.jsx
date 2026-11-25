@@ -168,13 +168,13 @@ export default function DiagramPage() {
     <div>
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-          <h2 style={{ margin: 0 }}>{t('Network diagram')} — {design.name}</h2>
+          <h2 className="flush">{t('Network diagram')} — {design.name}</h2>
           <div role="radiogroup" aria-label="Diagram view" style={{ display: 'flex', gap: 12 }}>
             <label className="chk"><input type="radio" name="dgView" checked={view === 'sld'} onChange={() => setView('sld')} /> {t('Single-line diagram')}</label>
             <label className="chk"><input type="radio" name="dgView" checked={view === 'simple'} onChange={() => setView('simple')} /> {t('Simple view')}</label>
           </div>
         </div>
-        <div className="grid g3" style={{ marginTop: 10 }}>
+        <div className="grid g3 mt-3">
           <div className="field"><span>{t('Year')}</span><YearPicker value={year} onChange={setYear} /></div>
           <label className="field"><span>Hour of day: <b>{String(hour).padStart(2, '0')}:00</b> (re-solves as you move it)</span>
             <input type="range" min={0} max={23} value={hour} onChange={e => setHour(Number(e.target.value))} aria-valuetext={`${hour}:00`} /></label>
@@ -206,7 +206,7 @@ export default function DiagramPage() {
       </div>
 
       {res && (
-        <div style={{ marginTop: 14 }}>
+        <div className="mt-4">
           <SolveStatusWarning res={res} what="the voltages and flows drawn below" />
           {view === 'simple' ? (
             <div className="card"><div className="diagram" dangerouslySetInnerHTML={{ __html: buildDiagramSVG(sceneDesign, res, theme) }} /></div>
@@ -234,9 +234,9 @@ export default function DiagramPage() {
             </div>
           )}
           {view === 'sld' && (moves.length > 0 || pending || confirmed) && (
-            <div className="card" style={{ marginTop: 14 }}>
+            <div className="card mt-4">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-                <h2 style={{ margin: 0 }}>What-if moves</h2>
+                <h2 className="flush">What-if moves</h2>
                 <button className="ghost" onClick={undoMove} disabled={!moves.length}>Undo last move{moves.length ? ` (${moves[moves.length - 1].ref.id} ${moves[moves.length - 1].to} → ${moves[moves.length - 1].ref.phase})` : ''}</button>
               </div>
               <p className="hint">{moves.length} move{moves.length === 1 ? '' : 's'} made on this page (they change the design; Undo reverses them one at a time).</p>
@@ -271,7 +271,7 @@ export default function DiagramPage() {
             </div>
           )}
           {view === 'sld' && scene && (
-            <div className="card" style={{ marginTop: 14 }}>
+            <div className="card mt-4">
               <h2>{t('Export')}</h2>
               <p className="hint">SVG, PNG and print/PDF carry a title block with the design name, date, snapshot and the sign-off below. DXF (AutoCAD R12) has one layer per element type.</p>
               <div className="grid g3">
