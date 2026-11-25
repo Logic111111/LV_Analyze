@@ -80,6 +80,7 @@ header.top{position:sticky;top:0;z-index:20;background:var(--glass);-webkit-back
 kbd{font:600 10.5px var(--mono);padding:2px 6px;border-radius:5px;border:1px solid var(--line);background:var(--panel);color:var(--muted);white-space:nowrap}
 .headright{display:flex;gap:6px;align-items:center}
 .headright .lang-select{height:34px;padding:0 8px}
+.sidebar .mode-switch{display:none;align-self:flex-start;margin:4px 16px 8px}
 .iconbtn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:34px;height:34px;padding:0 9px;border:1px solid var(--line);border-radius:var(--r-2);background:var(--panel-2);color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;transition:color var(--dur-1),border-color var(--dur-1)}
 .iconbtn:disabled{opacity:.45;cursor:not-allowed}
 .iconbtn:hover:not(:disabled){color:var(--text);border-color:var(--accent-2)}
@@ -133,6 +134,8 @@ body.drawer-lock{overflow:hidden}
   .palette-trigger{flex:none;margin:0}
   .palette-trigger-text,.palette-trigger kbd{display:none}
   .headright .lang-select{max-width:88px}
+  .headright .mode-switch{display:none}
+  .sidebar .mode-switch{display:inline-flex}
   header.top .draft-banner{margin:0 12px 8px}
   main{padding:16px 14px 72px}
 }

@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { NAV_GROUPS } from '../lib/nav.js';
+import { navGroupsFor } from '../lib/nav.js';
 import { useI18n } from '../i18n/i18n.jsx';
+import { useMode } from '../context/ModeContext.jsx';
 import Icon from './icons.jsx';
+import ModeSwitch from './ModeSwitch.jsx';
 
 // Grouped navigation (UI stage 1). Desktop: a sticky column, 248 px or 64 px (icons only).
 // Phones (≤720 px): an off-canvas drawer opened from the top bar's menu button; AppShell owns
 // its open state, focus trap and closing rules. One indicator bar slides to the active item.
 export default function Sidebar({ collapsed, onToggleCollapsed, drawerOpen, onCloseDrawer, sidebarRef }) {
   const { t } = useI18n();
+  const { mode } = useMode();
   const location = useLocation();
   const navRef = useRef(null);
   const [bar, setBar] = useState({ top: 0, height: 0, visible: false });
@@ -21,7 +24,7 @@ export default function Sidebar({ collapsed, onToggleCollapsed, drawerOpen, onCl
       setBar(active ? { top: active.offsetTop, height: active.offsetHeight, visible: true } : b => ({ ...b, visible: false }));
     });
     return () => cancelAnimationFrame(frame);
-  }, [location.pathname, collapsed]);
+  }, [location.pathname, collapsed, mode]);
 
   return (
     <aside className={'sidebar' + (drawerOpen ? ' open' : '')} ref={sidebarRef}>
@@ -32,10 +35,11 @@ export default function Sidebar({ collapsed, onToggleCollapsed, drawerOpen, onCl
           <Icon name="close" />
         </button>
       </div>
+      <ModeSwitch />
       <nav className="sidebar-nav" aria-label={t('Main navigation')} ref={navRef}>
         <span className={'sidebar-indicator' + (bar.visible ? ' on' : '')} aria-hidden="true"
           style={{ transform: `translateY(${bar.top}px)`, height: bar.height }} />
-        {NAV_GROUPS.map(g => (
+        {navGroupsFor(mode).map(g => (
           <div className="sidebar-section" key={g.id}>
             <div className="sidebar-group" id={'nav-group-' + g.id}>{t(g.label)}</div>
             <ul aria-labelledby={'nav-group-' + g.id}>

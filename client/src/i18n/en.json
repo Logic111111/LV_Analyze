@@ -126,5 +126,8 @@
   "About this deployment": "About this deployment",
   "Build a new network step by step": "Build a new network step by step",
   "Command palette": "Command palette",
-  "No matches": "No matches"
+  "No matches": "No matches",
+  "Mode": "Mode",
+  "Basic": "Basic",
+  "Advanced": "Advanced"
 }

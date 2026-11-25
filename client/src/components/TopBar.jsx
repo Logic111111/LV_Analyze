@@ -1,6 +1,7 @@
 import { useAuth } from '../context/AuthContext.jsx';
 import { useDesign } from '../context/DesignContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
+import ModeSwitch from './ModeSwitch.jsx';
 import { useI18n, LANGUAGES } from '../i18n/i18n.jsx';
 import Icon from './icons.jsx';
 
@@ -35,6 +36,7 @@ export default function TopBar({ onOpenMenu, onOpenPalette, menuButtonRef }) {
           <kbd>Ctrl K</kbd>
         </button>
         <div className="headright">
+          <ModeSwitch />
           <button type="button" className="iconbtn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl/⌘+Z)" aria-label={t('Undo')}><Icon name="undo" /></button>
           <button type="button" className="iconbtn" onClick={redo} disabled={!canRedo} title="Redo (Shift+Ctrl/⌘+Z)" aria-label={t('Redo')}><Icon name="redo" /></button>
           <button type="button" className="iconbtn" onClick={toggleTheme} title={themeLabel} aria-label={themeLabel}><Icon name={theme === 'dark' ? 'sun' : 'moon'} /></button>

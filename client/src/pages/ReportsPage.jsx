@@ -1,5 +1,8 @@
 import { useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useDesign } from '../context/DesignContext.jsx';
+import { useMode } from '../context/ModeContext.jsx';
+import { plainSummary } from '../lib/plainSummary.js';
 import { api } from '../api.js';
 import { runSnapshotAt, getTransformerType, transformerOfPole, isTransformerId, systemLossW } from '../lib/loadflow.js';
 import { downloadHtml, reportFileName } from '../lib/report.js';
@@ -31,6 +34,7 @@ export default function ReportsPage() {
   const [loadMult, setLoadMult] = useState(1);
   const [solarMult, setSolarMult] = useState(1);
   const [busy, setBusy] = useState(false);
+  const basic = useMode().mode === 'basic';
   // OpenDSS cross-check of the last run: { running } | the server's summary | { error }.
   const [dssCheck, setDssCheck] = useState(null);
   const checkId = useRef(0);
@@ -136,13 +140,29 @@ export default function ReportsPage() {
         {busy && <span className="loading" style={{ marginLeft: 12 }}><span className="spinner"></span> solving…</span>}
       </div>
 
-      <OpenDssCheck check={dssCheck} />
+      {!basic && <OpenDssCheck check={dssCheck} />}
+      {basic && res && <WhatThisMeans res={res} />}
       {res && <Report res={res} design={design} />}
     </div>
   );
 }
 
 const mV = (v) => (v * 1000).toFixed(2);
+
+// Basic mode: the last run in plain words, each problem linked to the page that fixes it.
+function WhatThisMeans({ res }) {
+  const { ok, lines } = plainSummary(res);
+  return (
+    <div className="card mt-4">
+      <h2>What this means <span className={'pill ' + (ok ? 'ok' : 'bad')}>{ok ? 'All good' : 'Needs attention'}</span></h2>
+      {lines.map(l => (
+        <p key={l.text} style={{ margin: '8px 0 0' }}>
+          {l.text}{l.to && <> <Link to={l.to}>{l.linkLabel}</Link></>}
+        </p>
+      ))}
+    </div>
+  );
+}
 
 // Summary of the server's OpenDSS cross-check of the last run (see server/src/routes/opendss.js).
 function OpenDssCheck({ check }) {

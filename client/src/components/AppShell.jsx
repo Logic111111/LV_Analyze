@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { NAV_GROUPS, EXTRA_ITEMS, findNavItem } from '../lib/nav.js';
+import { navGroupsFor, findNavItem } from '../lib/nav.js';
+import { useMode } from '../context/ModeContext.jsx';
 import { useI18n } from '../i18n/i18n.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useDesign } from '../context/DesignContext.jsx';
@@ -73,6 +74,7 @@ export default function AppShell({ children }) {
   const { theme, toggleTheme } = useTheme();
   const { undo, redo, canUndo, canRedo } = useDesign();
   const { logout } = useAuth();
+  const { mode } = useMode();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const returnFocusRef = useRef(null);
   const openPalette = useCallback(() => { returnFocusRef.current = document.activeElement; setPaletteOpen(true); }, []);
@@ -97,7 +99,7 @@ export default function AppShell({ children }) {
 
   const paletteItems = useMemo(() => {
     const page = (i, g) => ({ id: 'page:' + i.path, label: t(i.label), keywords: [i.label], group: g ? t(g.label) : null, kind: 'page', icon: i.icon, path: i.path });
-    const pages = [...NAV_GROUPS.flatMap(g => g.items.map(i => page(i, g))), ...EXTRA_ITEMS.map(i => page(i, null))];
+    const pages = navGroupsFor(mode).flatMap(g => g.items.map(i => page(i, g)));
     const actions = [
       { id: 'act:theme', label: theme === 'dark' ? t('Light mode') : t('Dark mode'), keywords: ['Light mode', 'Dark mode', 'theme'], group: null, kind: 'action', icon: theme === 'dark' ? 'sun' : 'moon', run: toggleTheme },
       canUndo && { id: 'act:undo', label: t('Undo'), keywords: ['Undo'], group: null, kind: 'action', icon: 'undo', run: undo },
@@ -105,7 +107,7 @@ export default function AppShell({ children }) {
       { id: 'act:signout', label: t('Sign out'), keywords: ['Sign out', 'log out'], group: null, kind: 'action', icon: 'user', run: logout }
     ].filter(Boolean);
     return [...pages, ...actions];
-  }, [t, theme, toggleTheme, canUndo, canRedo, undo, redo, logout]);
+  }, [t, theme, toggleTheme, canUndo, canRedo, undo, redo, logout, mode]);
   const onSelect = useCallback((item) => {
     setPaletteOpen(false);
     if (item.kind === 'page') navigate('/app/' + item.path);

@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { DesignProvider } from './context/DesignContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
+import { ModeProvider } from './context/ModeContext.jsx';
 import { I18nProvider } from './i18n/i18n.jsx';
 import AppShell from './components/AppShell.jsx';
 import IssuesPanel from './components/IssuesPanel.jsx';
@@ -90,6 +91,7 @@ function PublicOnly({ children }) {
 export default function App() {
   return (
     <ThemeProvider>
+      <ModeProvider>
       <I18nProvider>
       <AuthProvider>
         <Routes>
@@ -101,6 +103,7 @@ export default function App() {
         <UpdateBanner />
       </AuthProvider>
       </I18nProvider>
+      </ModeProvider>
     </ThemeProvider>
   );
 }

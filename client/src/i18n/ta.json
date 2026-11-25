@@ -126,5 +126,8 @@
   "About this deployment": "இந்த நிறுவல் பற்றி",
   "Build a new network step by step": "படிப்படியாக புதிய வலையமைப்பை உருவாக்கு",
   "Command palette": "கட்டளைத் தட்டு",
-  "No matches": "பொருத்தங்கள் இல்லை"
+  "No matches": "பொருத்தங்கள் இல்லை",
+  "Mode": "பயன்முறை",
+  "Basic": "அடிப்படை",
+  "Advanced": "மேம்பட்ட"
 }

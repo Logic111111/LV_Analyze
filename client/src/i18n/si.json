@@ -126,5 +126,8 @@
   "About this deployment": "මෙම යෙදවීම ගැන",
   "Build a new network step by step": "පියවරෙන් පියවර නව ජාලයක් ගොඩනඟන්න",
   "Command palette": "විධාන පුවරුව",
-  "No matches": "ගැළපීම් නැත"
+  "No matches": "ගැළපීම් නැත",
+  "Mode": "ප්‍රකාරය",
+  "Basic": "මූලික",
+  "Advanced": "උසස්"
 }
